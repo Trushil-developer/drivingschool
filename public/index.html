@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driving School Form</title>
+    <link rel="stylesheet" href="css/form.css">
+    <script defer src="js/booking.js"></script>
+</head>
+
+<body>
+    <div class="form-container">
+
+        <!-- Logo and Title Row -->
+        <div class="logo-header">
+            <img src="images/logo.png" alt="Driving School Logo" class="logo">
+            <h1>DWARKESH MOTOR DRIVING SCHOOL</h1>
+        </div>
+
+        <div class="header-row">
+            <div>
+                <p>REG NO.1-AD-2014-344</p>
+                <p>9924116122 &nbsp;&nbsp; 8401862035</p>
+            </div>
+            <div class="date-box">
+                <label for="form_date">Date:</label>
+                <input type="date" id="form_date" name="form_date">
+            </div>
+        </div>
+
+        <form id="mainForm">
+
+            <div class="row">
+                <label>1. Branch:</label>
+                <input type="checkbox" name="branch" value="Vandematram"> Vandematram
+                <input type="checkbox" name="branch" value="Malabar"> Malabar
+                <input type="checkbox" name="branch" value="South Bopal"> South Bopal
+            </div>
+
+            <div class="row">
+                <label>2. Training Days:</label>
+                <div class="radio-group">
+                    <label class="radio-box">
+                        <input type="radio" name="training_days" value="21">
+                        <span>21 Days</span>
+                    </label>
+                    <label class="radio-box">
+                        <input type="radio" name="training_days" value="15">
+                        <span>15 Days</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="row">
+                <label>3. Car:</label>
+                <input type="checkbox" name="car" value="Aura"> Aura
+                <input type="checkbox" name="car" value="Wagon R"> Wagon R
+                <input type="checkbox" name="car" value="i10 / Sentro"> i10 / Sentro
+            </div>
+
+            <hr class="separator">
+
+            <div class="row name-photo-row">
+                <div class="left-fields">
+                    <div class="field">
+                        <label>4. Name:</label>
+                        <input type="text" class="flex-input" name="customer_name">
+                    </div>
+                    <div class="field">
+                        <label>5. Address:</label>
+                        <input type="text" class="flex-input" name="address">
+                    </div>
+                    <div class="field">
+                        <label>6. Mobile No.:</label>
+                        <input type="text" class="flex-input" name="mobile_no">
+                    </div>
+                    <div class="field">
+                        <label>7. WhatsApp No.:</label>
+                        <input type="text" class="flex-input" name="whatsapp_no">
+                    </div>
+                </div>
+                <div class="photo-box"></div>
+            </div>
+
+            <div class="row">
+                <label>8. Sex:</label>
+                <select name="sex" class="short">
+                    <option value="">Select</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                </select>
+
+                <label>Birth Date:</label>
+                <input type="date" class="short" name="birth_date">
+
+                <label>C.O.V.:</label>
+                <input type="checkbox" name="cov_lmv" value="LMV"> LMV
+                <input type="checkbox" name="cov_mc" value="MC"> M/C
+            </div>
+
+            <div class="row">
+                <label>9. DL No.:</label>
+                <input type="text" class="long" name="dl_no">
+
+                <label>From:</label>
+                <input type="text" class="short" name="dl_from">
+                <label>To:</label>
+                <input type="text" class="short" name="dl_to">
+            </div>
+
+            <div class="row">
+                <label>10. Email:</label>
+                <input type="email" class="long" name="email">
+            </div>
+
+            <div class="row">
+                <label>11. Occupation:</label>
+                <input type="text" class="long" name="occupation">
+            </div>
+
+            <div class="row">
+                <label>12. Ref:</label>
+                <input type="text" class="long" name="ref">
+            </div>
+
+            <div class="row">
+                <label>13. Allotted Time:</label>
+                <input type="time" class="short" name="allotted_time">
+                <label>Starting From:</label>
+                <input type="date" class="short" name="starting_from">
+            </div>
+
+            <div class="row">
+                <label>14. Total Fees:</label>
+                <input type="text" class="short" name="total_fees">
+                <label>Advance:</label>
+                <input type="text" class="short" name="advance">
+            </div>
+
+            <div class="row">
+                <label>15. Instructor:</label>
+                <input type="text" class="long" name="instructor_name">
+            </div>
+
+            <div class="note-section">
+                <h3>NOTES:</h3>
+                <div class="note">
+                    <p>1. Fees are not refundable</p>
+                    <p>2. Course has to be completed within 28 days</p>
+                    <p>3. Driving duration per day is 30 min / 7-8 km</p>
+                    <p>4. No one is allowed on back seat</p>
+                </div>
+            </div>
+
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+</body>
+
+</html>

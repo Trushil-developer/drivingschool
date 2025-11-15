@@ -1,0 +1,201 @@
+/* ===== General Styles ===== */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    font-size: 16px;
+    background-color: #f9f9f9;
+    color: #333;
+}
+
+.main {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ===== Sidebar ===== */
+#sidebar {
+    width: 250px;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+#sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#sidebar li {
+    padding: 15px 20px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#sidebar li.active {
+    background-color: #1a73e8;
+}
+
+/* ===== Content ===== */
+.content {
+    flex: 1;
+    padding: 1rem 2rem;
+    overflow-x: hidden;
+}
+
+/* ===== Controls ===== */
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.search-input {
+    flex: 1;
+    min-width: 150px;
+    padding: 0.5rem;
+    font-size: 1rem;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 3px;
+    border: none;
+}
+
+.btn-primary {
+    background-color: #1a73e8;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background-color: #1a73e8;
+}
+
+/* ===== Table Styles ===== */
+.table-wrap {
+    overflow-x: auto;
+    /* scrollable on mobile */
+}
+
+.bookings-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+.bookings-table th,
+.bookings-table td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border: 1px solid #ddd;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.bookings-table th {
+    background-color: #ecf0f1;
+}
+
+.bookings-table tr:nth-child(even) {
+    background-color: #f7f7f7;
+}
+
+/* ===== Action Buttons inside Table ===== */
+.bookings-table td .btn {
+    margin-right: 0.25rem;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+    white-space: nowrap;
+}
+
+.bookings-table td .btn:last-child {
+    margin-right: 0;
+}
+
+/* Wrap buttons nicely inside Actions cell */
+.bookings-table td:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+/* ===== Empty/Error messages ===== */
+.empty,
+.error {
+    padding: 2rem;
+    text-align: center;
+    color: #666;
+}
+
+/* ===== Modal ===== */
+#attendanceModalContainer {
+    /* Placeholder for modal styling */
+}
+
+/* ===== Responsive Styles ===== */
+@media (max-width: 1024px) {
+    #sidebar {
+        width: 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .main {
+        flex-direction: column;
+    }
+
+    #sidebar {
+        width: 100%;
+    }
+
+    .content {
+        padding: 1rem;
+    }
+
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-input,
+    .btn {
+        width: 100%;
+    }
+
+    /* Make table scrollable instead of squeezing */
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    .bookings-table th,
+    .bookings-table td {
+        padding: 0.4rem 0.5rem;
+        font-size: 14px;
+    }
+
+    /* Action buttons stack on small screens */
+    .bookings-table td:last-child {
+        flex-direction: row;
+        /* default row, wraps if needed */
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        font-size: 14px;
+    }
+
+    .bookings-table th,
+    .bookings-table td {
+        font-size: 12px;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 12px;
+    }
+}

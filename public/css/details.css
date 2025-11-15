@@ -1,0 +1,258 @@
+/* ===== General Layout ===== */
+.main {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 16px;
+    max-width: 1200px;
+    margin: 16px auto;
+    padding: 0 12px;
+}
+
+.sidebar {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+}
+
+.sidebar ul {
+    list-style: none;
+    padding: 0;
+}
+
+.sidebar li {
+    padding: 12px 10px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #0f172a;
+}
+
+.content {
+    background: var(--card);
+    padding: 20px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+/* ===== Details Topbar ===== */
+.details-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.details-topbar .btn {
+    padding: 10px 16px;
+    border-radius: 5px;
+    font-size: 14px;
+    margin-right: 8px;
+}
+
+.details-topbar .btn-success {
+    background: var(--success);
+}
+
+.details-topbar div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* ===== Details Table ===== */
+.details-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.details-table th,
+.details-table td {
+    padding: 12px 16px;
+    text-align: left;
+}
+
+.details-table th {
+    background: #f3f4f6;
+    font-weight: 600;
+    width: 200px;
+}
+
+.details-table tr:nth-child(even) {
+    background: #fafafa;
+}
+
+.details-table tr:hover {
+    background: #f1f5f9;
+}
+
+.details-table input[type="text"],
+.details-table input[type="date"],
+.details-table input[type="time"],
+.details-table input[type="number"] {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.details-table input[type="checkbox"] {
+    transform: scale(1.2);
+    margin: 0;
+}
+
+/* ===== Error Messages ===== */
+.error {
+    padding: 12px;
+    background: #f8d7da;
+    color: #721c24;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-weight: 500;
+}
+
+/* ===== Attendance Modal ===== */
+.attendance-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(3px);
+    z-index: 9998;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.attendance-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.attendance-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 420px;
+    max-height: 82vh;
+    overflow-y: auto;
+    background: var(--card);
+    border-radius: 14px;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+    padding: 22px;
+    z-index: 9999;
+
+    transform: translate(-50%, -40%);
+    opacity: 0;
+    transition: all 0.35s ease;
+}
+
+.attendance-modal.active {
+    transform: translate(-50%, -50%);
+    opacity: 1;
+}
+
+.attendance-modal table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 18px;
+}
+
+.attendance-modal th,
+.attendance-modal td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.attendance-modal th {
+    background: #f2f4f7;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.attendance-modal input[type="checkbox"] {
+    transform: scale(1.25);
+}
+
+#saveAttendanceBtn {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+}
+
+#closeAttendanceBtn {
+    background: #e5e7eb;
+    color: #111;
+}
+
+/* ===== Responsive Styles ===== */
+@media (max-width: 1024px) {
+    .main {
+        grid-template-columns: 1fr;
+        padding: 12px;
+    }
+
+    .sidebar {
+        display: none;
+    }
+
+    .details-topbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .details-topbar .btn {
+        margin-bottom: 8px;
+        width: 100%;
+    }
+
+    .details-topbar div {
+        flex-direction: column;
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .details-table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .details-table th,
+    .details-table td {
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        font-size: 14px;
+    }
+
+    .details-table th,
+    .details-table td {
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+
+    .details-topbar .btn {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    .attendance-modal {
+        width: 90%;
+        padding: 16px;
+    }
+}

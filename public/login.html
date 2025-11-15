@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Admin Login · Driving School</title>
+    <link rel="stylesheet" href="css/login.css">
+</head>
+
+<body>
+    <main class="login-container">
+        <h1>Admin Login</h1>
+        <form id="loginForm">
+            <div class="field">
+                <label for="username">Username</label>
+                <input type="text" name="username" id="username" required>
+            </div>
+            <div class="field">
+                <label for="password">Password</label>
+                <input type="password" name="password" id="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Login</button>
+            <div id="error" class="error"></div>
+        </form>
+    </main>
+
+    <script>
+        const form = document.getElementById('loginForm');
+        const errorDiv = document.getElementById('error');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = Object.fromEntries(new FormData(form).entries());
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin', // important for session cookie
+                    body: JSON.stringify(fd)
+                });
+
+                if (res.status === 401) {
+                    errorDiv.textContent = 'Unauthorized';
+                    return;
+                }
+
+                const j = await res.json();
+
+                if (j.success) {
+                    // login success → redirect to admin
+                    window.location.href = 'admin.html';
+                } else {
+                    errorDiv.textContent = j.error || 'Login failed';
+                }
+
+            } catch (err) {
+                console.error(err);
+                errorDiv.textContent = 'Login error';
+            }
+        });
+    </script>
+</body>
+
+</html>
