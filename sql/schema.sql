@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS attendance;
 DROP TABLE IF EXISTS bookings;
 DROP TABLE IF EXISTS cars;
 DROP TABLE IF EXISTS instructors;
+DROP TABLE IF EXISTS admins;
 
 -- ================================
 -- Cars table
