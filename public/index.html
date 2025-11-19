@@ -4,159 +4,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Driving School Form</title>
+    <title>Driving School Registration</title>
     <link rel="stylesheet" href="css/form.css">
-    <script defer src="js/booking.js"></script>
+    <link rel="stylesheet" href="css/modal.css">
 </head>
 
 <body>
     <div class="form-container">
-
-        <!-- Logo and Title Row -->
-        <div class="logo-header">
-            <img src="images/logo.png" alt="Driving School Logo" class="logo">
+        <div class="header">
+            <img src="images/logo.png" alt="Driving School Logo">
             <h1>DWARKESH MOTOR DRIVING SCHOOL</h1>
         </div>
 
-        <div class="header-row">
-            <div>
-                <p>REG NO.1-AD-2014-344</p>
-                <p>9924116122 &nbsp;&nbsp; 8401862035</p>
-            </div>
-            <div class="date-box">
-                <label for="form_date">Date:</label>
-                <input type="date" id="form_date" name="form_date">
-            </div>
+        <div class="row">
+            <div class="label">Date:</div>
+            <input type="date" id="form_date" name="form_date">
         </div>
 
         <form id="mainForm">
 
-            <div class="row">
-                <label>1. Branch:</label>
-                <input type="checkbox" name="branch" value="Vandematram"> Vandematram
-                <input type="checkbox" name="branch" value="Malabar"> Malabar
-                <input type="checkbox" name="branch" value="South Bopal"> South Bopal
+            <div class="section-title">Personal Details</div>
+
+            <div class="row stack-mobile">
+                <div class="label">Branch:</div>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" name="branch" value="Vandematram"> Vandematram</label>
+                    <label><input type="checkbox" name="branch" value="Malabar"> Malabar</label>
+                    <label><input type="checkbox" name="branch" value="South Bopal"> South Bopal</label>
+                </div>
             </div>
 
-            <div class="row">
-                <label>2. Training Days:</label>
+            <div class="row stack-mobile">
+                <div class="label">Training Days:</div>
                 <div class="radio-group">
-                    <label class="radio-box">
-                        <input type="radio" name="training_days" value="21">
-                        <span>21 Days</span>
-                    </label>
-                    <label class="radio-box">
-                        <input type="radio" name="training_days" value="15">
-                        <span>15 Days</span>
-                    </label>
+                    <label><input type="radio" name="training_days" value="21"> 21 Days</label>
+                    <label><input type="radio" name="training_days" value="15"> 15 Days</label>
+                </div>
+            </div>
+
+            <div class="row stack-mobile">
+                <div class="label">Car:</div>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" name="car" value="Aura"> Aura</label>
+                    <label><input type="checkbox" name="car" value="Wagon R"> Wagon R</label>
+                    <label><input type="checkbox" name="car" value="i10 / Sentro"> i10 / Sentro</label>
                 </div>
             </div>
 
             <div class="row">
-                <label>3. Car:</label>
-                <input type="checkbox" name="car" value="Aura"> Aura
-                <input type="checkbox" name="car" value="Wagon R"> Wagon R
-                <input type="checkbox" name="car" value="i10 / Sentro"> i10 / Sentro
-            </div>
-
-            <hr class="separator">
-
-            <div class="row name-photo-row">
-                <div class="left-fields">
-                    <div class="field">
-                        <label>4. Name:</label>
-                        <input type="text" class="flex-input" name="customer_name">
-                    </div>
-                    <div class="field">
-                        <label>5. Address:</label>
-                        <input type="text" class="flex-input" name="address">
-                    </div>
-                    <div class="field">
-                        <label>6. Mobile No.:</label>
-                        <input type="text" class="flex-input" name="mobile_no">
-                    </div>
-                    <div class="field">
-                        <label>7. WhatsApp No.:</label>
-                        <input type="text" class="flex-input" name="whatsapp_no">
-                    </div>
-                </div>
-                <div class="photo-box"></div>
+                <div class="label">Full Name:</div>
+                <input type="text" name="customer_name">
             </div>
 
             <div class="row">
-                <label>8. Sex:</label>
-                <select name="sex" class="short">
+                <div class="label">Address:</div>
+                <input type="text" name="address">
+            </div>
+
+            <div class="row">
+                <div class="label">Mobile No.:</div>
+                <input type="text" name="mobile_no">
+            </div>
+
+            <div class="row">
+                <div class="label">WhatsApp No.:</div>
+                <input type="text" name="whatsapp_no">
+            </div>
+
+            <div class="row stack-mobile">
+                <div class="label">Sex:</div>
+                <select name="sex">
                     <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    <option>Male</option>
+                    <option>Female</option>
+                    <option>Other</option>
                 </select>
 
-                <label>Birth Date:</label>
-                <input type="date" class="short" name="birth_date">
-
-                <label>C.O.V.:</label>
-                <input type="checkbox" name="cov_lmv" value="LMV"> LMV
-                <input type="checkbox" name="cov_mc" value="MC"> M/C
+                <div class="label">Birth Date:</div>
+                <input type="date" name="birth_date">
             </div>
 
-            <div class="row">
-                <label>9. DL No.:</label>
-                <input type="text" class="long" name="dl_no">
-
-                <label>From:</label>
-                <input type="text" class="short" name="dl_from">
-                <label>To:</label>
-                <input type="text" class="short" name="dl_to">
-            </div>
-
-            <div class="row">
-                <label>10. Email:</label>
-                <input type="email" class="long" name="email">
-            </div>
-
-            <div class="row">
-                <label>11. Occupation:</label>
-                <input type="text" class="long" name="occupation">
-            </div>
-
-            <div class="row">
-                <label>12. Ref:</label>
-                <input type="text" class="long" name="ref">
-            </div>
-
-            <div class="row">
-                <label>13. Allotted Time:</label>
-                <input type="time" class="short" name="allotted_time">
-                <label>Starting From:</label>
-                <input type="date" class="short" name="starting_from">
-            </div>
-
-            <div class="row">
-                <label>14. Total Fees:</label>
-                <input type="text" class="short" name="total_fees">
-                <label>Advance:</label>
-                <input type="text" class="short" name="advance">
-            </div>
-
-            <div class="row">
-                <label>15. Instructor:</label>
-                <input type="text" class="long" name="instructor_name">
-            </div>
-
-            <div class="note-section">
-                <h3>NOTES:</h3>
-                <div class="note">
-                    <p>1. Fees are not refundable</p>
-                    <p>2. Course has to be completed within 28 days</p>
-                    <p>3. Driving duration per day is 30 min / 7-8 km</p>
-                    <p>4. No one is allowed on back seat</p>
+            <div class="row stack-mobile">
+                <div class="label">C.O.V.:</div>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" name="cov_lmv" value="LMV"> LMV</label>
+                    <label><input type="checkbox" name="cov_mc" value="MC"> M/C</label>
                 </div>
             </div>
 
-            <button type="submit">Submit</button>
+            <div class="row dl-row stack-mobile dl">
+                <div class="label">DL No.:</div>
+                <input type="text" name="dl_no">
+
+                <div class="label">From:</div>
+                <input type="date" name="dl_from">
+
+                <div class="label">To:</div>
+                <input type="date" name="dl_to">
+            </div>
+
+            <div class="row">
+                <div class="label">Email:</div>
+                <input type="email" name="email">
+            </div>
+
+            <div class="row">
+                <div class="label">Occupation:</div>
+                <input type="text" name="occupation">
+            </div>
+
+            <div class="row">
+                <div class="label">Ref:</div>
+                <input type="text" name="ref">
+            </div>
+
+            <div class="row">
+                <div class="label">Allotted Time:</div>
+                <input type="time" name="allotted_time" step="1800" min="06:00" max="22:00">
+
+                <div class="label">Start Date:</div>
+                <input type="date" name="starting_from">
+            </div>
+
+            <div class="row">
+                <div class="label">Total Fees:</div>
+                <input type="text" name="total_fees">
+
+                <div class="label">Advance:</div>
+                <input type="text" name="advance">
+            </div>
+
+            <div class="row">
+                <div class="label">Instructor:</div>
+                <input type="text" name="instructor_name">
+            </div>
+
+            <div class="section-title">Notes</div>
+
+            <div class="notes-box">
+                <p>1. Fees are not refundable.</p>
+                <p>2. Course must be completed within 28 days.</p>
+                <p>3. Driving duration per day: 30 min / 7-8 km.</p>
+                <p>4. No one is allowed on the back seat.</p>
+                <label>
+                    <input type="checkbox" id="accept_notes">
+                    I have read and accept the above notes.
+                </label>
+            </div>
+
+            <button type="submit">Submit Booking</button>
         </form>
     </div>
+
+    <div id="appModal" class="hidden">
+        <div class="modal-box">
+            <span class="modal-close">&times;</span>
+            <div class="modal-inner"></div>
+        </div>
+    </div>
+
+    <script type="module" defer src="js/booking.js"></script>
+    <script type="module" src="js/modal.js"></script>
 </body>
 
 </html>

@@ -38,7 +38,6 @@ const db = await mysql.createConnection({
 
 console.log('Connected to MySQL database.');
 
-
 // ==================================================================
 // AUTH USING DATABASE
 // ==================================================================
@@ -58,7 +57,6 @@ app.post('/api/login', async (req, res) => {
     }
 
     const admin = rows[0];
-
     const match = await bcrypt.compare(password, admin.password);
     if (!match) {
       return res.json({ success: false, error: "Invalid credentials" });
@@ -66,7 +64,6 @@ app.post('/api/login', async (req, res) => {
 
     req.session.adminLoggedIn = true;
     req.session.adminId = admin.id;
-
     res.json({ success: true });
 
   } catch (err) {
@@ -89,7 +86,6 @@ function requireAdmin(req, res, next) {
   return res.status(401).json({ success: false, error: "Unauthorized" });
 }
 
-
 // ==================================================================
 // DATE HELPER
 // ==================================================================
@@ -100,38 +96,44 @@ function toMySQLDate(value) {
   return d.toISOString().split("T")[0];
 }
 
-
 // ==================================================================
 // BOOKINGS CRUD
 // ==================================================================
 
 // CREATE BOOKING
-app.post('/api/bookings', requireAdmin, async (req, res) => {
+app.post('/api/bookings', async (req, res) => {
   const data = req.body;
 
   data.starting_from = toMySQLDate(data.starting_from);
   data.birth_date = toMySQLDate(data.birth_date);
+  data.dl_from = toMySQLDate(data.dl_from);
+  data.dl_to = toMySQLDate(data.dl_to);
+
+  if (!data.customer_name || !data.mobile_no || !data.training_days || !data.branch) {
+    return res.status(400).json({ success: false, error: "Missing required fields" });
+  }
 
   try {
     const sql = `
       INSERT INTO bookings (
         branch, training_days, customer_name, address, mobile_no, whatsapp_no,
         sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
-        occupation, ref, allotted_time, starting_from, total_fees, advance, present_days
+        occupation, ref, allotted_time, starting_from, total_fees, advance,
+        car_name, instructor_name, present_days
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
     `;
 
     const values = [
-      data.branch, data.training_days, data.customer_name, data.address,
-      data.mobile_no, data.whatsapp_no, data.sex, data.birth_date,
-      data.cov_lmv ? 1 : 0, data.cov_mc ? 1 : 0, data.dl_no, data.dl_from,
-      data.dl_to, data.email, data.occupation, data.ref, data.allotted_time,
-      data.starting_from, data.total_fees || 0, data.advance || 0
+      data.branch, data.training_days, data.customer_name, data.address || '',
+      data.mobile_no, data.whatsapp_no || '', data.sex || '', data.birth_date || null,
+      data.cov_lmv ? 1 : 0, data.cov_mc ? 1 : 0, data.dl_no || '', data.dl_from || null,
+      data.dl_to || null, data.email || '', data.occupation || '', data.ref || '',
+      data.allotted_time || null, data.starting_from || null, data.total_fees || 0, data.advance || 0,
+      data.car_names || '', data.instructor_name || ''
     ];
 
     const [result] = await db.query(sql, values);
-
     res.json({ success: true, booking_id: result.insertId });
 
   } catch (err) {
@@ -140,16 +142,17 @@ app.post('/api/bookings', requireAdmin, async (req, res) => {
   }
 });
 
-
 // LIST BOOKINGS
 app.get('/api/bookings', requireAdmin, async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT b.*, c.car_name, i.instructor_name
-      FROM bookings b
-      LEFT JOIN cars c ON b.car_id = c.id
-      LEFT JOIN instructors i ON b.instructor_id = i.id
-      ORDER BY b.id DESC
+      SELECT 
+        id, branch, training_days, customer_name, address, mobile_no, whatsapp_no,
+        sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
+        occupation, ref, allotted_time, starting_from, total_fees, advance,
+        car_name, instructor_name, present_days, created_at
+      FROM bookings
+      ORDER BY id DESC
     `);
 
     res.json({ success: true, bookings: rows });
@@ -159,7 +162,6 @@ app.get('/api/bookings', requireAdmin, async (req, res) => {
     res.status(500).json({ success: false, error: "Failed to fetch bookings" });
   }
 });
-
 
 // UPDATE BOOKING
 app.put('/api/bookings/:id', requireAdmin, async (req, res) => {
@@ -175,7 +177,8 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res) => {
       UPDATE bookings SET
         branch=?, training_days=?, customer_name=?, address=?, mobile_no=?, whatsapp_no=?,
         sex=?, birth_date=?, cov_lmv=?, cov_mc=?, dl_no=?, dl_from=?, dl_to=?, email=?,
-        occupation=?, ref=?, allotted_time=?, starting_from=?, total_fees=?, advance=?
+        occupation=?, ref=?, allotted_time=?, starting_from=?, total_fees=?, advance=?,
+        car_name=?, instructor_name=?
       WHERE id=?
     `;
 
@@ -184,7 +187,8 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res) => {
       data.mobile_no, data.whatsapp_no, data.sex, data.birth_date,
       data.cov_lmv ? 1 : 0, data.cov_mc ? 1 : 0, data.dl_no, data.dl_from,
       data.dl_to, data.email, data.occupation, data.ref, data.allotted_time,
-      data.starting_from, data.total_fees || 0, data.advance || 0, id
+      data.starting_from, data.total_fees || 0, data.advance || 0,
+      data.car_name || '', data.instructor_name || '', id
     ];
 
     await db.query(sql, values);
@@ -196,24 +200,20 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res) => {
   }
 });
 
-
 // DELETE BOOKING
 app.delete('/api/bookings/:id', requireAdmin, async (req, res) => {
   try {
     await db.query("DELETE FROM bookings WHERE id=?", [req.params.id]);
     res.json({ success: true });
-
   } catch (err) {
     console.error("BOOKING DELETE ERROR:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-
 // ==================================================================
 // ATTENDANCE SYSTEM
 // ==================================================================
-
 await db.query(`
   CREATE TABLE IF NOT EXISTS attendance (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -225,7 +225,6 @@ await db.query(`
   )
 `);
 
-
 // GET Attendance
 app.get('/api/attendance/:booking_id', requireAdmin, async (req, res) => {
   const booking_id = req.params.booking_id;
@@ -235,15 +234,12 @@ app.get('/api/attendance/:booking_id', requireAdmin, async (req, res) => {
       "SELECT date, present FROM attendance WHERE booking_id=? ORDER BY date ASC",
       [booking_id]
     );
-
     res.json({ success: true, records: rows });
-
   } catch (err) {
     console.error("ATTENDANCE GET ERROR:", err);
     res.status(500).json({ success: false, error: "Failed to get attendance" });
   }
 });
-
 
 // SAVE Attendance
 app.post('/api/attendance/:booking_id', requireAdmin, async (req, res) => {
@@ -272,13 +268,11 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res) => {
     );
 
     res.json({ success: true });
-
   } catch (err) {
     console.error("ATTENDANCE SAVE ERROR:", err);
     res.status(500).json({ success: false, error: "Failed to save attendance" });
   }
 });
-
 
 // ==================================================================
 // START SERVER

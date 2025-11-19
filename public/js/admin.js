@@ -1,6 +1,5 @@
 // admin.js
 (async () => {
-    // Wait for common.js to finish loading topbar/sidebar/modal
     await window.CommonReady;
 
     const tableWrap = document.getElementById('tableWrap');
@@ -24,7 +23,7 @@
         if (!query) return bookings;
         query = query.trim().toLowerCase();
         return bookings.filter(b =>
-            [b.customer_name, b.mobile_no, b.whatsapp_no, b.branch].some(f => (f||'').toLowerCase().includes(query))
+            [b.customer_name, b.mobile_no, b.whatsapp_no, b.branch, b.car_name, b.instructor_name].some(f => (f||'').toLowerCase().includes(query))
         );
     }
 
@@ -62,10 +61,10 @@
 
         let html = `<table class="bookings-table"><thead><tr>`;
         if (currentTab==='upcoming') {
-            html += `<th>Name</th><th>Car</th><th>Training Days</th><th>Starting From</th><th>Branch</th><th>Actions</th>`;
+            html += `<th>Name</th><th>Car</th><th>Instructor</th><th>Training Days</th><th>Starting From</th><th>Branch</th><th>Actions</th>`;
         } else {
             html += `<th>ID</th><th>Name</th><th>Mobile</th><th>WhatsApp</th>
-                     <th>Branch</th><th>Training Days</th><th>Total Fees</th><th>Advance</th>
+                     <th>Car</th><th>Instructor</th><th>Branch</th><th>Training Days</th><th>Total Fees</th><th>Advance</th>
                      <th>Starting From</th><th>Actions</th>`;
         }
         html += `</tr></thead><tbody>`;
@@ -74,7 +73,8 @@
             html += `<tr id="booking-${b.id}">`;
             if(currentTab==='upcoming'){
                 html += `<td>${b.customer_name||'-'}</td>
-                         <td>${b.cov_lmv?'LMV':b.cov_mc?'MC':'-'}</td>
+                         <td>${b.car_name||'-'}</td>
+                         <td>${b.instructor_name||'-'}</td>
                          <td>${b.training_days||'-'}</td>
                          <td>${b.starting_from?formatDate(b.starting_from):'-'}</td>
                          <td>${b.branch||'-'}</td>
@@ -84,8 +84,8 @@
                          </td>`;
             } else {
                 html += `<td>${b.id}</td><td>${b.customer_name||'-'}</td><td>${b.mobile_no||'-'}</td>
-                         <td>${b.whatsapp_no||'-'}</td><td>${b.branch||'-'}</td>
-                         <td>${b.training_days||'-'}</td><td>${b.total_fees||'-'}</td>
+                         <td>${b.whatsapp_no||'-'}</td><td>${b.car_name||'-'}</td><td>${b.instructor_name||'-'}</td>
+                         <td>${b.branch||'-'}</td><td>${b.training_days||'-'}</td><td>${b.total_fees||'-'}</td>
                          <td>${b.advance||'-'}</td><td>${b.starting_from?formatDate(b.starting_from):'-'}</td>
                          <td>
                             <button class="btn details" data-id="${b.id}">Details</button>

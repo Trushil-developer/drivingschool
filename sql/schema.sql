@@ -42,7 +42,7 @@ CREATE TABLE bookings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     branch ENUM('Vandematram', 'Malabar', 'South Bopal') NOT NULL,
     training_days ENUM('21', '15') NOT NULL,
-    car_id INT,
+    car_name VARCHAR(50),
     customer_name VARCHAR(100),
     address VARCHAR(255),
     mobile_no VARCHAR(20),
@@ -61,11 +61,9 @@ CREATE TABLE bookings (
     starting_from DATE,
     total_fees DECIMAL(10,2),
     advance DECIMAL(10,2),
-    instructor_id INT,
+    instructor_name VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    present_days INT DEFAULT 0,
-    FOREIGN KEY (car_id) REFERENCES cars(id),
-    FOREIGN KEY (instructor_id) REFERENCES instructors(id)
+    present_days INT DEFAULT 0
 );
 
 -- ================================
@@ -89,4 +87,3 @@ CREATE TABLE IF NOT EXISTS admins (
     password VARCHAR(255) NOT NULL, 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-

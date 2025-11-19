@@ -1,362 +1,176 @@
-/* ===============================
-   General Body & Form Container
-================================= */
 body {
-    font-family: Arial, sans-serif;
-    background: #f5f5f5;
+    font-family: 'Arial', sans-serif;
+    background: #f3f3f3;
     margin: 0;
     padding: 20px;
+}
+
+input,
+select {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #999;
+    font-size: 14px;
+    flex: 1 1 0px;
+    box-sizing: border-box;
 }
 
 .form-container {
     width: 210mm;
     max-width: 100%;
-    height: auto;
-    padding: 20mm;
-    margin: auto;
     background: #fff;
-    border: 1px solid #000;
+    margin: auto;
+    padding: 25px 30px;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.12);
     box-sizing: border-box;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* ===============================
-   Logo & Header
-================================= */
-.logo-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 15px;
-    margin-bottom: 10px;
-    flex-wrap: wrap;
-}
-
-.logo-header img.logo {
-    width: 80px;
-    height: auto;
-}
-
-.logo-header h1 {
-    font-size: 28px;
-    font-weight: bold;
-    margin: 0;
+.header {
     text-align: center;
+    margin-bottom: 20px;
 }
 
-/* ===============================
-   Header Row (Reg no & date)
-================================= */
-.header-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 16px;
-    margin-bottom: 15px;
-    flex-wrap: wrap;
+.header img {
+    width: 85px;
+    margin-bottom: 8px;
 }
 
-.date-box input {
-    border: 1px solid #000;
-    padding: 5px;
+.header h1 {
+    font-size: 26px;
+    margin: 0;
+    font-weight: bold;
 }
 
-/* ===============================
-   General Row Styling
-================================= */
+.section-title {
+    font-size: 20px;
+    margin: 20px 0 10px;
+    font-weight: bold;
+    border-bottom: 2px solid #000;
+    padding-bottom: 5px;
+}
+
 .row {
     display: flex;
-    align-items: center;
-    margin: 10px 0;
-    gap: 10px;
     flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+    align-items: center;
 }
 
-.row label {
+.label {
     font-weight: bold;
-    width: auto;
-}
-
-/* ===============================
-   Inputs
-================================= */
-.short {
-    width: 120px;
-    padding: 5px;
-    border: 1px solid #000;
-    box-sizing: border-box;
-}
-
-.long {
-    flex: 1;
-    padding: 5px;
-    border: 1px solid #000;
-    box-sizing: border-box;
-}
-
-.flex-input {
-    flex: 1;
-    padding: 5px;
-    border: 1px solid #000;
-    box-sizing: border-box;
-}
-
-textarea.long {
-    height: 50px;
-    padding: 5px;
-    border: 1px solid #000;
-    box-sizing: border-box;
-}
-
-/* ===============================
-   Photo Section
-================================= */
-.photo-box {
-    width: 110px;
-    height: 130px;
-    border: 1px solid #000;
     flex-shrink: 0;
 }
 
-/* ===============================
-   Separator
-================================= */
-.separator {
-    border: none;
-    border-top: 2px solid #000;
-    margin: 20px 0;
+.notes-box {
+    background: #fcfcfc;
+    border: 1px solid #ccc;
+    padding: 12px;
+    border-radius: 8px;
 }
 
-/* ===============================
-   Name-Photo Row
-================================= */
-.name-photo-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 15px;
-    flex-wrap: wrap;
+.notes-box p {
+    margin: 4px 0;
+    font-size: 15px;
 }
 
-.name-photo-row .left-fields {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-/* Field: label + input */
-.field {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.field label {
-    width: 120px;
-    min-width: 80px;
-}
-
-.flex-input {
-    flex: 1;
-}
-
-/* ===============================
-   Notes Section
-================================= */
-.note-section {
-    margin-top: 15px;
-}
-
-.note-section h3 {
-    margin-bottom: 5px;
-    font-weight: bold;
-}
-
-.note p {
-    font-size: 14px;
-    margin: 2px 0;
-}
-
-/* ===============================
-   Submit Button
-================================= */
 button {
-    margin-top: 20px;
     width: 100%;
-    padding: 10px;
+    padding: 14px;
+    font-size: 17px;
+    margin-top: 20px;
+    border: none;
     background: #000;
     color: #fff;
-    border: none;
-    font-size: 16px;
+    border-radius: 6px;
     cursor: pointer;
 }
 
-/* ===============================
-   Radio Buttons
-================================= */
-.radio-group {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.radio-box {
-    position: relative;
-    display: inline-block;
-    cursor: pointer;
-    user-select: none;
-}
-
-.radio-box input[type="radio"] {
-    display: none;
-}
-
-.radio-box span {
-    display: inline-block;
-    padding: 10px 20px;
-    border: 2px solid #000;
-    border-radius: 5px;
-    background: #fff;
-    font-weight: bold;
-    transition: all 0.2s;
-}
-
-.radio-box input[type="radio"]:checked+span {
-    background-color: #000;
-    color: #fff;
-    border-color: #000;
-}
-
-/* ===============================
-   Checkboxes
-================================= */
-.row input[type="checkbox"] {
-    width: auto;
-    margin-left: 5px;
-}
-
-/* ===============================
-   Responsive Styling
-================================= */
-@media (max-width: 900px) {
-    .form-container {
-        padding: 20px;
-    }
-}
-
-@media (max-width: 600px) {
-    .form-container {
-        width: 100%;
-        padding: 15px;
-    }
-
-    .logo-header {
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .logo-header img.logo {
-        width: 60px;
-    }
-
-    .row {
+@media (max-width: 450px) {
+    .stack-mobile {
         flex-direction: column;
         align-items: flex-start;
+        gap: 5px;
     }
 
-    .row label {
+    .stack-mobile .label {
+        margin-bottom: 2px;
+    }
+
+    .stack-mobile-row input,
+    .stack-mobile select,
+    .stack-mobile.dl input {
         width: 100%;
     }
 
-    .short,
-    .long,
-    .flex-input {
-        width: 100%;
+    .dl-row {
+        flex-direction: column !important;
+        align-items: flex-start !important;
     }
 
-    .name-photo-row {
-        flex-direction: column;
+    .dl-row .label {
+        margin-top: 6px;
     }
 
-    .photo-box {
-        width: 100px;
-        height: 120px;
-    }
-
-    .field {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
+    .checkbox-group,
     .radio-group {
-        flex-direction: column;
-    }
-
-    .note-section h3 {
-        font-size: 16px;
-    }
-
-    button {
-        font-size: 14px;
-        padding: 10px;
+        flex-direction: column !important;
+        width: 100%;
+        gap: 6px !important;
+        line-height: 30px;
     }
 }
 
-/* ===============================
-   Print Styling (A4 optimized)
-================================= */
 @media print {
     body {
-        background: #fff;
-        padding: 0;
         margin: 0;
+        padding: 0;
     }
 
     .form-container {
         width: 210mm;
-        height: 297mm;
-        padding: 15mm 20mm;
-        margin: auto;
+        height: 277mm;
+        padding: 0mm 5mm 0mm 5mm;
         box-shadow: none;
-        border: none;
-        overflow: visible;
+        border-radius: 0;
+        page-break-inside: avoid;
+        overflow: hidden;
     }
 
-    .header-row {
-        flex-wrap: wrap;
-        gap: 10px;
+    .header {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        /* logo and title inline */
+        margin-bottom: 15px;
     }
 
-    .date-box input {
-        width: 120px;
-        padding: 4px 6px;
-        font-size: 12pt;
-        box-sizing: border-box;
+    .header img {
+        width: 60px;
+        margin-right: 15px;
     }
 
-    .row input,
-    .row select,
-    .radio-box span,
-    .photo-box {
-        font-size: 12pt;
-        border: 1px solid #000;
+    .header h1 {
+        font-size: 20px;
+        margin: 0;
     }
 
-    .row label {
-        font-weight: bold;
-        font-size: 12pt;
+    .notes-box {
+        padding: 6px;
+        font-size: 12px;
+        line-height: 1.1;
+        margin-bottom: 0;
+        break-inside: avoid;
     }
 
-    .note p {
-        font-size: 12pt;
+    input,
+    select,
+    textarea {
+        font-size: 12px;
     }
 
     button {
-        display: none;
+        display: none !important;
     }
-}
-
-@page {
-    size: A4 portrait;
-    margin: 10mm 15mm;
 }

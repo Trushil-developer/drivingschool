@@ -59,6 +59,7 @@
                 const td = document.createElement('td');
                 td.dataset.key = key;
 
+                // Format special fields
                 if ((key.includes('date') || key === 'starting_from') && booking[key]) td.textContent = formatDate(booking[key]);
                 else if (key === 'created_at' && booking[key]) td.textContent = formatDateTime(booking[key]);
                 else if (key === 'cov_lmv' || key === 'cov_mc') td.textContent = booking[key] ? 'Yes' : 'No';
@@ -97,16 +98,16 @@
         editBtn.style.display = 'none';
         detailsTable.querySelectorAll('td').forEach(td => {
             const key = td.dataset.key;
-            if (key === 'id' || key === 'created_at') return;
+            if (key === 'id' || key === 'created_at' || key === 'attendance_status') return;
             const val = td.textContent === '-' ? '' : td.textContent;
             const input = document.createElement('input');
 
-            if (key.includes('date') || key === 'starting_from') input.type = 'date';
+            if ((key.includes('date') || key === 'starting_from')) input.type = 'date';
             else if (key === 'cov_lmv' || key === 'cov_mc') {
                 input.type = 'checkbox';
                 input.checked = val === 'Yes';
             } else if (key === 'allotted_time') input.type = 'time';
-            else input.type = 'text';
+            else input.type = 'text'; // car_name, instructor_name, and other text fields
 
             if (input.type !== 'checkbox') input.value = val;
             td.innerHTML = '';
@@ -118,7 +119,7 @@
         const updatedData = {};
         detailsTable.querySelectorAll('td').forEach(td => {
             const key = td.dataset.key;
-            if (key === 'id' || key === 'created_at') return;
+            if (key === 'id' || key === 'created_at' || key === 'attendance_status') return;
             const input = td.querySelector('input');
             let value = input.type === 'checkbox' ? (input.checked ? 1 : 0) : input.value;
             if (key === 'allotted_time' && value === '') value = null;

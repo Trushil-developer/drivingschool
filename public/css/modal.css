@@ -1,0 +1,70 @@
+#appModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.modal-box {
+    position: relative;
+    background: #fff;
+    width: 380px;
+    max-width: 100%;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25);
+    animation: fadeIn 0.17s ease-out;
+    box-sizing: border-box;
+}
+
+.modal-close {
+    position: absolute;
+    right: 14px;
+    top: 12px;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.modal-inner {
+    margin-top: 20px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@media (max-width: 450px) {
+    .modal-box {
+        width: 100%;
+        max-width: 100%;
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+    .modal-close {
+        font-size: 18px;
+        right: 10px;
+        top: 8px;
+    }
+
+    .modal-inner {
+        margin-top: 15px;
+    }
+}
