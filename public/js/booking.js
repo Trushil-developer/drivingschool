@@ -103,6 +103,7 @@ form.addEventListener("submit", async (e) => {
   body.car_names = getCheckedValues("car");
   body.customer_name = v("input[name='customer_name']");
   body.address = v("input[name='address']");
+  body.pincode = v("input[name='pincode']");
   body.mobile_no = v("input[name='mobile_no']");
   body.whatsapp_no = v("input[name='whatsapp_no']");
   body.sex = v("select[name='sex']");
@@ -136,6 +137,7 @@ form.addEventListener("submit", async (e) => {
   if (!body.car_names) return showModalAlert("Please select one car.");
   if (!body.customer_name) return showModalAlert("Please enter your full name.");
   if (!body.address) return showModalAlert("Please enter your address.");
+  if (!body.pincode) return showModalAlert("Please enter pincode.");
   if (!body.mobile_no) return showModalAlert("Please enter your mobile number.");
   if (!body.whatsapp_no) return showModalAlert("Please enter your WhatsApp number.");
 
@@ -144,9 +146,6 @@ form.addEventListener("submit", async (e) => {
   if (!isAtLeastYearsOld(body.birth_date, 16)) 
     return showModalAlert("You must be at least 16 years old.");
   if (!body.cov_lmv && !body.cov_mc) return showModalAlert("Please select at least one C.O.V. option.");
-  if (!body.dl_no) return showModalAlert("Please enter your driving license number.");
-  if (!body.dl_from) return showModalAlert("Please enter the 'DL From' date.");
-  if (!body.dl_to) return showModalAlert("Please enter the 'DL To' date.");
   if (!body.email) return showModalAlert("Please enter your email.");
   if (!body.occupation) return showModalAlert("Please enter your occupation.");
   if (!body.allotted_time) return showModalAlert("Please select the allotted time.");

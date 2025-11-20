@@ -46,6 +46,7 @@ CREATE TABLE bookings (
     car_name VARCHAR(50),
     customer_name VARCHAR(100),
     address VARCHAR(255),
+    pincode VARCHAR(10), 
     mobile_no VARCHAR(20),
     whatsapp_no VARCHAR(20),
     sex ENUM('Male','Female','Other'),

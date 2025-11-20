@@ -64,8 +64,8 @@
             html += `<th>Name</th><th>Car</th><th>Instructor</th><th>Training Days</th><th>Starting From</th><th>Branch</th><th>Actions</th>`;
         } else {
             html += `<th>ID</th><th>Name</th><th>Mobile</th><th>WhatsApp</th>
-                     <th>Car</th><th>Instructor</th><th>Branch</th><th>Training Days</th><th>Total Fees</th><th>Advance</th>
-                     <th>Starting From</th><th>Actions</th>`;
+                <th>Car</th><th>Instructor</th><th>Branch</th><th>Training Days</th><th>Pincode</th><th>Total Fees</th><th>Advance</th>
+                <th>Starting From</th><th>Actions</th>`;
         }
         html += `</tr></thead><tbody>`;
 
@@ -84,13 +84,13 @@
                          </td>`;
             } else {
                 html += `<td>${b.id}</td><td>${b.customer_name||'-'}</td><td>${b.mobile_no||'-'}</td>
-                         <td>${b.whatsapp_no||'-'}</td><td>${b.car_name||'-'}</td><td>${b.instructor_name||'-'}</td>
-                         <td>${b.branch||'-'}</td><td>${b.training_days||'-'}</td><td>${b.total_fees||'-'}</td>
-                         <td>${b.advance||'-'}</td><td>${b.starting_from?formatDate(b.starting_from):'-'}</td>
-                         <td>
-                            <button class="btn details" data-id="${b.id}">Details</button>
-                            <button class="btn delete" data-id="${b.id}">Delete</button>
-                         </td>`;
+                    <td>${b.whatsapp_no||'-'}</td><td>${b.car_name||'-'}</td><td>${b.instructor_name||'-'}</td>
+                    <td>${b.branch||'-'}</td><td>${b.training_days||'-'}</td><td>${b.pincode||'-'}</td><td>${b.total_fees||'-'}</td>
+                    <td>${b.advance||'-'}</td><td>${b.starting_from?formatDate(b.starting_from):'-'}</td>
+                    <td>
+                        <button class="btn details" data-id="${b.id}">Details</button>
+                        <button class="btn delete" data-id="${b.id}">Delete</button>
+                    </td>`;
             }
             html += `</tr>`;
         });

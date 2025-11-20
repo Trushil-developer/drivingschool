@@ -32,7 +32,7 @@ app.use(session({
 }));
 
 // =======================
-// ASYNC START SERVER
+// START SERVER
 // =======================
 async function startServer() {
   try {
@@ -48,8 +48,6 @@ async function startServer() {
     // =======================
     // AUTH ROUTES
     // =======================
-
-    // LOGIN
     app.post('/api/login', async (req, res) => {
       const { username, password } = req.body;
       try {
@@ -68,14 +66,12 @@ async function startServer() {
         req.session.adminId = admin.id;
 
         res.json({ success: true });
-
       } catch (err) {
         console.error("LOGIN ERROR:", err);
         res.status(500).json({ success: false, error: "Server error" });
       }
     });
 
-    // LOGOUT
     app.post('/api/logout', (req, res) => {
       req.session.destroy(err => {
         if (err) return res.status(500).json({ success: false, error: "Logout failed" });
@@ -83,7 +79,6 @@ async function startServer() {
       });
     });
 
-    // Middleware to protect routes
     function requireAdmin(req, res, next) {
       if (req.session.adminLoggedIn) return next();
       return res.status(401).json({ success: false, error: "Unauthorized" });
@@ -106,38 +101,47 @@ async function startServer() {
     // CREATE BOOKING
     app.post('/api/bookings', async (req, res) => {
       const data = req.body;
-      data.starting_from = toMySQLDate(data.starting_from);
-      data.birth_date = toMySQLDate(data.birth_date);
-      data.dl_from = toMySQLDate(data.dl_from);
-      data.dl_to = toMySQLDate(data.dl_to);
-
-  if (!data.customer_name || !data.mobile_no || !data.training_days || !data.branch) {
-    return res.status(400).json({ success: false, error: "Missing required fields" });
-  }
 
       try {
         const sql = `
           INSERT INTO bookings (
-            branch, training_days, customer_name, address, mobile_no, whatsapp_no,
+            branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
             sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
-        occupation, ref, allotted_time, starting_from, total_fees, advance,
-        car_name, instructor_name, present_days
+            occupation, ref, allotted_time, starting_from, total_fees, advance,
+            car_name, instructor_name, present_days
           )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
-      const values = [
-        data.branch, data.training_days, data.customer_name, data.address || '',
-        data.mobile_no, data.whatsapp_no || '', data.sex || '', data.birth_date || null,
-        data.cov_lmv ? 1 : 0, data.cov_mc ? 1 : 0, data.dl_no || '', data.dl_from || null,
-        data.dl_to || null, data.email || '', data.occupation || '', data.ref || '',
-        data.allotted_time || null, data.starting_from || null, data.total_fees || 0, data.advance || 0,
-        data.car_names || '', data.instructor_name || ''
-      ];
+        const values = [
+          data.branch,
+          data.training_days,
+          data.customer_name,
+          data.address || '',
+          data.pincode || '',
+          data.mobile_no,
+          data.whatsapp_no || '',
+          data.sex || '',
+          data.birth_date || null,
+          data.cov_lmv ? 1 : 0,
+          data.cov_mc ? 1 : 0,
+          data.dl_no || '',
+          data.dl_from || null,
+          data.dl_to || null,
+          data.email || '',
+          data.occupation || '',
+          data.ref || '',
+          data.allotted_time || null,
+          data.starting_from || null,
+          data.total_fees || 0,
+          data.advance || 0,
+          data.car_names || '',
+          data.instructor_name || '',
+          0 
+        ];
 
         const [result] = await db.query(sql, values);
         res.json({ success: true, booking_id: result.insertId });
-
       } catch (err) {
         console.error("BOOKING CREATE ERROR:", err);
         res.status(500).json({ success: false, error: err.message });
@@ -149,7 +153,7 @@ async function startServer() {
       try {
         const [rows] = await db.query(`
           SELECT 
-            id, branch, training_days, customer_name, address, mobile_no, whatsapp_no,
+            id, branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
             sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
             occupation, ref, allotted_time, starting_from, total_fees, advance,
             car_name, instructor_name, present_days, created_at
@@ -174,19 +178,37 @@ async function startServer() {
       try {
         const sql = `
           UPDATE bookings SET
-            branch=?, training_days=?, customer_name=?, address=?, mobile_no=?, whatsapp_no=?,
+            branch=?, training_days=?, customer_name=?, address=?, pincode=?, mobile_no=?, whatsapp_no=?,
             sex=?, birth_date=?, cov_lmv=?, cov_mc=?, dl_no=?, dl_from=?, dl_to=?, email=?,
             occupation=?, ref=?, allotted_time=?, starting_from=?, total_fees=?, advance=?,
             car_name=?, instructor_name=?
-            WHERE id=?
-          `;
+          WHERE id=?
+        `;
         const values = [
-          data.branch, data.training_days, data.customer_name, data.address,
-          data.mobile_no, data.whatsapp_no, data.sex, data.birth_date,
-          data.cov_lmv ? 1 : 0, data.cov_mc ? 1 : 0, data.dl_no, data.dl_from,
-          data.dl_to, data.email, data.occupation, data.ref, data.allotted_time,
-          data.starting_from, data.total_fees || 0, data.advance || 0,
-          data.car_name || '', data.instructor_name || '', id
+          data.branch,
+          data.training_days,
+          data.customer_name,
+          data.address || '',
+          data.pincode || '',
+          data.mobile_no,
+          data.whatsapp_no || '',
+          data.sex || '',
+          data.birth_date || null,
+          data.cov_lmv ? 1 : 0,
+          data.cov_mc ? 1 : 0,
+          data.dl_no || '',
+          data.dl_from || null,
+          data.dl_to || null,
+          data.email || '',
+          data.occupation || '',
+          data.ref || '',
+          data.allotted_time || null,
+          data.starting_from || null,
+          data.total_fees || 0,
+          data.advance || 0,
+          data.car_name || '',
+          data.instructor_name || '',
+          id
         ];
         await db.query(sql, values);
         res.json({ success: true });
@@ -221,7 +243,6 @@ async function startServer() {
       )
     `);
 
-    // GET Attendance
     app.get('/api/attendance/:booking_id', requireAdmin, async (req, res) => {
       const booking_id = req.params.booking_id;
       try {
@@ -236,7 +257,6 @@ async function startServer() {
       }
     });
 
-    // SAVE Attendance
     app.post('/api/attendance/:booking_id', requireAdmin, async (req, res) => {
       const booking_id = req.params.booking_id;
       const { attendance } = req.body;
@@ -265,12 +285,8 @@ async function startServer() {
     });
 
     // =======================
-    // START SERVER
+    // START EXPRESS SERVER
     // =======================
-
-//     app.listen(PORT, () =>
-//   console.log(`Server running on http://localhost:${PORT}`)
-// );
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on http://0.0.0.0:${PORT}`);
     });
