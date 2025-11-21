@@ -7,14 +7,34 @@ import session from 'express-session';
 import bcrypt from 'bcrypt';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import MySQLStoreImport from 'express-mysql-session';
 
+// =======================
+// LOAD ENVIRONMENT VARIABLES
+// =======================
 dotenv.config();
 
+// =======================
+// EXPRESS APP SETUP
+// =======================
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Fix __dirname in ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// =======================
+// SESSION STORE (MySQL)
+// =======================
+const MySQLStore = MySQLStoreImport(session);
+
+const sessionStore = new MySQLStore({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+});
 
 // =======================
 // MIDDLEWARE
@@ -24,15 +44,23 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'supersecretkey',
-  resave: false,
-  saveUninitialized: true,
-  cookie: { secure: false }
-}));
+// Session Middleware 
+app.use(
+  session({
+    key: 'session_cookie',
+    secret: process.env.SESSION_SECRET || 'supersecretkey',
+    resave: false,
+    saveUninitialized: false,
+    store: sessionStore,
+    cookie: {
+      secure: false,
+      maxAge: 24 * 60 * 60 * 1000, 
+    },
+  })
+);
 
 // =======================
-// START SERVER
+// START SERVER + DATABASE CONNECTION
 // =======================
 async function startServer() {
   try {
@@ -40,7 +68,7 @@ async function startServer() {
       host: process.env.DB_HOST,
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME
+      database: process.env.DB_NAME,
     });
 
     console.log('Connected to MySQL database.');
@@ -50,38 +78,49 @@ async function startServer() {
     // =======================
     app.post('/api/login', async (req, res) => {
       const { username, password } = req.body;
+
       try {
         const [rows] = await db.query(
-          "SELECT * FROM admins WHERE username = ? LIMIT 1",
+          'SELECT * FROM admins WHERE username = ? LIMIT 1',
           [username]
         );
 
-        if (rows.length === 0) return res.json({ success: false, error: "Invalid credentials" });
+        if (rows.length === 0)
+          return res.json({ success: false, error: 'Invalid credentials' });
 
         const admin = rows[0];
+
         const match = await bcrypt.compare(password, admin.password);
-        if (!match) return res.json({ success: false, error: "Invalid credentials" });
+        if (!match)
+          return res.json({ success: false, error: 'Invalid credentials' });
 
         req.session.adminLoggedIn = true;
         req.session.adminId = admin.id;
 
         res.json({ success: true });
       } catch (err) {
-        console.error("LOGIN ERROR:", err);
-        res.status(500).json({ success: false, error: "Server error" });
+        console.error('LOGIN ERROR:', err);
+        res.status(500).json({ success: false, error: 'Server error' });
       }
     });
 
     app.post('/api/logout', (req, res) => {
-      req.session.destroy(err => {
-        if (err) return res.status(500).json({ success: false, error: "Logout failed" });
+      req.session.destroy((err) => {
+        if (err)
+          return res
+            .status(500)
+            .json({ success: false, error: 'Logout failed' });
+
         res.json({ success: true });
       });
     });
 
+    // Middleware to protect admin routes
     function requireAdmin(req, res, next) {
       if (req.session.adminLoggedIn) return next();
-      return res.status(401).json({ success: false, error: "Unauthorized" });
+      return res
+        .status(401)
+        .json({ success: false, error: 'Unauthorized access' });
     }
 
     // =======================
@@ -91,7 +130,7 @@ async function startServer() {
       if (!value) return null;
       const d = new Date(value);
       if (isNaN(d)) return null;
-      return d.toISOString().split("T")[0];
+      return d.toISOString().split('T')[0];
     }
 
     // =======================
@@ -122,28 +161,28 @@ async function startServer() {
           data.mobile_no,
           data.whatsapp_no || '',
           data.sex || '',
-          data.birth_date || null,
+          toMySQLDate(data.birth_date),
           data.cov_lmv ? 1 : 0,
           data.cov_mc ? 1 : 0,
           data.dl_no || '',
-          data.dl_from || null,
-          data.dl_to || null,
+          toMySQLDate(data.dl_from),
+          toMySQLDate(data.dl_to),
           data.email || '',
           data.occupation || '',
           data.ref || '',
           data.allotted_time || null,
-          data.starting_from || null,
+          toMySQLDate(data.starting_from),
           data.total_fees || 0,
           data.advance || 0,
           data.car_names || '',
           data.instructor_name || '',
-          0 
+          0,
         ];
 
         const [result] = await db.query(sql, values);
         res.json({ success: true, booking_id: result.insertId });
       } catch (err) {
-        console.error("BOOKING CREATE ERROR:", err);
+        console.error('BOOKING CREATE ERROR:', err);
         res.status(500).json({ success: false, error: err.message });
       }
     });
@@ -160,10 +199,14 @@ async function startServer() {
           FROM bookings
           ORDER BY id DESC
         `);
+
         res.json({ success: true, bookings: rows });
       } catch (err) {
-        console.error("BOOKINGS LIST ERROR:", err);
-        res.status(500).json({ success: false, error: "Failed to fetch bookings" });
+        console.error('BOOKINGS LIST ERROR:', err);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch bookings',
+        });
       }
     });
 
@@ -171,9 +214,6 @@ async function startServer() {
     app.put('/api/bookings/:id', requireAdmin, async (req, res) => {
       const id = req.params.id;
       const data = req.body;
-      data.starting_from = toMySQLDate(data.starting_from);
-      data.birth_date = toMySQLDate(data.birth_date);
-      if (!data.allotted_time) data.allotted_time = null;
 
       try {
         const sql = `
@@ -184,6 +224,7 @@ async function startServer() {
             car_name=?, instructor_name=?
           WHERE id=?
         `;
+
         const values = [
           data.branch,
           data.training_days,
@@ -193,27 +234,29 @@ async function startServer() {
           data.mobile_no,
           data.whatsapp_no || '',
           data.sex || '',
-          data.birth_date || null,
+          toMySQLDate(data.birth_date),
           data.cov_lmv ? 1 : 0,
           data.cov_mc ? 1 : 0,
           data.dl_no || '',
-          data.dl_from || null,
-          data.dl_to || null,
+          toMySQLDate(data.dl_from),
+          toMySQLDate(data.dl_to),
           data.email || '',
           data.occupation || '',
           data.ref || '',
           data.allotted_time || null,
-          data.starting_from || null,
+          toMySQLDate(data.starting_from),
           data.total_fees || 0,
           data.advance || 0,
           data.car_name || '',
           data.instructor_name || '',
-          id
+          id,
         ];
+
         await db.query(sql, values);
+
         res.json({ success: true });
       } catch (err) {
-        console.error("BOOKING UPDATE ERROR:", err);
+        console.error('BOOKING UPDATE ERROR:', err);
         res.status(500).json({ success: false, error: err.message });
       }
     });
@@ -221,10 +264,10 @@ async function startServer() {
     // DELETE BOOKING
     app.delete('/api/bookings/:id', requireAdmin, async (req, res) => {
       try {
-        await db.query("DELETE FROM bookings WHERE id=?", [req.params.id]);
+        await db.query('DELETE FROM bookings WHERE id=?', [req.params.id]);
         res.json({ success: true });
       } catch (err) {
-        console.error("BOOKING DELETE ERROR:", err);
+        console.error('BOOKING DELETE ERROR:', err);
         res.status(500).json({ success: false, error: err.message });
       }
     });
@@ -243,27 +286,41 @@ async function startServer() {
       )
     `);
 
+    // GET ATTENDANCE
     app.get('/api/attendance/:booking_id', requireAdmin, async (req, res) => {
       const booking_id = req.params.booking_id;
+
       try {
         const [rows] = await db.query(
-          "SELECT date, present FROM attendance WHERE booking_id=? ORDER BY date ASC",
+          'SELECT date, present FROM attendance WHERE booking_id=? ORDER BY date ASC',
           [booking_id]
         );
         res.json({ success: true, records: rows });
       } catch (err) {
-        console.error("ATTENDANCE GET ERROR:", err);
-        res.status(500).json({ success: false, error: "Failed to get attendance" });
+        console.error('ATTENDANCE GET ERROR:', err);
+        res
+          .status(500)
+          .json({ success: false, error: 'Failed to get attendance' });
       }
     });
 
+    // SAVE ATTENDANCE
     app.post('/api/attendance/:booking_id', requireAdmin, async (req, res) => {
       const booking_id = req.params.booking_id;
       const { attendance } = req.body;
-      if (!Array.isArray(attendance)) return res.json({ success: false, error: "attendance array required" });
+
+      if (!Array.isArray(attendance))
+        return res.json({
+          success: false,
+          error: 'attendance array required',
+        });
 
       try {
-        await db.query("DELETE FROM attendance WHERE booking_id=?", [booking_id]);
+        // Clear old records
+        await db.query('DELETE FROM attendance WHERE booking_id=?', [
+          booking_id,
+        ]);
+
         for (const item of attendance) {
           await db.query(
             `INSERT INTO attendance (booking_id, date, present)
@@ -271,16 +328,21 @@ async function startServer() {
             [booking_id, toMySQLDate(item.date)]
           );
         }
+
+        // Update present days count
         await db.query(
           `UPDATE bookings SET present_days = (
             SELECT COUNT(*) FROM attendance WHERE booking_id=? AND present=1
           ) WHERE id=?`,
           [booking_id, booking_id]
         );
+
         res.json({ success: true });
       } catch (err) {
-        console.error("ATTENDANCE SAVE ERROR:", err);
-        res.status(500).json({ success: false, error: "Failed to save attendance" });
+        console.error('ATTENDANCE SAVE ERROR:', err);
+        res
+          .status(500)
+          .json({ success: false, error: 'Failed to save attendance' });
       }
     });
 
@@ -290,7 +352,6 @@ async function startServer() {
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on http://0.0.0.0:${PORT}`);
     });
-
   } catch (err) {
     console.error('Failed to start server:', err);
     process.exit(1);
