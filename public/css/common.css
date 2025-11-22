@@ -1,3 +1,4 @@
+/* ===== ROOT ===== */
 :root {
     --bg: #f7f9fb;
     --primary: #1a73e8;
@@ -11,6 +12,12 @@
     --max-width: 1200px;
     --shadow: 0 6px 20px rgba(20, 30, 60, 0.08);
     --font-sans: "Inter", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    /* z-index layers for modals */
+    --z-overlay-attendance: 1000;
+    --z-modal-attendance: 1100;
+    --z-overlay-instructor: 1200;
+    --z-modal-instructor: 1300;
 }
 
 * {
@@ -63,9 +70,9 @@ body {
 }
 
 .sidebar ul {
-    list-style: none;
     padding: 0;
     margin: 0;
+    list-style: none;
 }
 
 .sidebar li {
@@ -74,7 +81,7 @@ body {
     cursor: pointer;
     color: #0f172a;
     margin-bottom: 8px;
-    transition: all 0.2s ease-in-out;
+    transition: 0.2s ease;
     font-weight: 500;
 }
 
@@ -87,7 +94,7 @@ body {
     background: rgba(26, 115, 232, 0.1);
 }
 
-/* ===== Content Area ===== */
+/* ===== Content ===== */
 .content {
     background: var(--card);
     padding: 24px;
@@ -106,7 +113,7 @@ body {
     border: none;
     cursor: pointer;
     font-weight: 600;
-    transition: all 0.2s ease-in-out;
+    transition: 0.2s;
     font-size: 0.95rem;
 }
 
@@ -135,7 +142,7 @@ body {
     border: 1px solid #d1d5db;
 }
 
-/* ===== Small buttons for lock/unlock ===== */
+/* ===== Small Buttons ===== */
 .btn-sm {
     padding: 4px 8px;
     font-size: 0.8rem;
@@ -177,14 +184,13 @@ body {
     background: #f9fafb;
 }
 
-/* ===== Error & Empty States ===== */
+/* ===== Error & Empty ===== */
 .error {
     padding: 12px;
     background: #f8d7da;
     color: #721c24;
     border-radius: 6px;
     margin-bottom: 12px;
-    font-weight: 500;
 }
 
 .empty {
@@ -195,7 +201,9 @@ body {
     text-align: center;
 }
 
-/* ===== Attendance Modal ===== */
+/* ==========================================================
+   ATTENDANCE MODAL (Original Design - FIXED)
+   ========================================================== */
 .attendance-overlay {
     position: fixed;
     top: 0;
@@ -204,15 +212,19 @@ body {
     height: 100%;
     background: rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(3px);
-    z-index: 9998;
+
     opacity: 0;
     visibility: hidden;
+    pointer-events: none;
+
+    z-index: var(--z-overlay-attendance);
     transition: all 0.3s ease;
 }
 
 .attendance-overlay.active {
     opacity: 1;
     visibility: visible;
+    pointer-events: auto;
 }
 
 .attendance-modal {
@@ -223,19 +235,22 @@ body {
     max-height: 82vh;
     overflow-y: auto;
     background: var(--card);
+    padding: 22px;
     border-radius: 14px;
     box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
-    padding: 22px;
-    z-index: 9999;
 
     transform: translate(-50%, -40%);
     opacity: 0;
+    pointer-events: none;
+
+    z-index: var(--z-modal-attendance);
     transition: all 0.35s ease;
 }
 
 .attendance-modal.active {
     transform: translate(-50%, -50%);
     opacity: 1;
+    pointer-events: auto;
 }
 
 .attendance-modal h3 {
@@ -290,36 +305,61 @@ body {
     margin-left: 8px;
 }
 
+/* ==========================================================
+   INSTRUCTOR MODAL (Separate)
+   ========================================================== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+
+    z-index: var(--z-overlay-instructor);
+    transition: 0.3s;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    background: var(--card);
+    padding: 20px;
+    border-radius: 14px;
+    width: 420px;
+
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+
+    transform: translate(-50%, -40%);
+    opacity: 0;
+    pointer-events: none;
+
+    z-index: var(--z-modal-instructor);
+    transition: 0.3s;
+}
+
+.modal.active {
+    transform: translate(-50%, -50%);
+    opacity: 1;
+    pointer-events: auto;
+}
+
 /* ===== Responsive ===== */
-@media (max-width: 1024px) {
-    .sidebar {
-        display: block;
-    }
-}
-
-@media (max-width: 768px) {
-
-    .details-table,
-    .bookings-table {
-        display: block;
-        width: 100%;
-        overflow-x: auto;
-    }
-
-    .details-table th,
-    .details-table td,
-    .bookings-table th,
-    .bookings-table td {
-        white-space: nowrap;
-    }
-}
-
 @media (max-width: 480px) {
     body {
         font-size: 14px;
     }
 
-    .attendance-modal {
+    .attendance-modal,
+    .modal {
         width: 90%;
         padding: 16px;
     }
