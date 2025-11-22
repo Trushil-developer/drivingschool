@@ -17,13 +17,27 @@
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     }
 
-    function filterBookings(bookings, query) {
-        if (!query) return bookings;
+    function filterData(tab, items, query) {
+        if (!query) return items;
         query = query.trim().toLowerCase();
-        return bookings.filter(b =>
-            [b.customer_name, b.mobile_no, b.whatsapp_no, b.branch, b.car_name, b.instructor_name]
-            .some(f => (f||'').toLowerCase().includes(query))
-        );
+
+        switch(tab) {
+            case 'bookings':
+            case 'upcoming':
+                return items.filter(b =>
+                    [b.customer_name, b.mobile_no, b.whatsapp_no, b.branch, b.car_name, b.instructor_name]
+                    .some(f => (f||'').toLowerCase().includes(query))
+                );
+            case 'instructors':
+                return items.filter(i =>
+                    [i.instructor_name, i.email, i.mobile_no, i.branch, i.drivers_license, i.adhar_no]
+                    .some(f => (f||'').toLowerCase().includes(query))
+                );
+            case 'cars':
+                return items.filter(c => (c.car_name||'').toLowerCase().includes(query));
+            default:
+                return items;
+        }
     }
 
     function filterUpcoming(bookings) {
@@ -43,7 +57,7 @@
                 const res = await window.api('/api/bookings');
                 if(!res.success) throw new Error(res.error || 'Failed to fetch bookings');
 
-                const rows = filterBookings(res.bookings, lastSearch);
+                const rows = filterData('bookings', res.bookings, lastSearch);
                 if(!rows.length){
                     tableWrap.innerHTML = '<div class="empty">No bookings found</div>';
                     return;
@@ -95,7 +109,7 @@
                 const res = await window.api('/api/bookings');
                 if(!res.success) throw new Error(res.error || 'Failed to fetch bookings');
 
-                const rows = filterUpcoming(res.bookings);
+                const rows = filterData('bookings', filterUpcoming(res.bookings), lastSearch);
                 if(!rows.length){
                     tableWrap.innerHTML = '<div class="empty">No upcoming bookings found</div>';
                     return;
@@ -139,7 +153,8 @@
                 const res = await window.api('/api/instructors');
                 if(!res.success) throw new Error(res.error || 'Failed to fetch instructors');
 
-                if(!res.instructors.length){
+                const rows = filterData('instructors', res.instructors, lastSearch);
+                if(!rows.length){
                     tableWrap.innerHTML = '<div class="empty">No instructors found</div>';
                     return;
                 }
@@ -154,7 +169,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${res.instructors.map(i => `
+                        ${rows.map(i => `
                         <tr id="instructor-${i.id}">
                             <td>${i.id}</td>
                             <td>${i.employee_no || '-'}</td>
@@ -184,7 +199,8 @@
                 const res = await window.api('/api/cars');
                 if(!res.success) throw new Error(res.error || 'Failed to fetch cars');
 
-                if(!res.cars.length){
+                const rows = filterData('cars', res.cars, lastSearch);
+                if(!rows.length){
                     tableWrap.innerHTML = '<div class="empty">No cars found</div>';
                     return;
                 }
@@ -198,7 +214,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${res.cars.map(c => `
+                        ${rows.map(c => `
                         <tr id="car-${c.id}">
                             <td>${c.id}</td>
                             <td>${c.car_name || '-'}</td>
@@ -288,33 +304,22 @@
 
     // ================= Modal functions =================
     function openInstructorAddModal() {
-        if(!window.Modal) { console.error("Modal library not loaded"); return; }
-        if(!window.Modal.el) {
-            try { window.Modal.init(); } 
-            catch(err) { console.error("Modal init failed:", err); return; }
-        }
+        if(!window.Modal) return;
+        if(!window.Modal.el) try { window.Modal.init(); } catch(err){ console.error(err); return; }
 
         const innerFormHTML = `
             <h2>Add Instructor</h2>
             <div class="modal-content-form">
-                <label>Name</label>
-                <input id="ins_name" type="text" placeholder="Instructor Name" required>
-                <label>Email</label>
-                <input id="ins_email" type="email" placeholder="Email" required>
-                <label>Mobile</label>
-                <input id="ins_mobile" type="text" placeholder="Mobile" required>
-                <label>Branch</label>
-                <input id="ins_branch" type="text" placeholder="Branch" required>
-                <label>Driver Licence</label>
-                <input id="ins_license" type="text" placeholder="Driver Licence" required>
-                <label>Adhar No</label>
-                <input id="ins_adhar" type="text" placeholder="Adhar" required>
-                <label>Address</label>
-                <textarea id="ins_address" placeholder="Address" required></textarea>
+                <label>Name</label><input id="ins_name" type="text" placeholder="Instructor Name" required>
+                <label>Email</label><input id="ins_email" type="email" placeholder="Email" required>
+                <label>Mobile</label><input id="ins_mobile" type="text" placeholder="Mobile" required>
+                <label>Branch</label><input id="ins_branch" type="text" placeholder="Branch" required>
+                <label>Driver Licence</label><input id="ins_license" type="text" placeholder="Driver Licence" required>
+                <label>Adhar No</label><input id="ins_adhar" type="text" placeholder="Adhar" required>
+                <label>Address</label><textarea id="ins_address" placeholder="Address" required></textarea>
                 <button id="saveInstructor" class="btn primary">Save Instructor</button>
             </div>
         `;
-
         window.Modal.setContent(innerFormHTML);
         window.Modal.show();
 
@@ -360,22 +365,17 @@
     }
 
     function openCarAddModal() {
-        if(!window.Modal) { console.error("Modal library not loaded"); return; }
-        if(!window.Modal.el) {
-            try { window.Modal.init(); } 
-            catch(err) { console.error("Modal init failed:", err); return; }
-        }
+        if(!window.Modal) return;
+        if(!window.Modal.el) try { window.Modal.init(); } catch(err){ console.error(err); return; }
 
         const innerFormHTML = `
             <h2>Add Car</h2>
             <div class="modal-content-form car-modal">
                 <label>Car Name</label>
                 <input id="car_name" type="text" placeholder="Car Name" required>
-
                 <button id="saveCar" class="btn primary">Save Car</button>
             </div>
         `;
-
         window.Modal.setContent(innerFormHTML);
         window.Modal.show();
 
@@ -407,11 +407,8 @@
     }
 
     function openCarEditModal(id, name) {
-        if(!window.Modal) { console.error("Modal library not loaded"); return; }
-        if(!window.Modal.el) {
-            try { window.Modal.init(); } 
-            catch(err) { console.error("Modal init failed:", err); return; }
-        }
+        if(!window.Modal) return;
+        if(!window.Modal.el) try { window.Modal.init(); } catch(err){ console.error(err); return; }
 
         const innerFormHTML = `
             <h2>Edit Car</h2>
@@ -421,7 +418,6 @@
                 <button id="saveCar" class="btn primary">Save Changes</button>
             </div>
         `;
-
         window.Modal.setContent(innerFormHTML);
         window.Modal.show();
 
@@ -451,6 +447,4 @@
             });
         }, 50);
     }
-
-
 })();
