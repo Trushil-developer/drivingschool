@@ -416,6 +416,63 @@ async function startServer() {
     });
 
     // =======================
+    // CARS ROUTES
+    // =======================
+
+    // GET all cars
+    app.get('/api/cars', requireAdmin, async (req, res) => {
+      try {
+        const [rows] = await db.query('SELECT * FROM cars ORDER BY id ASC');
+        res.json({ success: true, cars: rows });
+      } catch (err) {
+        console.error('FETCH CARS ERROR:', err);
+        res.status(500).json({ success: false, error: 'Failed to fetch cars' });
+      }
+    });
+
+    // ADD a new car
+    app.post('/api/cars', requireAdmin, async (req, res) => {
+      const { car_name } = req.body;
+      if (!car_name) return res.json({ success: false, error: 'Car name is required' });
+
+      try {
+        const [result] = await db.query('INSERT INTO cars (car_name) VALUES (?)', [car_name]);
+        res.json({ success: true, car_id: result.insertId });
+      } catch (err) {
+        console.error('ADD CAR ERROR:', err);
+        res.status(500).json({ success: false, error: 'Failed to add car' });
+      }
+    });
+
+    // DELETE a car
+    app.delete('/api/cars/:id', requireAdmin, async (req, res) => {
+      const { id } = req.params;
+
+      try {
+        await db.query('DELETE FROM cars WHERE id=?', [id]);
+        res.json({ success: true });
+      } catch (err) {
+        console.error('DELETE CAR ERROR:', err);
+        res.status(500).json({ success: false, error: 'Failed to delete car' });
+      }
+    });
+    // UPDATE a car
+    app.put('/api/cars/:id', requireAdmin, async (req, res) => {
+      const { id } = req.params;
+      const { car_name } = req.body;
+
+      if (!car_name) return res.json({ success: false, error: 'Car name is required' });
+
+      try {
+        await db.query('UPDATE cars SET car_name=? WHERE id=?', [car_name, id]);
+        res.json({ success: true });
+      } catch (err) {
+        console.error('UPDATE CAR ERROR:', err);
+        res.status(500).json({ success: false, error: 'Failed to update car' });
+      }
+    });
+
+    // =======================
     // START EXPRESS SERVER
     // =======================
     app.listen(PORT, '0.0.0.0', () => {

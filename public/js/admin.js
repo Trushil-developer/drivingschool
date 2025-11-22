@@ -177,6 +177,46 @@
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
             }
+        },
+
+        cars: async () => {
+            try {
+                const res = await window.api('/api/cars');
+                if(!res.success) throw new Error(res.error || 'Failed to fetch cars');
+
+                if(!res.cars.length){
+                    tableWrap.innerHTML = '<div class="empty">No cars found</div>';
+                    return;
+                }
+
+                const scrollTop = window.scrollY || document.documentElement.scrollTop;
+
+                let html = `<table class="bookings-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th><th>Car Name</th><th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${res.cars.map(c => `
+                        <tr id="car-${c.id}">
+                            <td>${c.id}</td>
+                            <td>${c.car_name || '-'}</td>
+                            <td>
+                                <button class="btn edit" data-id="${c.id}" data-name="${c.car_name}">Edit</button>
+                                <button class="btn delete" data-id="${c.id}">Delete</button>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>`;
+
+                tableWrap.innerHTML = html;
+                window.scrollTo(0, scrollTop);
+
+            } catch(err){
+                console.error(err);
+                tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
+            }
         }
     };
 
@@ -187,6 +227,10 @@
         currentTab = tab;
         sidebarItems.forEach(i => i.classList.toggle('active', i.dataset.section === tab));
         if(tabRenderers[tab]) await tabRenderers[tab]();
+
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('tab', tab);
+        window.history.replaceState({}, '', newUrl);
     }
 
     sidebarItems.forEach(i => {
@@ -206,6 +250,7 @@
     addBtn?.addEventListener("click", e => {
         e.preventDefault();
         if(currentTab === "instructors") openInstructorAddModal();
+        else if(currentTab === "cars") openCarAddModal();
         else window.location.href = "index.html";
     });
 
@@ -218,6 +263,7 @@
             if(!confirm("Are you sure?")) return;
             if(currentTab === "bookings") await window.api(`/api/bookings/${id}`, { method: "DELETE" });
             if(currentTab === "instructors") await window.api(`/api/instructors/${id}`, { method: "DELETE" });
+            if(currentTab === "cars") await window.api(`/api/cars/${id}`, { method: "DELETE" });
             if(tabRenderers[currentTab]) tabRenderers[currentTab]();
         }
 
@@ -230,12 +276,17 @@
             const booking = bookings.find(b => b.id == id);
             window.openAttendanceModal({ ...booking, refresh: () => tabRenderers[currentTab]() });
         }
+
+        if(e.target.classList.contains('edit') && currentTab === 'cars') {
+            const currentName = e.target.dataset.name || '';
+            openCarEditModal(id, currentName);
+        }
     });
 
     // ================= Initial load =================
     await switchTab(currentTab);
 
-    // ================= Modal =================
+    // ================= Modal functions =================
     function openInstructorAddModal() {
         if(!window.Modal) { console.error("Modal library not loaded"); return; }
         if(!window.Modal.el) {
@@ -248,25 +299,18 @@
             <div class="modal-content-form">
                 <label>Name</label>
                 <input id="ins_name" type="text" placeholder="Instructor Name" required>
-
                 <label>Email</label>
                 <input id="ins_email" type="email" placeholder="Email" required>
-
                 <label>Mobile</label>
                 <input id="ins_mobile" type="text" placeholder="Mobile" required>
-
                 <label>Branch</label>
                 <input id="ins_branch" type="text" placeholder="Branch" required>
-
                 <label>Driver Licence</label>
                 <input id="ins_license" type="text" placeholder="Driver Licence" required>
-
                 <label>Adhar No</label>
                 <input id="ins_adhar" type="text" placeholder="Adhar" required>
-
                 <label>Address</label>
                 <textarea id="ins_address" placeholder="Address" required></textarea>
-
                 <button id="saveInstructor" class="btn primary">Save Instructor</button>
             </div>
         `;
@@ -279,7 +323,6 @@
             if(!saveBtn) return;
 
             saveBtn.addEventListener("click", async () => {
-                // Collect values
                 const instructorData = {
                     instructor_name: document.getElementById("ins_name").value.trim(),
                     email: document.getElementById("ins_email").value.trim(),
@@ -290,7 +333,6 @@
                     address: document.getElementById("ins_address").value.trim(),
                 };
 
-                // Client-side validation: check if any field is empty
                 for (const [key, value] of Object.entries(instructorData)) {
                     if (!value) {
                         alert(`Please fill in the ${key.replace('_', ' ')}`);
@@ -308,6 +350,99 @@
                     if (!res.success) throw new Error(res.error || "Failed to save instructor");
 
                     alert("Instructor saved successfully!");
+                    window.Modal.hide();
+                    if(tabRenderers[currentTab]) tabRenderers[currentTab]();
+                } catch(err) {
+                    alert("Error: " + err.message);
+                }
+            });
+        }, 50);
+    }
+
+    function openCarAddModal() {
+        if(!window.Modal) { console.error("Modal library not loaded"); return; }
+        if(!window.Modal.el) {
+            try { window.Modal.init(); } 
+            catch(err) { console.error("Modal init failed:", err); return; }
+        }
+
+        const innerFormHTML = `
+            <h2>Add Car</h2>
+            <div class="modal-content-form car-modal">
+                <label>Car Name</label>
+                <input id="car_name" type="text" placeholder="Car Name" required>
+
+                <button id="saveCar" class="btn primary">Save Car</button>
+            </div>
+        `;
+
+        window.Modal.setContent(innerFormHTML);
+        window.Modal.show();
+
+        setTimeout(() => {
+            const saveBtn = document.getElementById("saveCar");
+            if(!saveBtn) return;
+
+            saveBtn.addEventListener("click", async () => {
+                const carName = document.getElementById("car_name").value.trim();
+                if(!carName) return alert("Car name is required");
+
+                try {
+                    const res = await window.api("/api/cars", {
+                        method: "POST",
+                        body: JSON.stringify({ car_name: carName }),
+                        headers: { "Content-Type": "application/json" }
+                    });
+
+                    if(!res.success) throw new Error(res.error || "Failed to save car");
+
+                    alert("Car saved successfully!");
+                    window.Modal.hide();
+                    if(tabRenderers[currentTab]) tabRenderers[currentTab](); 
+                } catch(err) {
+                    alert("Error: " + err.message);
+                }
+            });
+        }, 50);
+    }
+
+    function openCarEditModal(id, name) {
+        if(!window.Modal) { console.error("Modal library not loaded"); return; }
+        if(!window.Modal.el) {
+            try { window.Modal.init(); } 
+            catch(err) { console.error("Modal init failed:", err); return; }
+        }
+
+        const innerFormHTML = `
+            <h2>Edit Car</h2>
+            <div class="modal-content-form car-modal">
+                <label>Car Name</label>
+                <input id="car_name" type="text" placeholder="Car Name" value="${name}" required>
+                <button id="saveCar" class="btn primary">Save Changes</button>
+            </div>
+        `;
+
+        window.Modal.setContent(innerFormHTML);
+        window.Modal.show();
+
+        setTimeout(() => {
+            const saveBtn = document.getElementById("saveCar");
+            if(!saveBtn) return;
+
+            saveBtn.addEventListener("click", async () => {
+                const carName = document.getElementById("car_name").value.trim();
+                if(!carName) return alert("Car name is required");
+
+                try {
+                    const res = await window.api(`/api/cars/${id}`, {
+                        method: "PUT",
+                        body: JSON.stringify({ car_name: carName }),
+                        headers: { "Content-Type": "application/json" }
+                    });
+
+                    if(!res.success) throw new Error(res.error || "Failed to update car");
+
+                    alert("Car updated successfully!");
                     window.Modal.hide();
                     if(tabRenderers[currentTab]) tabRenderers[currentTab]();
                 } catch(err) {

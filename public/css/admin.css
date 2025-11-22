@@ -334,3 +334,112 @@ body {
         padding: 1rem 1.2rem;
     }
 }
+
+
+/* ===== Cars Tab & Modal ===== */
+
+/* Add Car button styling (like other primary buttons) */
+#addCarBtn {
+    background-color: #1a73e8;
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 3px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+#addCarBtn:hover {
+    opacity: 0.9;
+}
+
+/* Cars table */
+.cars-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 400px;
+    /* smaller table than bookings table */
+    background: #fff;
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
+}
+
+.cars-table th,
+.cars-table td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.cars-table th {
+    background-color: #f0f0f0;
+    font-weight: 600;
+}
+
+.cars-table tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+.cars-table td .btn {
+    margin-right: 0.25rem;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Modal specifically for adding a car */
+.modal-content-form.car-modal {
+    max-width: 400px;
+    padding: 1.2rem 1.5rem;
+}
+
+.modal-content-form.car-modal h2 {
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+}
+
+.modal-content-form.car-modal input {
+    padding: 0.45rem 0.5rem;
+    font-size: 0.95rem;
+}
+
+.modal-content-form.car-modal #saveCar {
+    margin-top: 1rem;
+    width: 100%;
+    font-weight: 600;
+}
+
+/* Responsive adjustments for Cars table */
+@media (max-width: 767px) {
+    .cars-table {
+        min-width: 100%;
+    }
+
+    .cars-table th,
+    .cars-table td {
+        font-size: 13px;
+        padding: 0.35rem 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .cars-table th,
+    .cars-table td {
+        font-size: 12px;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .modal-content-form.car-modal {
+        max-width: 90%;
+        padding: 1rem 1.2rem;
+    }
+
+    #addCarBtn {
+        font-size: 12px;
+        padding: 0.25rem 0.5rem;
+    }
+}
