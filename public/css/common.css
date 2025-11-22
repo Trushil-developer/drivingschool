@@ -292,13 +292,8 @@ body {
 
 /* ===== Responsive ===== */
 @media (max-width: 1024px) {
-    .main {
-        grid-template-columns: 1fr;
-        padding: 12px;
-    }
-
     .sidebar {
-        display: none;
+        display: block;
     }
 }
 
