@@ -173,6 +173,13 @@
     <script type="module" defer src="js/booking.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes();
+            const roundedMinutes = Math.round(minutes / 30) * 30; // round to nearest 30 minutes
+            const minsStr = (roundedMinutes === 60 ? '00' : roundedMinutes.toString().padStart(2, '0'));
+            const defaultTime = `${hours}:${minsStr}`;
+
             flatpickr("#allotted_time", {
                 enableTime: true,
                 noCalendar: true,
@@ -180,7 +187,8 @@
                 time_24hr: false,
                 minuteIncrement: 30,
                 minTime: "06:00",
-                maxTime: "22:00"
+                maxTime: "22:00",
+                defaultDate: defaultTime
             });
         });
     </script>
