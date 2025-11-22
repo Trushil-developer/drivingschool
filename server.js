@@ -20,7 +20,6 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Fix __dirname in ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -343,6 +342,76 @@ async function startServer() {
         res
           .status(500)
           .json({ success: false, error: 'Failed to save attendance' });
+      }
+    });
+
+
+    // =======================
+    // INSTRUCTORS ROUTES
+    // =======================
+
+    // GET all instructors
+    app.get('/api/instructors', requireAdmin, async (req, res) => {
+      try {
+        const [rows] = await db.query(`
+          SELECT id, employee_no, instructor_name, email, mobile_no, branch, 
+                drivers_license, adhar_no, address
+          FROM instructors
+          ORDER BY id DESC
+        `);
+
+        res.json({ success: true, instructors: rows });
+      } catch (err) {
+        console.error("INSTRUCTORS FETCH ERROR:", err);
+        res.status(500).json({ success: false, error: "Failed to fetch instructors" });
+      }
+    });
+
+
+    // ADD NEW INSTRUCTOR
+    app.post('/api/instructors', requireAdmin, async (req, res) => {
+      const data = req.body;
+
+      if (!data.instructor_name) {
+        return res.json({ success: false, error: 'Instructor name is required' });
+      }
+
+      try {
+        const sql = `
+          INSERT INTO instructors 
+            (instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        const values = [
+          data.instructor_name,
+          data.email || '',
+          data.mobile_no || '',
+          data.branch || '',
+          data.drivers_license || '',
+          data.adhar_no || '',
+          data.address || ''
+        ];
+
+        const [result] = await db.query(sql, values);
+
+        res.json({ success: true, instructor_id: result.insertId });
+      } catch (err) {
+        console.error('INSTRUCTOR CREATE ERROR:', err);
+        res.status(500).json({ success: false, error: 'Failed to add instructor' });
+      }
+    });
+
+
+
+    // DELETE instructor
+    app.delete('/api/instructors/:id', requireAdmin, async (req, res) => {
+      try {
+        await db.query("DELETE FROM instructors WHERE id=?", [req.params.id]);
+        res.json({ success: true });
+      } catch (err) {
+        console.error("INSTRUCTOR DELETE ERROR:", err);
+        res.status(500).json({ success: false, error: "Failed to delete instructor" });
       }
     });
 

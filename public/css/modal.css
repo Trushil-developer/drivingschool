@@ -5,7 +5,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 9999;
+    z-index: 10000;
     padding: 10px;
     box-sizing: border-box;
 }
@@ -24,6 +24,8 @@
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25);
     animation: fadeIn 0.17s ease-out;
     box-sizing: border-box;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .modal-close {

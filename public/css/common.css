@@ -27,7 +27,7 @@ body {
     line-height: 1.5;
 }
 
-/* Topbar */
+/* ===== Topbar ===== */
 .topbar {
     display: flex;
     justify-content: space-between;
@@ -36,7 +36,6 @@ body {
     background: linear-gradient(90deg, var(--primary), var(--primary-dark));
     color: #fff;
     box-shadow: var(--shadow);
-
 }
 
 .topbar h1 {
@@ -45,7 +44,7 @@ body {
     font-weight: 600;
 }
 
-/* Main layout */
+/* ===== Main Layout ===== */
 .main {
     max-width: var(--max-width);
     margin: 24px auto;
@@ -55,7 +54,7 @@ body {
     padding: 0 12px;
 }
 
-/* Sidebar */
+/* ===== Sidebar ===== */
 .sidebar {
     background: var(--card);
     border-radius: var(--radius);
@@ -88,7 +87,7 @@ body {
     background: rgba(26, 115, 232, 0.1);
 }
 
-/* Content area */
+/* ===== Content Area ===== */
 .content {
     background: var(--card);
     padding: 24px;
@@ -97,7 +96,7 @@ body {
     min-height: 60vh;
 }
 
-/* Buttons */
+/* ===== Buttons ===== */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -136,7 +135,7 @@ body {
     border: 1px solid #d1d5db;
 }
 
-/* Small buttons for lock/unlock */
+/* ===== Small buttons for lock/unlock ===== */
 .btn-sm {
     padding: 4px 8px;
     font-size: 0.8rem;
@@ -150,65 +149,93 @@ body {
     color: #fff;
 }
 
-/* Details table */
-.details-table {
+/* ===== Tables ===== */
+.details-table,
+.bookings-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0 8px;
-    margin-top: 16px;
 }
 
 .details-table th,
-.details-table td {
+.details-table td,
+.bookings-table th,
+.bookings-table td {
     padding: 12px 16px;
     border-radius: 8px;
     text-align: left;
 }
 
-.details-table th {
+.details-table th,
+.bookings-table th {
     background-color: #f3f4f6;
     font-weight: 600;
 }
 
-.details-table td {
+.details-table td,
+.bookings-table td {
     background: #f9fafb;
 }
 
-/* Attendance Modal */
+/* ===== Error & Empty States ===== */
+.error {
+    padding: 12px;
+    background: #f8d7da;
+    color: #721c24;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-weight: 500;
+}
+
+.empty {
+    padding: 12px;
+    background: #f3f4f6;
+    color: #555;
+    border-radius: 6px;
+    text-align: center;
+}
+
+/* ===== Attendance Modal ===== */
 .attendance-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: none;
-    z-index: 1000;
-    backdrop-filter: blur(2px);
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(3px);
+    z-index: 9998;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
 }
 
 .attendance-overlay.active {
-    display: block;
+    opacity: 1;
+    visibility: visible;
 }
 
 .attendance-modal {
     position: fixed;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    width: 420px;
+    max-height: 82vh;
+    overflow-y: auto;
     background: var(--card);
-    border-radius: var(--radius);
-    padding: 24px 32px;
-    width: 90%;
-    max-width: 600px;
-    box-shadow: var(--shadow);
-    z-index: 1001;
-    display: none;
-    animation: fadeIn 0.25s ease-out;
+    border-radius: 14px;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+    padding: 22px;
+    z-index: 9999;
+
+    transform: translate(-50%, -40%);
+    opacity: 0;
+    transition: all 0.35s ease;
 }
 
 .attendance-modal.active {
-    display: block;
+    transform: translate(-50%, -50%);
+    opacity: 1;
 }
 
 .attendance-modal h3 {
@@ -216,79 +243,102 @@ body {
     margin-bottom: 16px;
     font-size: 1.3rem;
     font-weight: 600;
-}
-
-/* Attendance table */
-#attendanceTable {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0 6px;
-    margin-bottom: 20px;
-}
-
-#attendanceTable th,
-#attendanceTable td {
-    padding: 10px 12px;
-    border-radius: 6px;
     text-align: center;
-    font-weight: 500;
 }
 
-#attendanceTable th {
-    background: #f3f4f6;
+.attendance-modal table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 18px;
 }
 
-#attendanceTable td {
-    background: #f9fafb;
+.attendance-modal th,
+.attendance-modal td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    text-align: center;
 }
 
-/* Checkbox styling */
-#attendanceTable input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-    accent-color: var(--primary);
+.attendance-modal th {
+    background: #f2f4f7;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
-/* Locked rows styling */
-#attendanceTable td.locked input[type="checkbox"] {
-    cursor: not-allowed;
-    opacity: 0.5;
+.attendance-modal input[type="checkbox"] {
+    transform: scale(1.25);
 }
 
-#attendanceTable td.locked button.btn-sm {
-    margin-left: 8px;
-}
-
-/* Buttons in modal */
-#attendanceTable button.btn-sm {
-    font-size: 0.8rem;
-    padding: 3px 6px;
+#saveAttendanceBtn {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+    padding: 10px 16px;
     border-radius: 6px;
+    border: none;
+    cursor: pointer;
 }
 
-/* Modal save/close buttons */
-#saveAttendanceBtn,
 #closeAttendanceBtn {
-    margin-right: 10px;
-}
-
-.attendance-modal table td .btn-sm {
-    width: auto;
-    padding: 3px 6px;
+    background: #e5e7eb;
+    color: #111;
+    padding: 10px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
     margin-left: 8px;
-    display: inline-block;
-    font-size: 0.8rem;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translate(-50%, -52%);
+/* ===== Responsive ===== */
+@media (max-width: 1024px) {
+    .main {
+        grid-template-columns: 1fr;
+        padding: 12px;
     }
 
-    to {
-        opacity: 1;
-        transform: translate(-50%, -50%);
+    .sidebar {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+
+    .details-table,
+    .bookings-table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .details-table th,
+    .details-table td,
+    .bookings-table th,
+    .bookings-table td {
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        font-size: 14px;
+    }
+
+    .attendance-modal {
+        width: 90%;
+        padding: 16px;
+    }
+
+    .details-table th,
+    .details-table td,
+    .bookings-table th,
+    .bookings-table td {
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+
+    .btn {
+        padding: 8px 12px;
+        font-size: 13px;
     }
 }

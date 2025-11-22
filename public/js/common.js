@@ -30,6 +30,7 @@ window.CommonReady = (async () => {
             const section = li.dataset.section;
             if (section === 'bookings') window.location.href = 'admin.html';
             else if (section === 'upcoming') window.location.href = 'admin.html?tab=upcoming';
+            else if (section === 'instructors') window.location.href = 'admin.html?tab=instructors';
         });
     });
 
@@ -138,3 +139,8 @@ window.CommonReady = (async () => {
 
 
 })();
+
+
+window.addEventListener("DOMContentLoaded", () => {
+    if (window.Modal) Modal.init();
+});
