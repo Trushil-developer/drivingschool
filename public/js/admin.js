@@ -44,11 +44,14 @@
         const today = new Date(); today.setHours(0,0,0,0);
         return bookings.filter(b => {
             if (!b.starting_from) return false;
+            if (b.attendance_fulfilled) return false;
+
             const start = new Date(b.starting_from); start.setHours(0,0,0,0);
             const diffDays = (today - start) / MS_PER_DAY;
             return diffDays >= 0 && diffDays <= 30;
         });
     }
+
 
     // ================= Tab renderers =================
     const tabRenderers = {
@@ -107,7 +110,16 @@
         upcoming: async () => {
             try {
                 const res = await window.api('/api/bookings');
-                if(!res.success) throw new Error(res.error || 'Failed to fetch bookings');
+                if (!res.success) throw new Error(res.error || 'Failed to fetch bookings');
+                
+                const bookings = res.bookings;
+
+                for (let b of bookings) {
+                    const attRes = await window.api(`/api/attendance/${b.id}`);
+                    const existingAttendance = attRes.records || [];
+                    const totalDays = b.training_days == "21" ? 21 : 15;
+                    b.attendance_fulfilled = existingAttendance.filter(e => e.present == 1).length >= totalDays;
+                }
 
                 const rows = filterData('bookings', filterUpcoming(res.bookings), lastSearch);
                 if(!rows.length){
