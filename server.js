@@ -348,7 +348,7 @@ app.delete('/api/instructors/:id', requireAdmin, async (req, res, next) => {
 });
 
 // CARS
-app.get('/api/cars', requireAdmin, async (req, res, next) => {
+app.get('/api/cars', async (req, res, next) => {
   try {
     const [rows] = await dbPool.query('SELECT * FROM cars ORDER BY id ASC');
     res.json({ success: true, cars: rows });
