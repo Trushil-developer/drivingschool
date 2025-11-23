@@ -9,6 +9,13 @@
     <link rel="stylesheet" href="css/modal.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <style>
+        .required::after {
+            content: " *";
+            color: red;
+            font-weight: bold;
+        }
+    </style>
 </head>
 
 <body>
@@ -19,7 +26,7 @@
         </div>
 
         <div class="row">
-            <div class="label">Date:</div>
+            <div class="label required">Date:</div>
             <input type="date" id="form_date" name="form_date">
         </div>
 
@@ -28,7 +35,7 @@
             <div class="section-title">Personal Details</div>
 
             <div class="row stack-mobile">
-                <div class="label">Branch:</div>
+                <div class="label required">Branch:</div>
                 <div class="checkbox-group">
                     <label><input type="checkbox" name="branch" value="Vandematram"> Vandematram</label>
                     <label><input type="checkbox" name="branch" value="Malabar"> Malabar</label>
@@ -37,7 +44,7 @@
             </div>
 
             <div class="row stack-mobile">
-                <div class="label">Training Days:</div>
+                <div class="label required">Training Days:</div>
                 <div class="radio-group">
                     <label><input type="radio" name="training_days" value="21"> 21 Days</label>
                     <label><input type="radio" name="training_days" value="15"> 15 Days</label>
@@ -45,35 +52,35 @@
             </div>
 
             <div class="row stack-mobile">
-                <div class="label">Car:</div>
+                <div class="label required">Car:</div>
                 <div class="checkbox-group" id="carsCheckboxGroup">
                 </div>
             </div>
 
             <div class="row">
-                <div class="label">Full Name:</div>
+                <div class="label required">Full Name:</div>
                 <input type="text" name="customer_name">
             </div>
 
             <div class="row">
-                <div class="label">Address:</div>
+                <div class="label required">Address:</div>
                 <input type="text" name="address">
-                <div class="label">Pincode:</div>
+                <div class="label required">Pincode:</div>
                 <input type="text" name="pincode" pattern="\d{6}" maxlength="6" style="flex: 0.5; max-width: 120px;">
             </div>
 
             <div class="row">
-                <div class="label">Mobile No.:</div>
+                <div class="label required">Mobile No.:</div>
                 <input type="text" name="mobile_no">
             </div>
 
             <div class="row">
-                <div class="label">WhatsApp No.:</div>
+                <div class="label required">WhatsApp No.:</div>
                 <input type="text" name="whatsapp_no">
             </div>
 
             <div class="row stack-mobile">
-                <div class="label">Sex:</div>
+                <div class="label required">Sex:</div>
                 <select name="sex">
                     <option value="">Select</option>
                     <option>Male</option>
@@ -81,7 +88,7 @@
                     <option>Other</option>
                 </select>
 
-                <div class="label">Birth Date:</div>
+                <div class="label required">Birth Date:</div>
                 <input type="date" name="birth_date">
             </div>
 
@@ -105,12 +112,12 @@
             </div>
 
             <div class="row">
-                <div class="label">Email:</div>
+                <div class="label required">Email:</div>
                 <input type="email" name="email">
             </div>
 
             <div class="row">
-                <div class="label">Occupation:</div>
+                <div class="label required">Occupation:</div>
                 <input type="text" name="occupation">
             </div>
 
@@ -119,26 +126,24 @@
                 <input type="text" name="ref">
             </div>
 
-            <div class="row">
-                <div class="label">Allotted Time:</div>
-                <!-- <input type="time" name="allotted_time" step="1800" min="06:00" max="22:00"> -->
+            <div class="row stack-mobile">
+                <div class="label required">Allotted Time:</div>
                 <input type="text" id="allotted_time" name="allotted_time">
 
-
-                <div class="label">Start Date:</div>
+                <div class="label required">Start Date:</div>
                 <input type="date" name="starting_from">
             </div>
 
             <div class="row">
-                <div class="label">Total Fees:</div>
+                <div class="label required">Total Fees:</div>
                 <input type="text" name="total_fees">
 
-                <div class="label">Advance:</div>
+                <div class="label required">Advance:</div>
                 <input type="text" name="advance">
             </div>
 
             <div class="row">
-                <div class="label">Instructor:</div>
+                <div class="label required">Instructor:</div>
                 <input type="text" name="instructor_name">
             </div>
 
@@ -149,7 +154,7 @@
                 <p>2. Course must be completed within 28 days.</p>
                 <p>3. Driving duration per day: 30 min / 7-8 km.</p>
                 <p>4. No one is allowed on the back seat.</p>
-                <label>
+                <label class="required">
                     <input type="checkbox" id="accept_notes">
                     I have read and accept the above notes.
                 </label>

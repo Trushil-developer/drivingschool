@@ -87,6 +87,12 @@ button {
     cursor: pointer;
 }
 
+.required::after {
+    content: " *";
+    color: red;
+    font-weight: bold;
+}
+
 @media (max-width: 450px) {
     .stack-mobile {
         flex-direction: column;
@@ -95,7 +101,7 @@ button {
     }
 
     .stack-mobile .label {
-        margin-bottom: 2px;
+        margin-bottom: 4px;
     }
 
     .stack-mobile-row input,

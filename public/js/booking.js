@@ -149,13 +149,13 @@
         if (!body.birth_date) return showModalAlert("Please enter your birth date.");
         if (!isAtLeastYearsOld(body.birth_date, 16)) 
             return showModalAlert("You must be at least 16 years old.");
-        if (!body.cov_lmv && !body.cov_mc) return showModalAlert("Please select at least one C.O.V. option.");
         if (!body.email) return showModalAlert("Please enter your email.");
         if (!body.occupation) return showModalAlert("Please enter your occupation.");
         if (!body.allotted_time) return showModalAlert("Please select the allotted time.");
         if (!body.starting_from) return showModalAlert("Please select the start date.");
         if (!body.total_fees) return showModalAlert("Please enter the total fees.");
         if (!body.advance) return showModalAlert("Please enter the advance amount.");
+        if (!body.instructor_name) return showModalAlert("Please enter the instructor name.");
         if (!document.getElementById("accept_notes").checked) 
             return showModalAlert("Please confirm that you have read and accepted the notes.");
 
