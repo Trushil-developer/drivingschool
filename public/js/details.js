@@ -63,7 +63,7 @@
 
             if (fulfilled) booking.attendance_status = "Completed";
             else if (today > expireDate) booking.attendance_status = "Expired";
-            else booking.attendance_status = "Pending";
+            else booking.attendance_status = "Active";
 
             // ------- Render booking details -------
             detailsTable.innerHTML = '';
