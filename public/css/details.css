@@ -195,6 +195,21 @@
     color: #111;
 }
 
+.status-completed {
+    color: #0f9d58;
+    font-weight: 700;
+}
+
+.status-pending {
+    color: #f59e0b;
+    font-weight: 700;
+}
+
+.status-expired {
+    color: #dc2626;
+    font-weight: 700;
+}
+
 /* ===== Responsive Styles ===== */
 @media (max-width: 1024px) {
     .main {

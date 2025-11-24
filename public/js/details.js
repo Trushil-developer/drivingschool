@@ -1,4 +1,3 @@
-// details.js
 (async () => {
     // Wait for common.js to finish loading topbar/sidebar/modal
     await window.CommonReady;
@@ -20,13 +19,13 @@
     function formatDate(dateStr) {
         if (!dateStr) return '-';
         const d = new Date(dateStr);
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
     function formatDateTime(dateStr) {
         if (!dateStr) return '-';
         const d = new Date(dateStr);
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     }
 
     backBtn.addEventListener('click', () => window.location.href = 'admin.html');
@@ -44,44 +43,84 @@
                 return;
             }
 
-            // Fetch attendance to calculate completion status
+            // Fetch attendance
             const attRes = await window.api(`/api/attendance/${booking.id}`);
             const existingAttendance = attRes.records || [];
-            const totalDays = booking.training_days == "21" ? 21 : 15;
-            booking.attendance_fulfilled = existingAttendance.filter(e => e.present == 1).length >= totalDays;
 
-            // Render booking details table
+            // Determine total required training days
+            const totalDays = booking.training_days == "21" ? 21 : 15;
+            const presentDays = existingAttendance.filter(e => e.present == 1).length;
+
+            // Completion logic
+            const fulfilled = presentDays >= totalDays;
+
+            // Expiration: 30 days from starting_from
+            const startDate = new Date(booking.starting_from);
+            const expireDate = new Date(startDate);
+            expireDate.setDate(expireDate.getDate() + 30);
+
+            const today = new Date();
+
+            if (fulfilled) booking.attendance_status = "Completed";
+            else if (today > expireDate) booking.attendance_status = "Expired";
+            else booking.attendance_status = "Pending";
+
+            // ------- Render booking details -------
             detailsTable.innerHTML = '';
+
+            // Insert ID row first
             for (const key in booking) {
+                if (key === "id") {
+                    const row = document.createElement('tr');
+                    const th = document.createElement('th');
+                    th.textContent = "ID";
+                    const td = document.createElement('td');
+                    td.dataset.key = "id";
+                    td.textContent = booking[key];
+                    row.append(th, td);
+                    detailsTable.appendChild(row);
+                }
+            }
+
+            // ---------- Insert Attendance Status Row as SECOND ROW ----------
+            const statusRow = document.createElement('tr');
+            const statusTh = document.createElement('th');
+            statusTh.textContent = "Attendance Status";
+            const statusTd = document.createElement('td');
+            statusTd.dataset.key = "attendance_status";
+            statusTd.textContent = booking.attendance_status;
+
+            // Apply color classes
+            statusTd.classList.remove("status-completed", "status-pending", "status-expired");
+            if (booking.attendance_status === "Completed") statusTd.classList.add("status-completed");
+            else if (booking.attendance_status === "Expired") statusTd.classList.add("status-expired");
+            else statusTd.classList.add("status-pending");
+
+            statusRow.append(statusTh, statusTd);
+            detailsTable.appendChild(statusRow);
+
+            // ---------- Insert all remaining fields ----------
+            for (const key in booking) {
+                if (key === "id" || key === "attendance_status") continue;
+
                 const row = document.createElement('tr');
                 const th = document.createElement('th');
-                th.textContent = key.replace(/_/g,' ');
+                th.textContent = key.replace(/_/g, ' ');
                 const td = document.createElement('td');
                 td.dataset.key = key;
 
-                // Format special fields
-                if ((key.includes('date') || key === 'starting_from') && booking[key]) td.textContent = formatDate(booking[key]);
-                else if (key === 'created_at' && booking[key]) td.textContent = formatDateTime(booking[key]);
-                else if (key === 'cov_lmv' || key === 'cov_mc') td.textContent = booking[key] ? 'Yes' : 'No';
-                else td.textContent = booking[key] || '-';
+                if ((key.includes('date') || key === 'starting_from') && booking[key]) {
+                    td.textContent = formatDate(booking[key]);
+                } else if (key === 'created_at' && booking[key]) {
+                    td.textContent = formatDateTime(booking[key]);
+                } else if (key === 'cov_lmv' || key === 'cov_mc') {
+                    td.textContent = booking[key] ? 'Yes' : 'No';
+                } else {
+                    td.textContent = booking[key] || '-';
+                }
 
                 row.append(th, td);
                 detailsTable.appendChild(row);
-            }
-
-            // Attendance Status row
-            let attTd = detailsTable.querySelector('td[data-key="attendance_status"]');
-            if (!attTd) {
-                const row = document.createElement('tr');
-                const th = document.createElement('th');
-                th.textContent = "Attendance Status";
-                attTd = document.createElement('td');
-                attTd.dataset.key = "attendance_status";
-                attTd.textContent = booking.attendance_fulfilled ? "Completed" : "Pending";
-                row.append(th, attTd);
-                detailsTable.appendChild(row);
-            } else {
-                attTd.textContent = booking.attendance_fulfilled ? "Completed" : "Pending";
             }
 
         } catch (err) {
@@ -92,22 +131,28 @@
 
     await loadBooking();
 
-    // Edit/Save logic
+    // ------------------ Edit Mode ------------------
     editBtn.addEventListener('click', () => {
         saveBtn.style.display = 'inline-block';
         editBtn.style.display = 'none';
+
         detailsTable.querySelectorAll('td').forEach(td => {
             const key = td.dataset.key;
             if (key === 'id' || key === 'created_at' || key === 'attendance_status') return;
+
             const val = td.textContent === '-' ? '' : td.textContent;
             const input = document.createElement('input');
 
-            if ((key.includes('date') || key === 'starting_from')) input.type = 'date';
-            else if (key === 'cov_lmv' || key === 'cov_mc') {
+            if (key.includes('date') || key === 'starting_from') {
+                input.type = 'date';
+            } else if (key === 'cov_lmv' || key === 'cov_mc') {
                 input.type = 'checkbox';
                 input.checked = val === 'Yes';
-            } else if (key === 'allotted_time') input.type = 'time';
-            else input.type = 'text'; // car_name, instructor_name, and other text fields
+            } else if (key === 'allotted_time') {
+                input.type = 'time';
+            } else {
+                input.type = 'text';
+            }
 
             if (input.type !== 'checkbox') input.value = val;
             td.innerHTML = '';
@@ -115,32 +160,43 @@
         });
     });
 
+    // ------------------ Save Logic ------------------
     saveBtn.addEventListener('click', async () => {
         const updatedData = {};
+
         detailsTable.querySelectorAll('td').forEach(td => {
             const key = td.dataset.key;
             if (key === 'id' || key === 'created_at' || key === 'attendance_status') return;
+
             const input = td.querySelector('input');
             let value = input.type === 'checkbox' ? (input.checked ? 1 : 0) : input.value;
+
             if (key === 'allotted_time' && value === '') value = null;
             updatedData[key] = value;
         });
 
         try {
-            const res = await window.api(`/api/bookings/${id}`, { method: 'PUT', body: updatedData });
+            const res = await window.api(`/api/bookings/${id}`, {
+                method: 'PUT',
+                body: updatedData
+            });
+
             if (res.success) {
                 alert('Booking updated successfully!');
                 saveBtn.style.display = 'none';
                 editBtn.style.display = 'inline-block';
                 await loadBooking();
-            } else alert('Failed to update booking: ' + res.error);
+            } else {
+                alert('Failed to update booking: ' + res.error);
+            }
+
         } catch (err) {
             console.error(err);
             alert('Error updating booking.');
         }
     });
 
-    // Attendance button uses common.js modal
+    // ------------------ Attendance Modal Button ------------------
     attendanceBtn.addEventListener('click', () => {
         window.openAttendanceModal({
             ...booking,
