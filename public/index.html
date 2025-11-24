@@ -144,7 +144,9 @@
 
             <div class="row">
                 <div class="label required">Instructor:</div>
-                <input type="text" name="instructor_name">
+                <select name="instructor_name" id="instructorSelect">
+                    <option value="">Select Instructor</option>
+                </select>
             </div>
 
             <div class="section-title">Notes</div>
@@ -174,6 +176,7 @@
 
     <script type="module" defer src="js/booking.js"></script>
     <script type="module" src="js/cars.js"></script>
+    <script type="module" src="js/instructors.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             const now = new Date();

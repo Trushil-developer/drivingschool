@@ -295,7 +295,7 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
 });
 
 // INSTRUCTORS
-app.get('/api/instructors', requireAdmin, async (req, res, next) => {
+app.get('/api/instructors', async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
       SELECT id, employee_no, instructor_name, email, mobile_no, branch, 

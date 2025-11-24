@@ -133,7 +133,7 @@
         body.starting_from = v("input[name='starting_from']");
         body.total_fees = v("input[name='total_fees']");
         body.advance = v("input[name='advance']");
-        body.instructor_name = v("input[name='instructor_name']");
+        body.instructor_name = v("select[name='instructor_name']");
         body.instructor_id = null;
 
         // Validation
