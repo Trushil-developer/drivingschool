@@ -69,20 +69,14 @@
             detailsTable.innerHTML = '';
 
             // Insert ID row first
-            for (const key in booking) {
-                if (key === "id") {
-                    const row = document.createElement('tr');
-                    const th = document.createElement('th');
-                    th.textContent = "ID";
-                    const td = document.createElement('td');
-                    td.dataset.key = "id";
-                    td.textContent = booking[key];
-                    row.append(th, td);
-                    detailsTable.appendChild(row);
-                }
-            }
+            const idRow = document.createElement('tr');
+            idRow.innerHTML = `
+                <th>ID</th>
+                <td data-key="id">${booking.id}</td>
+            `;
+            detailsTable.appendChild(idRow);
 
-            // ---------- Insert Attendance Status Row as SECOND ROW ----------
+            // Insert Attendance Status row second
             const statusRow = document.createElement('tr');
             const statusTh = document.createElement('th');
             statusTh.textContent = "Attendance Status";
@@ -99,9 +93,17 @@
             statusRow.append(statusTh, statusTd);
             detailsTable.appendChild(statusRow);
 
-            // ---------- Insert all remaining fields ----------
+            // Insert Present Days row third
+            const presentRow = document.createElement('tr');
+            presentRow.innerHTML = `
+                <th>Present Days</th>
+                <td>${presentDays} / ${totalDays}</td>
+            `;
+            detailsTable.appendChild(presentRow);
+
+            // Insert remaining fields
             for (const key in booking) {
-                if (key === "id" || key === "attendance_status") continue;
+                if (key === "id" || key === "attendance_status" || key === "present_days") continue;
 
                 const row = document.createElement('tr');
                 const th = document.createElement('th');
