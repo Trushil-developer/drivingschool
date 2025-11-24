@@ -20,7 +20,6 @@
     function filterData(tab, items, query) {
         if (!query) return items;
         query = query.trim().toLowerCase();
-
         switch(tab) {
             case 'bookings':
             case 'upcoming':
@@ -45,29 +44,23 @@
         return bookings.filter(b => {
             if (!b.starting_from) return false;
             if (b.attendance_fulfilled) return false;
-
             const start = new Date(b.starting_from); start.setHours(0,0,0,0);
             const diffDays = (today - start) / MS_PER_DAY;
             return diffDays >= 0 && diffDays <= 30;
         });
     }
 
-
-    // ================= Tab renderers =================
     const tabRenderers = {
         bookings: async () => {
             try {
                 const res = await window.api('/api/bookings');
                 if(!res.success) throw new Error(res.error || 'Failed to fetch bookings');
-
                 const rows = filterData('bookings', res.bookings, lastSearch);
                 if(!rows.length){
                     tableWrap.innerHTML = '<div class="empty">No bookings found</div>';
                     return;
                 }
-
                 const scrollTop = window.scrollY || document.documentElement.scrollTop;
-
                 let html = `<table class="bookings-table">
                     <thead>
                         <tr>
@@ -97,38 +90,30 @@
                         </tr>`).join('')}
                     </tbody>
                 </table>`;
-
                 tableWrap.innerHTML = html;
                 window.scrollTo(0, scrollTop);
-
             } catch(err) {
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
             }
         },
-
         upcoming: async () => {
             try {
                 const res = await window.api('/api/bookings');
                 if (!res.success) throw new Error(res.error || 'Failed to fetch bookings');
-                
                 const bookings = res.bookings;
-
                 for (let b of bookings) {
                     const attRes = await window.api(`/api/attendance/${b.id}`);
                     const existingAttendance = attRes.records || [];
                     const totalDays = b.training_days == "21" ? 21 : 15;
                     b.attendance_fulfilled = existingAttendance.filter(e => e.present == 1).length >= totalDays;
                 }
-
                 const rows = filterData('bookings', filterUpcoming(res.bookings), lastSearch);
                 if(!rows.length){
                     tableWrap.innerHTML = '<div class="empty">No upcoming bookings found</div>';
                     return;
                 }
-
                 const scrollTop = window.scrollY || document.documentElement.scrollTop;
-
                 tableWrap.innerHTML = `<table class="bookings-table">
                     <thead>
                         <tr>
@@ -151,28 +136,22 @@
                         </tr>`).join('')}
                     </tbody>
                 </table>`;
-
                 window.scrollTo(0, scrollTop);
-
             } catch(err) {
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
             }
         },
-
         instructors: async () => {
             try {
                 const res = await window.api('/api/instructors');
                 if(!res.success) throw new Error(res.error || 'Failed to fetch instructors');
-
                 const rows = filterData('instructors', res.instructors, lastSearch);
                 if(!rows.length){
                     tableWrap.innerHTML = '<div class="empty">No instructors found</div>';
                     return;
                 }
-
                 const scrollTop = window.scrollY || document.documentElement.scrollTop;
-
                 let html = `<table class="bookings-table">
                     <thead>
                         <tr>
@@ -192,33 +171,30 @@
                             <td>${i.drivers_license || '-'}</td>
                             <td>${i.adhar_no || '-'}</td>
                             <td>${i.address || '-'}</td>
-                            <td><button class="btn delete" data-id="${i.id}">Delete</button></td>
+                            <td>
+                                <button class="btn edit-instructor" data-id="${i.id}" data-name="${i.instructor_name}" data-email="${i.email}" data-mobile="${i.mobile_no}" data-branch="${i.branch}" data-license="${i.drivers_license}" data-adhar="${i.adhar_no}" data-address="${i.address}">Edit</button>
+                                <button class="btn delete" data-id="${i.id}">Delete</button>
+                            </td>
                         </tr>`).join('')}
                     </tbody>
                 </table>`;
-
                 tableWrap.innerHTML = html;
                 window.scrollTo(0, scrollTop);
-
             } catch(err){
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
             }
         },
-
         cars: async () => {
             try {
                 const res = await window.api('/api/cars');
                 if(!res.success) throw new Error(res.error || 'Failed to fetch cars');
-
                 const rows = filterData('cars', res.cars, lastSearch);
                 if(!rows.length){
                     tableWrap.innerHTML = '<div class="empty">No cars found</div>';
                     return;
                 }
-
                 const scrollTop = window.scrollY || document.documentElement.scrollTop;
-
                 let html = `<table class="bookings-table">
                     <thead>
                         <tr>
@@ -237,10 +213,8 @@
                         </tr>`).join('')}
                     </tbody>
                 </table>`;
-
                 tableWrap.innerHTML = html;
                 window.scrollTo(0, scrollTop);
-
             } catch(err){
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
@@ -248,14 +222,12 @@
         }
     };
 
-    // ================= Tab switching =================
     const sidebarItems = document.querySelectorAll('.sidebar li');
 
     async function switchTab(tab) {
         currentTab = tab;
         sidebarItems.forEach(i => i.classList.toggle('active', i.dataset.section === tab));
         if(tabRenderers[tab]) await tabRenderers[tab]();
-
         const newUrl = new URL(window.location);
         newUrl.searchParams.set('tab', tab);
         window.history.replaceState({}, '', newUrl);
@@ -268,13 +240,11 @@
         });
     });
 
-    // ================= Search input =================
     searchInput?.addEventListener('input', e => {
         lastSearch = e.target.value;
         if(tabRenderers[currentTab]) tabRenderers[currentTab]();
     });
 
-    // ================= Add new button =================
     addBtn?.addEventListener("click", e => {
         e.preventDefault();
         if(currentTab === "instructors") openInstructorAddModal();
@@ -282,11 +252,9 @@
         else window.location.href = "index.html";
     });
 
-    // ================= Table actions =================
     tableWrap.addEventListener('click', async e => {
         const id = e.target.dataset.id;
         if(!id) return;
-
         if(e.target.classList.contains('delete')) {
             if(!confirm("Are you sure?")) return;
             if(currentTab === "bookings") await window.api(`/api/bookings/${id}`, { method: "DELETE" });
@@ -294,31 +262,37 @@
             if(currentTab === "cars") await window.api(`/api/cars/${id}`, { method: "DELETE" });
             if(tabRenderers[currentTab]) tabRenderers[currentTab]();
         }
-
         if(e.target.classList.contains('details') && currentTab === 'bookings') {
             window.location.href = `details.html?id=${id}`;
         }
-
         if(e.target.classList.contains('attendance') && currentTab === 'upcoming') {
             const bookings = (await window.api('/api/bookings')).bookings;
             const booking = bookings.find(b => b.id == id);
             window.openAttendanceModal({ ...booking, refresh: () => tabRenderers[currentTab]() });
         }
-
         if(e.target.classList.contains('edit') && currentTab === 'cars') {
             const currentName = e.target.dataset.name || '';
             openCarEditModal(id, currentName);
         }
+        if(e.target.classList.contains('edit-instructor') && currentTab === 'instructors') {
+            const data = {
+                instructor_name: e.target.dataset.name,
+                email: e.target.dataset.email,
+                mobile_no: e.target.dataset.mobile,
+                branch: e.target.dataset.branch,
+                drivers_license: e.target.dataset.license,
+                adhar_no: e.target.dataset.adhar,
+                address: e.target.dataset.address,
+            };
+            openInstructorEditModal(id, data);
+        }
     });
 
-    // ================= Initial load =================
     await switchTab(currentTab);
 
-    // ================= Modal functions =================
     function openInstructorAddModal() {
         if(!window.Modal) return;
         if(!window.Modal.el) try { window.Modal.init(); } catch(err){ console.error(err); return; }
-
         const innerFormHTML = `
             <h2>Add Instructor</h2>
             <div class="modal-content-form">
@@ -334,11 +308,9 @@
         `;
         window.Modal.setContent(innerFormHTML);
         window.Modal.show();
-
         setTimeout(() => {
             const saveBtn = document.getElementById("saveInstructor");
             if(!saveBtn) return;
-
             saveBtn.addEventListener("click", async () => {
                 const instructorData = {
                     instructor_name: document.getElementById("ins_name").value.trim(),
@@ -349,24 +321,74 @@
                     adhar_no: document.getElementById("ins_adhar").value.trim(),
                     address: document.getElementById("ins_address").value.trim(),
                 };
-
                 for (const [key, value] of Object.entries(instructorData)) {
                     if (!value) {
                         alert(`Please fill in the ${key.replace('_', ' ')}`);
                         return;
                     }
                 }
-
                 try {
                     const res = await window.api("/api/instructors", {
                         method: "POST",
                         body: JSON.stringify(instructorData),
                         headers: { "Content-Type": "application/json" }
                     });
-
                     if (!res.success) throw new Error(res.error || "Failed to save instructor");
-
                     alert("Instructor saved successfully!");
+                    window.Modal.hide();
+                    if(tabRenderers[currentTab]) tabRenderers[currentTab]();
+                } catch(err) {
+                    alert("Error: " + err.message);
+                }
+            });
+        }, 50);
+    }
+
+    function openInstructorEditModal(id, data) {
+        if(!window.Modal) return;
+        if(!window.Modal.el) try { window.Modal.init(); } catch(err){ console.error(err); return; }
+        const innerFormHTML = `
+            <h2>Edit Instructor</h2>
+            <div class="modal-content-form">
+                <label>Name</label><input id="ins_name" type="text" value="${data.instructor_name || ''}" required>
+                <label>Email</label><input id="ins_email" type="email" value="${data.email || ''}" required>
+                <label>Mobile</label><input id="ins_mobile" type="text" value="${data.mobile_no || ''}" required>
+                <label>Branch</label><input id="ins_branch" type="text" value="${data.branch || ''}" required>
+                <label>Driver Licence</label><input id="ins_license" type="text" value="${data.drivers_license || ''}" required>
+                <label>Adhar No</label><input id="ins_adhar" type="text" value="${data.adhar_no || ''}" required>
+                <label>Address</label><textarea id="ins_address" required>${data.address || ''}</textarea>
+                <button id="saveInstructor" class="btn primary">Save Changes</button>
+            </div>
+        `;
+        window.Modal.setContent(innerFormHTML);
+        window.Modal.show();
+        setTimeout(() => {
+            const saveBtn = document.getElementById("saveInstructor");
+            if(!saveBtn) return;
+            saveBtn.addEventListener("click", async () => {
+                const instructorData = {
+                    instructor_name: document.getElementById("ins_name").value.trim(),
+                    email: document.getElementById("ins_email").value.trim(),
+                    mobile_no: document.getElementById("ins_mobile").value.trim(),
+                    branch: document.getElementById("ins_branch").value.trim(),
+                    drivers_license: document.getElementById("ins_license").value.trim(),
+                    adhar_no: document.getElementById("ins_adhar").value.trim(),
+                    address: document.getElementById("ins_address").value.trim(),
+                };
+                for (const [key, value] of Object.entries(instructorData)) {
+                    if (!value) {
+                        alert(`Please fill in the ${key.replace('_', ' ')}`);
+                        return;
+                    }
+                }
+                try {
+                    const res = await window.api(`/api/instructors/${id}`, {
+                        method: "PUT",
+                        body: JSON.stringify(instructorData),
+                        headers: { "Content-Type": "application/json" }
+                    });
+                    if(!res.success) throw new Error(res.error || "Failed to update instructor");
+                    alert("Instructor updated successfully!");
                     window.Modal.hide();
                     if(tabRenderers[currentTab]) tabRenderers[currentTab]();
                 } catch(err) {
@@ -379,7 +401,6 @@
     function openCarAddModal() {
         if(!window.Modal) return;
         if(!window.Modal.el) try { window.Modal.init(); } catch(err){ console.error(err); return; }
-
         const innerFormHTML = `
             <h2>Add Car</h2>
             <div class="modal-content-form car-modal">
@@ -390,24 +411,19 @@
         `;
         window.Modal.setContent(innerFormHTML);
         window.Modal.show();
-
         setTimeout(() => {
             const saveBtn = document.getElementById("saveCar");
             if(!saveBtn) return;
-
             saveBtn.addEventListener("click", async () => {
                 const carName = document.getElementById("car_name").value.trim();
                 if(!carName) return alert("Car name is required");
-
                 try {
                     const res = await window.api("/api/cars", {
                         method: "POST",
                         body: JSON.stringify({ car_name: carName }),
                         headers: { "Content-Type": "application/json" }
                     });
-
                     if(!res.success) throw new Error(res.error || "Failed to save car");
-
                     alert("Car saved successfully!");
                     window.Modal.hide();
                     if(tabRenderers[currentTab]) tabRenderers[currentTab](); 
@@ -421,7 +437,6 @@
     function openCarEditModal(id, name) {
         if(!window.Modal) return;
         if(!window.Modal.el) try { window.Modal.init(); } catch(err){ console.error(err); return; }
-
         const innerFormHTML = `
             <h2>Edit Car</h2>
             <div class="modal-content-form car-modal">
@@ -432,24 +447,19 @@
         `;
         window.Modal.setContent(innerFormHTML);
         window.Modal.show();
-
         setTimeout(() => {
             const saveBtn = document.getElementById("saveCar");
             if(!saveBtn) return;
-
             saveBtn.addEventListener("click", async () => {
                 const carName = document.getElementById("car_name").value.trim();
                 if(!carName) return alert("Car name is required");
-
                 try {
                     const res = await window.api(`/api/cars/${id}`, {
                         method: "PUT",
                         body: JSON.stringify({ car_name: carName }),
                         headers: { "Content-Type": "application/json" }
                     });
-
                     if(!res.success) throw new Error(res.error || "Failed to update car");
-
                     alert("Car updated successfully!");
                     window.Modal.hide();
                     if(tabRenderers[currentTab]) tabRenderers[currentTab]();

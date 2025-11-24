@@ -347,6 +347,38 @@ app.delete('/api/instructors/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
+app.put('/api/instructors/:id', requireAdmin, async (req, res, next) => {
+  const { id } = req.params;
+  const data = req.body;
+
+  if (!data.instructor_name) return res.json({ success: false, error: 'Instructor name is required' });
+
+  try {
+    const sql = `
+      UPDATE instructors SET
+        instructor_name=?, email=?, mobile_no=?, branch=?, drivers_license=?, adhar_no=?, address=?
+      WHERE id=?
+    `;
+    const values = [
+      data.instructor_name,
+      data.email || '',
+      data.mobile_no || '',
+      data.branch || '',
+      data.drivers_license || '',
+      data.adhar_no || '',
+      data.address || '',
+      id
+    ];
+
+    await dbPool.query(sql, values);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('INSTRUCTOR UPDATE ERROR:', err);
+    next(err);
+  }
+});
+
+
 // CARS
 app.get('/api/cars', async (req, res, next) => {
   try {
