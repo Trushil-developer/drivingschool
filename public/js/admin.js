@@ -526,7 +526,7 @@
             <label>State</label><input id="br_state" type="text">
             <label>Mobile</label><input id="br_mobile" type="text">
             <label>Email</label><input id="br_email" type="email">
-            <button id="saveBranch" class="btn primary">Save Branch</button>
+            <button id="saveBranch" class="btn primary" style="margin-top: 15px;">Save Branch</button>
         </div>
     `;
 
