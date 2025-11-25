@@ -100,3 +100,90 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN password VARCHAR(255
 
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='created_at');
 SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- BRANCHES TABLE
+-- =====================================
+CREATE TABLE IF NOT EXISTS branches (
+    id INT AUTO_INCREMENT PRIMARY KEY
+);
+
+-- Add branch_name
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='branches' 
+                      AND column_name='branch_name');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE branches ADD COLUMN branch_name VARCHAR(100) NOT NULL;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add address
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='branches' 
+                      AND column_name='address');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE branches ADD COLUMN address VARCHAR(255);',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add city
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='branches' 
+                      AND column_name='city');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE branches ADD COLUMN city VARCHAR(100);',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add state
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='branches' 
+                      AND column_name='state');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE branches ADD COLUMN state VARCHAR(100);',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add postal_code
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='branches' 
+                      AND column_name='postal_code');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE branches ADD COLUMN postal_code VARCHAR(20);',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add mobile_no
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='branches' 
+                      AND column_name='mobile_no');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE branches ADD COLUMN mobile_no VARCHAR(20);',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add email
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='branches' 
+                      AND column_name='email');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE branches ADD COLUMN email VARCHAR(100);',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add created_at
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='branches' 
+                      AND column_name='created_at');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE branches ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

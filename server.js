@@ -443,6 +443,106 @@ process.on('unhandledRejection', (reason) => {
   console.error('UNHANDLED REJECTION:', reason);
 });
 
+
+// ===============================
+// BRANCHES CRUD
+// ===============================
+
+// GET ALL BRANCHES
+app.get('/api/branches', requireAdmin, async (req, res, next) => {
+  try {
+    const [rows] = await dbPool.query(`
+      SELECT id, branch_name, address, city, state, postal_code, mobile_no, email, created_at
+      FROM branches
+      ORDER BY id DESC
+    `);
+    res.json({ success: true, branches: rows });
+  } catch (err) {
+    console.error('BRANCHES LIST ERROR:', err);
+    next(err);
+  }
+});
+
+// CREATE NEW BRANCH
+app.post('/api/branches', requireAdmin, async (req, res, next) => {
+  const data = req.body;
+
+  if (!data.branch_name)
+    return res.json({ success: false, error: 'Branch name is required' });
+
+  try {
+    const sql = `
+      INSERT INTO branches 
+        (branch_name, address, city, state, postal_code, mobile_no, email)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    const values = [
+      data.branch_name,
+      data.address || '',
+      data.city || '',
+      data.state || '',
+      data.postal_code || '',
+      data.mobile_no || '',
+      data.email || '',
+    ];
+
+    const [result] = await dbPool.query(sql, values);
+
+    res.json({ success: true, branch_id: result.insertId });
+  } catch (err) {
+    console.error('BRANCH CREATE ERROR:', err);
+    next(err);
+  }
+});
+
+// UPDATE BRANCH
+app.put('/api/branches/:id', requireAdmin, async (req, res, next) => {
+  const { id } = req.params;
+  const data = req.body;
+
+  if (!data.branch_name)
+    return res.json({ success: false, error: 'Branch name is required' });
+
+  try {
+    const sql = `
+      UPDATE branches SET
+        branch_name=?, address=?, city=?, state=?, postal_code=?, 
+        mobile_no=?, email=?
+      WHERE id=?
+    `;
+    const values = [
+      data.branch_name,
+      data.address || '',
+      data.city || '',
+      data.state || '',
+      data.postal_code || '',
+      data.mobile_no || '',
+      data.email || '',
+      id
+    ];
+
+    await dbPool.query(sql, values);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('BRANCH UPDATE ERROR:', err);
+    next(err);
+  }
+});
+
+// DELETE BRANCH
+app.delete('/api/branches/:id', requireAdmin, async (req, res, next) => {
+  const { id } = req.params;
+
+  try {
+    await dbPool.query('DELETE FROM branches WHERE id=?', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('BRANCH DELETE ERROR:', err);
+    next(err);
+  }
+});
+
 // ---------- Start server ----------
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);

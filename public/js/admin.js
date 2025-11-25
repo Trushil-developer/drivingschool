@@ -33,7 +33,12 @@
                     .some(f => (f||'').toLowerCase().includes(query))
                 );
             case 'cars':
-                return items.filter(c => (c.car_name||'').toLowerCase().includes(query));
+                return items.filter(c => (c.car_name || '').toLowerCase().includes(query));
+            case 'branches':
+                return items.filter(b =>
+                    [b.branch_name, b.city, b.state, b.mobile_no, b.email]
+                    .some(f => (f || '').toLowerCase().includes(query))
+                );
             default:
                 return items;
         }
@@ -219,7 +224,68 @@
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
             }
+        },
+        branches: async () => {
+            try {
+                const res = await window.api('/api/branches');
+                if (!res.success) throw new Error(res.error || 'Failed to fetch branches');
+
+                const rows = filterData('branches', res.branches, lastSearch);
+                if (!rows.length) {
+                    tableWrap.innerHTML = '<div class="empty">No branches found</div>';
+                    return;
+                }
+
+                const scrollTop = window.scrollY || document.documentElement.scrollTop;
+
+                let html = `
+                    <table class="bookings-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Branch Name</th>
+                                <th>City</th>
+                                <th>State</th>
+                                <th>Mobile</th>
+                                <th>Email</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        ${rows.map(b => `
+                            <tr id="branch-${b.id}">
+                                <td>${b.id}</td>
+                                <td>${b.branch_name || '-'}</td>
+                                <td>${b.city || '-'}</td>
+                                <td>${b.state || '-'}</td>
+                                <td>${b.mobile_no || '-'}</td>
+                                <td>${b.email || '-'}</td>
+                                <td>
+                                    <button class="btn edit-branch" data-id="${b.id}" 
+                                        data-name="${b.branch_name}"
+                                        data-city="${b.city}"
+                                        data-state="${b.state}"
+                                        data-mobile="${b.mobile_no}"
+                                        data-email="${b.email}">
+                                        Edit
+                                    </button>
+
+                                    <button class="btn delete" data-id="${b.id}">Delete</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+                tableWrap.innerHTML = html;
+                window.scrollTo(0, scrollTop);
+            } catch (err) {
+                console.error(err);
+                tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
+            }
         }
+
     };
 
     const sidebarItems = document.querySelectorAll('.sidebar li');
@@ -248,7 +314,8 @@
     addBtn?.addEventListener("click", e => {
         e.preventDefault();
         if(currentTab === "instructors") openInstructorAddModal();
-        else if(currentTab === "cars") openCarAddModal();
+        else if (currentTab === "cars") openCarAddModal();
+        else if (currentTab === "branches") openBranchAddModal();
         else window.location.href = "index.html";
     });
 
@@ -259,7 +326,8 @@
             if(!confirm("Are you sure?")) return;
             if(currentTab === "bookings") await window.api(`/api/bookings/${id}`, { method: "DELETE" });
             if(currentTab === "instructors") await window.api(`/api/instructors/${id}`, { method: "DELETE" });
-            if(currentTab === "cars") await window.api(`/api/cars/${id}`, { method: "DELETE" });
+            if (currentTab === "cars") await window.api(`/api/cars/${id}`, { method: "DELETE" });
+            if (currentTab === "branches") await window.api(`/api/branches/${id}`, { method: "DELETE" });
             if(tabRenderers[currentTab]) tabRenderers[currentTab]();
         }
         if(e.target.classList.contains('details') && currentTab === 'bookings') {
@@ -286,6 +354,18 @@
             };
             openInstructorEditModal(id, data);
         }
+        if (e.target.classList.contains('edit-branch') && currentTab === 'branches') {
+            const data = {
+                branch_name: e.target.dataset.name,
+                city: e.target.dataset.city,
+                state: e.target.dataset.state,
+                mobile_no: e.target.dataset.mobile,
+                email: e.target.dataset.email,
+            };
+
+            openBranchEditModal(id, data);
+        }
+
     });
 
     await switchTab(currentTab);
@@ -434,6 +514,93 @@
         }, 50);
     }
 
+    function openBranchAddModal() {
+    if (!window.Modal) return;
+    if (!window.Modal.el) window.Modal.init();
+
+    const form = `
+        <h2>Add Branch</h2>
+        <div class="modal-content-form">
+            <label>Branch Name</label><input id="br_name" type="text">
+            <label>City</label><input id="br_city" type="text">
+            <label>State</label><input id="br_state" type="text">
+            <label>Mobile</label><input id="br_mobile" type="text">
+            <label>Email</label><input id="br_email" type="email">
+            <button id="saveBranch" class="btn primary">Save Branch</button>
+        </div>
+    `;
+
+    window.Modal.setContent(form);
+    window.Modal.show();
+
+    setTimeout(() => {
+        document.getElementById("saveBranch").onclick = async () => {
+            const data = {
+                branch_name: br_name.value.trim(),
+                city: br_city.value.trim(),
+                state: br_state.value.trim(),
+                mobile_no: br_mobile.value.trim(),
+                email: br_email.value.trim(),
+            };
+
+            const res = await window.api("/api/branches", {
+                method: "POST",
+                body: JSON.stringify(data),
+                headers: { "Content-Type": "application/json" }
+            });
+
+            if (!res.success) return alert(res.error);
+            alert("Branch added!");
+            window.Modal.hide();
+            tabRenderers[currentTab]();
+        };
+    }, 30);
+}
+
+
+    function openBranchEditModal(id, data) {
+        if (!window.Modal) return;
+        if (!window.Modal.el) window.Modal.init();
+
+        const form = `
+            <h2>Edit Branch</h2>
+            <div class="modal-content-form">
+                <label>Branch Name</label><input id="br_name" type="text" value="${data.branch_name}">
+                <label>City</label><input id="br_city" type="text" value="${data.city}">
+                <label>State</label><input id="br_state" type="text" value="${data.state}">
+                <label>Mobile</label><input id="br_mobile" type="text" value="${data.mobile_no}">
+                <label>Email</label><input id="br_email" type="email" value="${data.email}">
+                <button id="saveBranch" class="btn primary">Save Changes</button>
+            </div>
+        `;
+
+        window.Modal.setContent(form);
+        window.Modal.show();
+
+        setTimeout(() => {
+            document.getElementById("saveBranch").onclick = async () => {
+                const payload = {
+                    branch_name: br_name.value.trim(),
+                    city: br_city.value.trim(),
+                    state: br_state.value.trim(),
+                    mobile_no: br_mobile.value.trim(),
+                    email: br_email.value.trim(),
+                };
+
+                const res = await window.api(`/api/branches/${id}`, {
+                    method: "PUT",
+                    body: JSON.stringify(payload),
+                    headers: { "Content-Type": "application/json" }
+                });
+
+                if (!res.success) return alert(res.error);
+                alert("Branch updated!");
+                window.Modal.hide();
+                tabRenderers[currentTab]();
+            };
+        }, 30);
+    }
+
     function openCarEditModal(id, name) {
         if(!window.Modal) return;
         if(!window.Modal.el) try { window.Modal.init(); } catch(err){ console.error(err); return; }
@@ -468,5 +635,9 @@
                 }
             });
         }, 50);
+
+
     }
+
+
 })();
