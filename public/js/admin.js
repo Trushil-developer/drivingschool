@@ -193,34 +193,65 @@
         cars: async () => {
             try {
                 const res = await window.api('/api/cars');
-                if(!res.success) throw new Error(res.error || 'Failed to fetch cars');
+                if (!res.success) throw new Error(res.error || 'Failed to fetch cars');
+
                 const rows = filterData('cars', res.cars, lastSearch);
-                if(!rows.length){
+                if (!rows.length) {
                     tableWrap.innerHTML = '<div class="empty">No cars found</div>';
                     return;
                 }
+
                 const scrollTop = window.scrollY || document.documentElement.scrollTop;
-                let html = `<table class="bookings-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th><th>Car Name</th><th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rows.map(c => `
-                        <tr id="car-${c.id}">
-                            <td>${c.id}</td>
-                            <td>${c.car_name || '-'}</td>
-                            <td>
-                                <button class="btn edit" data-id="${c.id}" data-name="${c.car_name}">Edit</button>
-                                <button class="btn delete" data-id="${c.id}">Delete</button>
-                            </td>
-                        </tr>`).join('')}
-                    </tbody>
-                </table>`;
+
+                let html = `
+                    <table class="bookings-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Car Name</th>
+                                <th>Insurance Policy</th>
+                                <th>Insurance Company</th>
+                                <th>Insurance Issue</th>
+                                <th>Insurance Expiry</th>
+                                <th>PUC Issue</th>
+                                <th>PUC Expiry</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map(c => `
+                                <tr id="car-${c.id}">
+                                    <td>${c.id}</td>
+                                    <td>${c.car_name || '-'}</td>
+                                    <td>${c.insurance_policy_no || '-'}</td>
+                                    <td>${c.insurance_company || '-'}</td>
+                                    <td>${c.insurance_issue_date ? formatDate(c.insurance_issue_date) : '-'}</td>
+                                    <td>${c.insurance_expiry_date ? formatDate(c.insurance_expiry_date) : '-'}</td>
+                                    <td>${c.puc_issue_date ? formatDate(c.puc_issue_date) : '-'}</td>
+                                    <td>${c.puc_expiry_date ? formatDate(c.puc_expiry_date) : '-'}</td>
+                                    <td>
+                                        <button class="btn edit" data-id="${c.id}" 
+                                            data-name="${c.car_name}"
+                                            data-insurance_policy_no="${c.insurance_policy_no || ''}"
+                                            data-insurance_company="${c.insurance_company || ''}"
+                                            data-insurance_issue_date="${c.insurance_issue_date || ''}"
+                                            data-insurance_expiry_date="${c.insurance_expiry_date || ''}"
+                                            data-puc_issue_date="${c.puc_issue_date || ''}"
+                                            data-puc_expiry_date="${c.puc_expiry_date || ''}">
+                                            Edit
+                                        </button>
+                                        <button class="btn delete" data-id="${c.id}">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
                 tableWrap.innerHTML = html;
                 window.scrollTo(0, scrollTop);
-            } catch(err){
+
+            } catch (err) {
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
             }
@@ -339,9 +370,18 @@
             window.openAttendanceModal({ ...booking, refresh: () => tabRenderers[currentTab]() });
         }
         if(e.target.classList.contains('edit') && currentTab === 'cars') {
-            const currentName = e.target.dataset.name || '';
-            openCarEditModal(id, currentName);
+            const data = {
+                car_name: e.target.dataset.name || '',
+                insurance_policy_no: e.target.dataset.insurance_policy_no || '',
+                insurance_company: e.target.dataset.insurance_company || '',
+                insurance_issue_date: e.target.dataset.insurance_issue_date || '',
+                insurance_expiry_date: e.target.dataset.insurance_expiry_date || '',
+                puc_issue_date: e.target.dataset.puc_issue_date || '',
+                puc_expiry_date: e.target.dataset.puc_expiry_date || ''
+            };
+            openCarEditModal(id, data);
         }
+
         if(e.target.classList.contains('edit-instructor') && currentTab === 'instructors') {
             const data = {
                 instructor_name: e.target.dataset.name,
@@ -479,38 +519,54 @@
     }
 
     function openCarAddModal() {
-        if(!window.Modal) return;
-        if(!window.Modal.el) try { window.Modal.init(); } catch(err){ console.error(err); return; }
-        const innerFormHTML = `
+        if (!window.Modal) return;
+        if (!window.Modal.el) window.Modal.init();
+
+        const formHTML = `
             <h2>Add Car</h2>
             <div class="modal-content-form car-modal">
-                <label>Car Name</label>
-                <input id="car_name" type="text" placeholder="Car Name" required>
+                <label>Car Name</label><input id="car_name" type="text" placeholder="Car Name" required>
+                <label>Insurance Policy No</label><input id="insurance_policy_no" type="text" placeholder="Insurance Policy No">
+                <label>Insurance Company</label><input id="insurance_company" type="text" placeholder="Insurance Company">
+                <label>Insurance Issue Date</label><input id="insurance_issue_date" type="date">
+                <label>Insurance Expiry Date</label><input id="insurance_expiry_date" type="date">
+                <label>PUC Issue Date</label><input id="puc_issue_date" type="date">
+                <label>PUC Expiry Date</label><input id="puc_expiry_date" type="date">
                 <button id="saveCar" class="btn primary">Save Car</button>
             </div>
         `;
-        window.Modal.setContent(innerFormHTML);
+
+        window.Modal.setContent(formHTML);
         window.Modal.show();
+
         setTimeout(() => {
-            const saveBtn = document.getElementById("saveCar");
-            if(!saveBtn) return;
-            saveBtn.addEventListener("click", async () => {
-                const carName = document.getElementById("car_name").value.trim();
-                if(!carName) return alert("Car name is required");
+            document.getElementById("saveCar").onclick = async () => {
+                const payload = {
+                    car_name: document.getElementById("car_name").value.trim(),
+                    insurance_policy_no: document.getElementById("insurance_policy_no").value.trim(),
+                    insurance_company: document.getElementById("insurance_company").value.trim(),
+                    insurance_issue_date: document.getElementById("insurance_issue_date").value,
+                    insurance_expiry_date: document.getElementById("insurance_expiry_date").value,
+                    puc_issue_date: document.getElementById("puc_issue_date").value,
+                    puc_expiry_date: document.getElementById("puc_expiry_date").value,
+                };
+
+                if (!payload.car_name) return alert("Car name is required");
+
                 try {
                     const res = await window.api("/api/cars", {
                         method: "POST",
-                        body: JSON.stringify({ car_name: carName }),
+                        body: JSON.stringify(payload),
                         headers: { "Content-Type": "application/json" }
                     });
-                    if(!res.success) throw new Error(res.error || "Failed to save car");
+                    if (!res.success) throw new Error(res.error || "Failed to save car");
                     alert("Car saved successfully!");
                     window.Modal.hide();
-                    if(tabRenderers[currentTab]) tabRenderers[currentTab](); 
-                } catch(err) {
+                    if (tabRenderers[currentTab]) tabRenderers[currentTab]();
+                } catch (err) {
                     alert("Error: " + err.message);
                 }
-            });
+            };
         }, 50);
     }
 
@@ -601,32 +657,65 @@
         }, 30);
     }
 
-    function openCarEditModal(id, name) {
-        if(!window.Modal) return;
-        if(!window.Modal.el) try { window.Modal.init(); } catch(err){ console.error(err); return; }
+    function openCarEditModal(id, data) {
+        if (!window.Modal) return;
+        if (!window.Modal.el) try { window.Modal.init(); } catch(err){ console.error(err); return; }
+
         const innerFormHTML = `
             <h2>Edit Car</h2>
             <div class="modal-content-form car-modal">
                 <label>Car Name</label>
-                <input id="car_name" type="text" placeholder="Car Name" value="${name}" required>
+                <input id="car_name" type="text" value="${data.car_name || ''}" required>
+
+                <label>Insurance Policy No</label>
+                <input id="insurance_policy_no" type="text" value="${data.insurance_policy_no || ''}">
+
+                <label>Insurance Company</label>
+                <input id="insurance_company" type="text" value="${data.insurance_company || ''}">
+
+                <label>Insurance Issue Date</label>
+                <input id="insurance_issue_date" type="date" value="${formatDateForInput(data.insurance_issue_date)}">
+
+                <label>Insurance Expiry Date</label>
+                <input id="insurance_expiry_date" type="date" value="${formatDateForInput(data.insurance_expiry_date)}">
+
+                <label>PUC Issue Date</label>
+                <input id="puc_issue_date" type="date" value="${formatDateForInput(data.puc_issue_date)}">
+
+                <label>PUC Expiry Date</label>
+                <input id="puc_expiry_date" type="date" value="${formatDateForInput(data.puc_expiry_date)}">
+
+
                 <button id="saveCar" class="btn primary">Save Changes</button>
             </div>
         `;
+
         window.Modal.setContent(innerFormHTML);
         window.Modal.show();
+
         setTimeout(() => {
             const saveBtn = document.getElementById("saveCar");
             if(!saveBtn) return;
+
             saveBtn.addEventListener("click", async () => {
-                const carName = document.getElementById("car_name").value.trim();
-                if(!carName) return alert("Car name is required");
+                const payload = {
+                    car_name: document.getElementById("car_name").value.trim(),
+                    insurance_policy_no: document.getElementById("insurance_policy_no").value.trim(),
+                    insurance_company: document.getElementById("insurance_company").value.trim(),
+                    insurance_issue_date: document.getElementById("insurance_issue_date").value || null,
+                    insurance_expiry_date: document.getElementById("insurance_expiry_date").value || null,
+                    puc_issue_date: document.getElementById("puc_issue_date").value || null,
+                    puc_expiry_date: document.getElementById("puc_expiry_date").value || null
+                };
+
                 try {
                     const res = await window.api(`/api/cars/${id}`, {
                         method: "PUT",
-                        body: JSON.stringify({ car_name: carName }),
+                        body: JSON.stringify(payload),
                         headers: { "Content-Type": "application/json" }
                     });
-                    if(!res.success) throw new Error(res.error || "Failed to update car");
+
+                    if (!res.success) throw new Error(res.error || "Failed to update car");
                     alert("Car updated successfully!");
                     window.Modal.hide();
                     if(tabRenderers[currentTab]) tabRenderers[currentTab]();
@@ -635,9 +724,14 @@
                 }
             });
         }, 50);
-
-
     }
 
+    function formatDateForInput(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${d.getFullYear()}-${month}-${day}`;
+    }
 
 })();

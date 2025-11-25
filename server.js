@@ -391,10 +391,24 @@ app.get('/api/cars', async (req, res, next) => {
 });
 
 app.post('/api/cars', requireAdmin, async (req, res, next) => {
-  const { car_name } = req.body;
+  const { car_name, insurance_policy_no, insurance_company, insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date } = req.body;
   if (!car_name) return res.json({ success: false, error: 'Car name is required' });
+
   try {
-    const [result] = await dbPool.query('INSERT INTO cars (car_name) VALUES (?)', [car_name]);
+    const [result] = await dbPool.query(`
+      INSERT INTO cars 
+      (car_name, insurance_policy_no, insurance_company, insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [
+      car_name,
+      insurance_policy_no || null,
+      insurance_company || null,
+      toMySQLDate(insurance_issue_date),
+      toMySQLDate(insurance_expiry_date),
+      toMySQLDate(puc_issue_date),
+      toMySQLDate(puc_expiry_date)
+    ]);
+
     res.json({ success: true, car_id: result.insertId });
   } catch (err) {
     console.error('ADD CAR ERROR:', err);
@@ -415,16 +429,39 @@ app.delete('/api/cars/:id', requireAdmin, async (req, res, next) => {
 
 app.put('/api/cars/:id', requireAdmin, async (req, res, next) => {
   const { id } = req.params;
-  const { car_name } = req.body;
+  const { car_name, insurance_policy_no, insurance_company, insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date } = req.body;
+
   if (!car_name) return res.json({ success: false, error: 'Car name is required' });
+
   try {
-    await dbPool.query('UPDATE cars SET car_name=? WHERE id=?', [car_name, id]);
+    await dbPool.query(`
+      UPDATE cars SET
+        car_name=?, 
+        insurance_policy_no=?, 
+        insurance_company=?, 
+        insurance_issue_date=?, 
+        insurance_expiry_date=?, 
+        puc_issue_date=?, 
+        puc_expiry_date=?
+      WHERE id=?
+    `, [
+      car_name,
+      insurance_policy_no || null,
+      insurance_company || null,
+      toMySQLDate(insurance_issue_date),
+      toMySQLDate(insurance_expiry_date),
+      toMySQLDate(puc_issue_date),
+      toMySQLDate(puc_expiry_date),
+      id
+    ]);
+
     res.json({ success: true });
   } catch (err) {
     console.error('UPDATE CAR ERROR:', err);
     next(err);
   }
 });
+
 
 // ---------- Express global error handler ----------
 app.use((err, req, res, next) => {
