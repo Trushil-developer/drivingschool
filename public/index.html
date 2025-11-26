@@ -36,10 +36,7 @@
 
             <div class="row stack-mobile">
                 <div class="label required">Branch:</div>
-                <div class="checkbox-group">
-                    <label><input type="checkbox" name="branch" value="Vandematram"> Vandematram</label>
-                    <label><input type="checkbox" name="branch" value="Malabar"> Malabar</label>
-                    <label><input type="checkbox" name="branch" value="South Bopal"> South Bopal</label>
+                <div class="checkbox-group" id="branchCheckboxGroup">
                 </div>
             </div>
 
@@ -177,6 +174,7 @@
     <script type="module" defer src="js/booking.js"></script>
     <script type="module" src="js/cars.js"></script>
     <script type="module" src="js/instructors.js"></script>
+    <script type="module" src="js/branches.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             const now = new Date();

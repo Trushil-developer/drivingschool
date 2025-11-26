@@ -2,7 +2,7 @@
     if (window.CommonReady) await window.CommonReady;
 
     window.Modal.init();
-    
+
     const form = document.getElementById("mainForm");
     if (!form) throw new Error("Form not found");
 
@@ -36,66 +36,27 @@
         }, 20);
     }
 
-    function printFullForm() {
-        const originalForm = document.getElementById("mainForm");
-        const clonedForm = originalForm.cloneNode(true);
+    function initAllottedTime() {
+        const now = new Date();
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes();
+        const roundedMinutes = Math.round(minutes / 30) * 30;
+        const minsStr = roundedMinutes === 60 ? '00' : roundedMinutes.toString().padStart(2, '0');
 
-        const originalInputs = originalForm.querySelectorAll("input, select");
-        const cloneInputs = clonedForm.querySelectorAll("input, select");
-
-        originalInputs.forEach((input, i) => {
-            const cloneEl = cloneInputs[i];
-            if (!cloneEl) return;
-
-            if (input.type === "checkbox" || input.type === "radio") {
-                if (input.checked) cloneEl.setAttribute("checked", "checked");
-                else cloneEl.removeAttribute("checked");
-            } else {
-                cloneEl.value = input.value;
-                cloneEl.setAttribute("value", input.value);
-            }
+        flatpickr("#allotted_time", {
+            enableTime: true,
+            noCalendar: true,
+            dateFormat: "h:i K",
+            time_24hr: false,
+            minuteIncrement: 30,
+            minTime: "06:00",
+            maxTime: "22:00",
+            defaultDate: `${hours}:${minsStr}`
         });
-
-        const win = window.open("", "", "width=900,height=1100");
-
-        win.document.write(`
-            <html>
-                <head>
-                    <title>Driving School Registration</title>
-                    <link rel="stylesheet" href="/css/form.css">
-                    <style>button, #appModal { display:none!important; }</style>
-                </head>
-                <body>
-                    <div class="form-container">
-                        <div class="header">
-                            <img src="images/logo.png" alt="Driving School Logo">
-                            <h1>DWARKESH MOTOR DRIVING SCHOOL</h1>
-                        </div>
-                        <div class="row">
-                            <div class="label">Date:</div>
-                            <input type="date" value="${document.getElementById("form_date").value}">
-                        </div>
-                        ${clonedForm.outerHTML}
-                    </div>
-                </body>
-            </html>
-        `);
-
-        win.document.close();
-        win.focus();
-
-        setTimeout(() => {
-            win.print();
-            win.close();
-        }, 300);
     }
 
-    const isAtLeastYearsOld = (dateStr, years) => {
-        const birth = new Date(dateStr);
-        const today = new Date();
-        birth.setFullYear(birth.getFullYear() + years);
-        return birth <= today;
-    };
+    // Initialize on load
+    initAllottedTime();
 
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -120,9 +81,15 @@
         body.occupation = v("input[name='occupation']");
         body.ref = v("input[name='ref']");
         body.allotted_time = v("input[name='allotted_time']");
-        let timeStr = body.allotted_time;
-        if (timeStr) {
-            const [time, modifier] = timeStr.split(' ');
+        body.starting_from = v("input[name='starting_from']");
+        body.total_fees = v("input[name='total_fees']");
+        body.advance = v("input[name='advance']");
+        body.instructor_name = v("select[name='instructor_name']");
+        body.instructor_id = null;
+
+        // Convert AM/PM to 24h for DB
+        if (body.allotted_time) {
+            const [time, modifier] = body.allotted_time.split(' ');
             let [hours, minutes] = time.split(':').map(Number);
             if (modifier === "PM" && hours !== 12) hours += 12;
             if (modifier === "AM" && hours === 12) hours = 0;
@@ -130,11 +97,13 @@
         } else {
             body.allotted_time = "";
         }
-        body.starting_from = v("input[name='starting_from']");
-        body.total_fees = v("input[name='total_fees']");
-        body.advance = v("input[name='advance']");
-        body.instructor_name = v("select[name='instructor_name']");
-        body.instructor_id = null;
+
+        const isAtLeastYearsOld = (dateStr, years) => {
+            const birth = new Date(dateStr);
+            const today = new Date();
+            birth.setFullYear(birth.getFullYear() + years);
+            return birth <= today;
+        };
 
         // Validation
         if (!body.branch) return showModalAlert("Please select branch.");
@@ -147,8 +116,7 @@
         if (!body.whatsapp_no) return showModalAlert("Please enter your WhatsApp number.");
         if (!body.sex) return showModalAlert("Please select your sex.");
         if (!body.birth_date) return showModalAlert("Please enter your birth date.");
-        if (!isAtLeastYearsOld(body.birth_date, 16)) 
-            return showModalAlert("You must be at least 16 years old.");
+        if (!isAtLeastYearsOld(body.birth_date, 16)) return showModalAlert("You must be at least 16 years old.");
         if (!body.email) return showModalAlert("Please enter your email.");
         if (!body.occupation) return showModalAlert("Please enter your occupation.");
         if (!body.allotted_time) return showModalAlert("Please select the allotted time.");
@@ -156,13 +124,12 @@
         if (!body.total_fees) return showModalAlert("Please enter the total fees.");
         if (!body.advance) return showModalAlert("Please enter the advance amount.");
         if (!body.instructor_name) return showModalAlert("Please enter the instructor name.");
-        if (!document.getElementById("accept_notes").checked) 
-            return showModalAlert("Please confirm that you have read and accepted the notes.");
+        if (!document.getElementById("accept_notes").checked) return showModalAlert("Please confirm that you have read and accepted the notes.");
 
         const submitBtn = form.querySelector("button[type='submit']");
         submitBtn.disabled = true;
 
-        // Show success modal
+        // Success modal
         window.Modal.setContent(`
             <h2 style="margin-bottom:10px;">Booking Successful</h2>
             <p><br>Would you like to print the form?</p>
@@ -176,8 +143,8 @@
         setTimeout(() => {
             const printBtn = document.getElementById("modalPrint");
             const cancelBtn = document.getElementById("modalCancel");
-            if (printBtn) printBtn.onclick = () => { printFullForm(); window.Modal.hide(); if(window._shouldResetForm) form.reset(); };
-            if (cancelBtn) cancelBtn.onclick = () => { window.Modal.hide(); if(window._shouldResetForm) form.reset(); };
+            if (printBtn) printBtn.onclick = () => { window.Modal.hide(); form.reset(); initAllottedTime(); };
+            if (cancelBtn) cancelBtn.onclick = () => { window.Modal.hide(); form.reset(); initAllottedTime(); };
         }, 20);
 
         try {
@@ -188,14 +155,11 @@
             });
 
             const data = await res.json();
-            if (data.success) window._shouldResetForm = true;
-            else showModalAlert("Error: " + data.error);
-
+            if (!data.success) showModalAlert("Error: " + data.error);
         } catch {
             showModalAlert("Server error. Try again later.");
         } finally {
             submitBtn.disabled = false;
         }
     });
-
 })();

@@ -33,7 +33,10 @@
                     .some(f => (f||'').toLowerCase().includes(query))
                 );
             case 'cars':
-                return items.filter(c => (c.car_name || '').toLowerCase().includes(query));
+                return items.filter(c =>
+                    [c.car_name, c.branch, c.car_registration_no]
+                    .some(f => (f || '').toLowerCase().includes(query))
+                );
             case 'branches':
                 return items.filter(b =>
                     [b.branch_name, b.city, b.state, b.mobile_no, b.email]
@@ -209,6 +212,8 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Car Name</th>
+                                <th>Branch</th>
+                                <th>Registration No</th>
                                 <th>Insurance Policy</th>
                                 <th>Insurance Company</th>
                                 <th>Insurance Issue</th>
@@ -223,23 +228,29 @@
                                 <tr id="car-${c.id}">
                                     <td>${c.id}</td>
                                     <td>${c.car_name || '-'}</td>
+                                    <td>${c.branch || '-'}</td>
+                                    <td>${c.car_registration_no || '-'}</td>
                                     <td>${c.insurance_policy_no || '-'}</td>
                                     <td>${c.insurance_company || '-'}</td>
                                     <td>${c.insurance_issue_date ? formatDate(c.insurance_issue_date) : '-'}</td>
                                     <td>${c.insurance_expiry_date ? formatDate(c.insurance_expiry_date) : '-'}</td>
                                     <td>${c.puc_issue_date ? formatDate(c.puc_issue_date) : '-'}</td>
                                     <td>${c.puc_expiry_date ? formatDate(c.puc_expiry_date) : '-'}</td>
+
                                     <td>
-                                        <button class="btn edit" data-id="${c.id}" 
-                                            data-name="${c.car_name}"
+                                        <button class="btn edit"
+                                            data-id="${c.id}"
+                                            data-name="${c.car_name || ''}"
+                                            data-branch="${c.branch || ''}"
+                                            data-car_registration_no="${c.car_registration_no || ''}"
                                             data-insurance_policy_no="${c.insurance_policy_no || ''}"
                                             data-insurance_company="${c.insurance_company || ''}"
                                             data-insurance_issue_date="${c.insurance_issue_date || ''}"
                                             data-insurance_expiry_date="${c.insurance_expiry_date || ''}"
                                             data-puc_issue_date="${c.puc_issue_date || ''}"
-                                            data-puc_expiry_date="${c.puc_expiry_date || ''}">
-                                            Edit
-                                        </button>
+                                            data-puc_expiry_date="${c.puc_expiry_date || ''}"
+                                        >Edit</button>
+
                                         <button class="btn delete" data-id="${c.id}">Delete</button>
                                     </td>
                                 </tr>
@@ -525,13 +536,35 @@
         const formHTML = `
             <h2>Add Car</h2>
             <div class="modal-content-form car-modal">
-                <label>Car Name</label><input id="car_name" type="text" placeholder="Car Name" required>
-                <label>Insurance Policy No</label><input id="insurance_policy_no" type="text" placeholder="Insurance Policy No">
-                <label>Insurance Company</label><input id="insurance_company" type="text" placeholder="Insurance Company">
-                <label>Insurance Issue Date</label><input id="insurance_issue_date" type="date">
-                <label>Insurance Expiry Date</label><input id="insurance_expiry_date" type="date">
-                <label>PUC Issue Date</label><input id="puc_issue_date" type="date">
-                <label>PUC Expiry Date</label><input id="puc_expiry_date" type="date">
+                <label>Car Name</label>
+                <input id="car_name" type="text" placeholder="Car Name" required>
+
+                <label>Branch</label>
+                <select id="branch">
+                    <option value="">Loading...</option>
+                </select>
+
+                <label>Registration No</label>
+                <input id="car_registration_no" type="text" placeholder="Car Registration No">
+
+                <label>Insurance Policy No</label>
+                <input id="insurance_policy_no" type="text" placeholder="Policy No">
+
+                <label>Insurance Company</label>
+                <input id="insurance_company" type="text" placeholder="Company No.">
+
+                <label>Insurance Issue Date</label>
+                <input id="insurance_issue_date" type="date">
+
+                <label>Insurance Expiry Date</label>
+                <input id="insurance_expiry_date" type="date">
+
+                <label>PUC Issue Date</label>
+                <input id="puc_issue_date" type="date">
+
+                <label>PUC Expiry Date</label>
+                <input id="puc_expiry_date" type="date">
+
                 <button id="saveCar" class="btn primary">Save Car</button>
             </div>
         `;
@@ -540,16 +573,22 @@
         window.Modal.show();
 
         setTimeout(() => {
+            setTimeout(async () => {
+                document.getElementById("branch").innerHTML = await getBranchOptionsHTML();
+            }, 20);
             document.getElementById("saveCar").onclick = async () => {
                 const payload = {
                     car_name: document.getElementById("car_name").value.trim(),
+                    branch: document.getElementById("branch").value.trim(),
+                    car_registration_no: document.getElementById("car_registration_no").value.trim(),
                     insurance_policy_no: document.getElementById("insurance_policy_no").value.trim(),
                     insurance_company: document.getElementById("insurance_company").value.trim(),
                     insurance_issue_date: document.getElementById("insurance_issue_date").value,
                     insurance_expiry_date: document.getElementById("insurance_expiry_date").value,
                     puc_issue_date: document.getElementById("puc_issue_date").value,
-                    puc_expiry_date: document.getElementById("puc_expiry_date").value,
+                    puc_expiry_date: document.getElementById("puc_expiry_date").value
                 };
+
 
                 if (!payload.car_name) return alert("Car name is required");
 
@@ -667,6 +706,14 @@
                 <label>Car Name</label>
                 <input id="car_name" type="text" value="${data.car_name || ''}" required>
 
+                <label>Branch</label>
+                <select id="branch">
+                    <option value="">Loading...</option>
+                </select>
+
+                <label>Registration No</label>
+                <input id="car_registration_no" type="text" value="${data.car_registration_no || ''}">
+
                 <label>Insurance Policy No</label>
                 <input id="insurance_policy_no" type="text" value="${data.insurance_policy_no || ''}">
 
@@ -685,7 +732,6 @@
                 <label>PUC Expiry Date</label>
                 <input id="puc_expiry_date" type="date" value="${formatDateForInput(data.puc_expiry_date)}">
 
-
                 <button id="saveCar" class="btn primary">Save Changes</button>
             </div>
         `;
@@ -694,12 +740,18 @@
         window.Modal.show();
 
         setTimeout(() => {
+            setTimeout(async () => {
+                document.getElementById("branch").innerHTML =
+                    await getBranchOptionsHTML(data.branch);
+            }, 20);
             const saveBtn = document.getElementById("saveCar");
             if(!saveBtn) return;
 
             saveBtn.addEventListener("click", async () => {
                 const payload = {
                     car_name: document.getElementById("car_name").value.trim(),
+                    branch: document.getElementById("branch").value.trim(),
+                    car_registration_no: document.getElementById("car_registration_no").value.trim(),
                     insurance_policy_no: document.getElementById("insurance_policy_no").value.trim(),
                     insurance_company: document.getElementById("insurance_company").value.trim(),
                     insurance_issue_date: document.getElementById("insurance_issue_date").value || null,
@@ -734,4 +786,14 @@
         return `${d.getFullYear()}-${month}-${day}`;
     }
 
+    async function getBranchOptionsHTML(selected = "") {
+        const res = await window.api("/api/branches");
+        if (!res.success) return "<option value=''>No branches found</option>";
+
+        return res.branches.map(b => `
+            <option value="${b.branch_name}" ${selected === b.branch_name ? 'selected' : ''}>
+                ${b.branch_name}
+            </option>
+        `).join('');
+    }
 })();

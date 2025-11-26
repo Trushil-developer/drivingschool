@@ -380,6 +380,7 @@ app.put('/api/instructors/:id', requireAdmin, async (req, res, next) => {
 
 
 // CARS
+// CARS
 app.get('/api/cars', async (req, res, next) => {
   try {
     const [rows] = await dbPool.query('SELECT * FROM cars ORDER BY id ASC');
@@ -391,16 +392,30 @@ app.get('/api/cars', async (req, res, next) => {
 });
 
 app.post('/api/cars', requireAdmin, async (req, res, next) => {
-  const { car_name, insurance_policy_no, insurance_company, insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date } = req.body;
+  const { 
+    car_name, 
+    branch,
+    car_registration_no,
+    insurance_policy_no, 
+    insurance_company, 
+    insurance_issue_date, 
+    insurance_expiry_date, 
+    puc_issue_date, 
+    puc_expiry_date 
+  } = req.body;
+
   if (!car_name) return res.json({ success: false, error: 'Car name is required' });
 
   try {
     const [result] = await dbPool.query(`
       INSERT INTO cars 
-      (car_name, insurance_policy_no, insurance_company, insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      (car_name, branch, car_registration_no, insurance_policy_no, insurance_company,
+       insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       car_name,
+      branch || '',
+      car_registration_no || '',
       insurance_policy_no || null,
       insurance_company || null,
       toMySQLDate(insurance_issue_date),
@@ -416,20 +431,20 @@ app.post('/api/cars', requireAdmin, async (req, res, next) => {
   }
 });
 
-app.delete('/api/cars/:id', requireAdmin, async (req, res, next) => {
-  const { id } = req.params;
-  try {
-    await dbPool.query('DELETE FROM cars WHERE id=?', [id]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('DELETE CAR ERROR:', err);
-    next(err);
-  }
-});
-
 app.put('/api/cars/:id', requireAdmin, async (req, res, next) => {
   const { id } = req.params;
-  const { car_name, insurance_policy_no, insurance_company, insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date } = req.body;
+
+  const { 
+    car_name, 
+    branch,
+    car_registration_no,
+    insurance_policy_no, 
+    insurance_company, 
+    insurance_issue_date, 
+    insurance_expiry_date, 
+    puc_issue_date, 
+    puc_expiry_date 
+  } = req.body;
 
   if (!car_name) return res.json({ success: false, error: 'Car name is required' });
 
@@ -437,6 +452,8 @@ app.put('/api/cars/:id', requireAdmin, async (req, res, next) => {
     await dbPool.query(`
       UPDATE cars SET
         car_name=?, 
+        branch=?,
+        car_registration_no=?,
         insurance_policy_no=?, 
         insurance_company=?, 
         insurance_issue_date=?, 
@@ -446,6 +463,8 @@ app.put('/api/cars/:id', requireAdmin, async (req, res, next) => {
       WHERE id=?
     `, [
       car_name,
+      branch || '',
+      car_registration_no || '',
       insurance_policy_no || null,
       insurance_company || null,
       toMySQLDate(insurance_issue_date),
@@ -458,6 +477,16 @@ app.put('/api/cars/:id', requireAdmin, async (req, res, next) => {
     res.json({ success: true });
   } catch (err) {
     console.error('UPDATE CAR ERROR:', err);
+    next(err);
+  }
+});
+
+app.delete('/api/cars/:id', requireAdmin, async (req, res, next) => {
+  try {
+    await dbPool.query('DELETE FROM cars WHERE id=?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DELETE CAR ERROR:', err);
     next(err);
   }
 });
@@ -486,7 +515,7 @@ process.on('unhandledRejection', (reason) => {
 // ===============================
 
 // GET ALL BRANCHES
-app.get('/api/branches', requireAdmin, async (req, res, next) => {
+app.get('/api/branches', async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
       SELECT id, branch_name, address, city, state, postal_code, mobile_no, email, created_at
