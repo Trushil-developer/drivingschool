@@ -53,12 +53,12 @@ body {
 
 /* ===== Main Layout ===== */
 .main {
-    max-width: var(--max-width);
-    margin: 24px auto;
+
+    margin: 14px auto;
     display: grid;
     grid-template-columns: 220px 1fr;
     gap: var(--gap);
-    padding: 0 12px;
+    padding: 0 2px;
 }
 
 /* ===== Sidebar ===== */
