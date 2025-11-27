@@ -91,9 +91,9 @@
                     branchBookings.forEach(b=>{
                         const car = b.car_name.trim();
                         const time = b.allotted_time.slice(0,5);
-                        const instructor = b.instructor_name || '';
+                        const customer = b.customer_name || '';
                         if(!bookedSlots[car]) bookedSlots[car] = {};
-                        bookedSlots[car][time] = instructor;
+                        bookedSlots[car][time] = customer;
                     });
 
                     // 🔥 Build schedule table
@@ -111,8 +111,8 @@
                                         <td class="time-col">${t}</td>
                                         ${cars.map(car=>{
                                             const carName = car.car_name.trim();
-                                            const instructorName = bookedSlots[carName]?.[t] || '';
-                                            return `<td class="slot">${instructorName}</td>`;
+                                            const customerName = bookedSlots[carName]?.[t] || '';
+                                            return `<td class="slot">${customerName}</td>`;
                                         }).join('')}
                                     </tr>
                                 `).join('')}
