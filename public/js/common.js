@@ -68,7 +68,7 @@ window.CommonReady = (async () => {
         const todayStr = new Date().toISOString().split("T")[0];
 
         // ====== HARD-CODED LOCK PASSWORD ======
-        const LOCK_PASSWORD = "myLock123"; // <-- set your lock password here
+        const LOCK_PASSWORD = "1234"; // <-- set your lock password here
 
         for (let i = 0; i < totalDays; i++) {
             const d = new Date(startDate);
