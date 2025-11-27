@@ -1,3 +1,8 @@
+window.renderScheduleSectionFactory = null;
+window.registerScheduleModule = function (factory) {
+    window.renderScheduleSectionFactory = factory;
+};
+
 (async () => {
     await window.CommonReady;
 
@@ -326,8 +331,17 @@
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
             }
-        }
+        },
+        schedule: function () {
+            if (typeof window.renderScheduleSectionFactory !== "function") {
+                tableWrap.innerHTML = '<div class="error">Schedule module not loaded</div>';
+                return Promise.resolve();
+            }
 
+            // Create a renderer instance bound to tableWrap
+            const renderer = window.renderScheduleSectionFactory(tableWrap);
+            return renderer();
+        }
     };
 
     const sidebarItems = document.querySelectorAll('.sidebar li');
@@ -335,7 +349,18 @@
     async function switchTab(tab) {
         currentTab = tab;
         sidebarItems.forEach(i => i.classList.toggle('active', i.dataset.section === tab));
+
+        // Hide search/add for schedule tab
+        if (tab === 'schedule') {
+            searchInput?.classList.add('hidden');
+            addBtn?.classList.add('hidden');
+        } else {
+            searchInput?.classList.remove('hidden');
+            addBtn?.classList.remove('hidden');
+        }
+
         if(tabRenderers[tab]) await tabRenderers[tab]();
+
         const newUrl = new URL(window.location);
         newUrl.searchParams.set('tab', tab);
         window.history.replaceState({}, '', newUrl);

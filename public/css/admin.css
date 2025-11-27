@@ -105,7 +105,6 @@ body {
     overflow-x: auto;
     background: #fff;
     border-radius: 5px;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
 }
 
 .bookings-table {
@@ -218,10 +217,14 @@ body {
     font-weight: 600;
 }
 
+.hidden {
+    display: none !important;
+}
+
 /* ===== Laptop / Desktop Styles (≥1024px) ===== */
 @media (min-width: 1024px) {
     .content {
-        padding: 2rem 3rem;
+        /* padding: 2rem 3rem; */
     }
 
     .bookings-table th,

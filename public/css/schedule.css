@@ -1,0 +1,194 @@
+/* Scope everything to schedule tab */
+#scheduleTabWrapper {
+    width: 100%;
+    margin: 0 auto;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* -----------------------------
+   Branch Tabs
+--------------------------------*/
+#scheduleTabWrapper .branch-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 6px 0;
+    flex-wrap: wrap;
+}
+
+#scheduleTabWrapper .branch-tab {
+    padding: 6px 16px;
+    background: #f5f5f5;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-size: 14px;
+    border: 1px solid #d1d1d1;
+    border-bottom: none;
+    min-width: 120px;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+#scheduleTabWrapper .branch-tab:hover {
+    background: #e0e7ff;
+}
+
+#scheduleTabWrapper .branch-tab.active {
+    background: #fff;
+    border-bottom: 1px solid #fff;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+/* -----------------------------
+   Branch Content
+--------------------------------*/
+#scheduleTabWrapper .branch-content {
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    border-radius: 0 8px 8px 8px;
+    width: 95%;
+    margin: 0 auto;
+    padding: 10px;
+}
+
+/* Placeholder */
+#scheduleTabWrapper .placeholder {
+    text-align: center;
+    font-size: 14px;
+    color: #6b7280;
+    padding: 40px 0;
+}
+
+/* -----------------------------
+   Day Navigation
+--------------------------------*/
+#scheduleTabWrapper .day-nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+#scheduleTabWrapper .day-nav button {
+    padding: 5px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    background: #3b82f6;
+    border: none;
+    color: white;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+#scheduleTabWrapper .day-nav button:hover {
+    background: #2563eb;
+}
+
+#scheduleTabWrapper #currentDay {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* -----------------------------
+   Schedule Table
+--------------------------------*/
+#scheduleTabWrapper .schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 10px;
+}
+
+#scheduleTabWrapper .schedule-table th,
+#scheduleTabWrapper .schedule-table td {
+    padding: 4px 6px;
+    border: 1px solid #d1d5db;
+    text-align: center;
+}
+
+#scheduleTabWrapper .schedule-table th {
+    background: #3b82f6;
+    color: #fff;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+#scheduleTabWrapper .time-col {
+    font-weight: 600;
+    background: #f3f4f6;
+    color: #374151;
+}
+
+#scheduleTabWrapper .slot {
+    height: 28px;
+    transition: background 0.2s;
+}
+
+#scheduleTabWrapper .slot.booked {
+    background: #fee2e2;
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+#scheduleTabWrapper .slot:hover {
+    background: #e0f2fe;
+    cursor: pointer;
+}
+
+/* Booked checkmark */
+#scheduleTabWrapper .slot .check {
+    font-size: 14px;
+    color: #ef4444;
+}
+
+/* -----------------------------
+   Responsive
+--------------------------------*/
+@media (max-width: 1024px) {
+    #scheduleTabWrapper .branch-tab {
+        font-size: 12px;
+        padding: 4px 10px;
+        min-width: 100px;
+    }
+
+    #scheduleTabWrapper .day-nav button {
+        font-size: 10px;
+        padding: 4px 8px;
+    }
+
+    #scheduleTabWrapper .schedule-table th,
+    #scheduleTabWrapper .schedule-table td {
+        font-size: 10px;
+        padding: 2px 4px;
+    }
+
+    #scheduleTabWrapper .slot {
+        height: 22px;
+    }
+}
+
+@media (max-width: 768px) {
+    #scheduleTabWrapper .branch-tab {
+        font-size: 10px;
+        padding: 3px 6px;
+        min-width: 80px;
+    }
+
+    #scheduleTabWrapper .day-nav button {
+        font-size: 9px;
+        padding: 3px 5px;
+    }
+
+    #scheduleTabWrapper .schedule-table th,
+    #scheduleTabWrapper .schedule-table td {
+        font-size: 9px;
+        padding: 1px 2px;
+    }
+
+    #scheduleTabWrapper .slot {
+        height: 18px;
+    }
+}
