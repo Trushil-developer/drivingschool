@@ -67,45 +67,58 @@ window.registerScheduleModule = function (factory) {
         bookings: async () => {
             try {
                 const res = await window.api('/api/bookings');
-                if(!res.success) throw new Error(res.error || 'Failed to fetch bookings');
+                if (!res.success) throw new Error(res.error || 'Failed to fetch bookings');
+
                 const rows = filterData('bookings', res.bookings, lastSearch);
-                if(!rows.length){
+
+                if (!rows.length) {
                     tableWrap.innerHTML = '<div class="empty">No bookings found</div>';
                     return;
                 }
+
                 const scrollTop = window.scrollY || document.documentElement.scrollTop;
-                let html = `<table class="bookings-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th><th>Name</th><th>Mobile</th><th>WhatsApp</th>
-                            <th>Car</th><th>Instructor</th><th>Branch</th><th>Training Days</th>
-                            <th>Pincode</th><th>Total Fees</th><th>Advance</th><th>Starting From</th><th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rows.map(b => `<tr id="booking-${b.id}">
-                            <td>${b.id}</td>
-                            <td>${b.customer_name||'-'}</td>
-                            <td>${b.mobile_no||'-'}</td>
-                            <td>${b.whatsapp_no||'-'}</td>
-                            <td>${b.car_name||'-'}</td>
-                            <td>${b.instructor_name||'-'}</td>
-                            <td>${b.branch||'-'}</td>
-                            <td>${b.training_days||'-'}</td>
-                            <td>${b.pincode||'-'}</td>
-                            <td>${b.total_fees||'-'}</td>
-                            <td>${b.advance||'-'}</td>
-                            <td>${b.starting_from?formatDate(b.starting_from):'-'}</td>
-                            <td>
-                                <button class="btn details" data-id="${b.id}">Details</button>
-                                <button class="btn delete" data-id="${b.id}">Delete</button>
-                            </td>
-                        </tr>`).join('')}
-                    </tbody>
-                </table>`;
+
+                const html = `
+                    <table class="bookings-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Car</th>
+                                <th>Instructor</th>
+                                <th>Branch</th>
+                                <th>Attendance</th>
+                                <th>Status</th>
+                                <th>Total Fees</th>
+                                <th>Starting From</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map(b => `
+                                <tr id="booking-${b.id}">
+                                    <td>${b.id}</td>
+                                    <td>${b.customer_name || '-'}</td>
+                                    <td>${b.car_name || '-'}</td>
+                                    <td>${b.instructor_name || '-'}</td>
+                                    <td>${b.branch || '-'}</td>
+                                    <td>${b.present_days || 0}/${b.training_days || '-'}</td>
+                                    <td>${b.attendance_status || '-'}</td>
+                                    <td>${b.advance || 0}/${b.total_fees || 0}</td>
+                                    <td>${b.starting_from ? formatDate(b.starting_from) : '-'}</td>
+                                    <td>
+                                        <button class="btn details" data-id="${b.id}">Details</button>
+                                        <button class="btn delete" data-id="${b.id}">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
                 tableWrap.innerHTML = html;
                 window.scrollTo(0, scrollTop);
-            } catch(err) {
+            } catch (err) {
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
             }
@@ -114,43 +127,66 @@ window.registerScheduleModule = function (factory) {
             try {
                 const res = await window.api('/api/bookings');
                 if (!res.success) throw new Error(res.error || 'Failed to fetch bookings');
+
                 const bookings = res.bookings;
+
+                // Calculate attendance fulfillment
                 for (let b of bookings) {
                     const attRes = await window.api(`/api/attendance/${b.id}`);
                     const existingAttendance = attRes.records || [];
                     const totalDays = b.training_days == "21" ? 21 : 15;
                     b.attendance_fulfilled = existingAttendance.filter(e => e.present == 1).length >= totalDays;
                 }
-                const rows = filterData('bookings', filterUpcoming(res.bookings), lastSearch);
-                if(!rows.length){
+
+                const rows = filterData('bookings', filterUpcoming(bookings), lastSearch);
+
+                if (!rows.length) {
                     tableWrap.innerHTML = '<div class="empty">No upcoming bookings found</div>';
                     return;
                 }
+
                 const scrollTop = window.scrollY || document.documentElement.scrollTop;
-                tableWrap.innerHTML = `<table class="bookings-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th><th>Car</th><th>Instructor</th><th>Training Days</th>
-                            <th>Starting From</th><th>Branch</th><th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rows.map(b => `<tr id="booking-${b.id}">
-                            <td>${b.customer_name||'-'}</td>
-                            <td>${b.car_name||'-'}</td>
-                            <td>${b.instructor_name||'-'}</td>
-                            <td>${b.training_days||'-'}</td>
-                            <td>${b.starting_from?formatDate(b.starting_from):'-'}</td>
-                            <td>${b.branch||'-'}</td>
-                            <td>
-                                <button class="btn attendance" data-id="${b.id}">Attendance</button>
-                                <button class="btn delete" data-id="${b.id}">Delete</button>
-                            </td>
-                        </tr>`).join('')}
-                    </tbody>
-                </table>`;
+
+                const html = `
+                    <table class="bookings-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Car</th>
+                                <th>Instructor</th>
+                                <th>Branch</th>
+                                <th>Attendance</th>
+                                <th>Status</th>
+                                <th>Starting From</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map(b => `
+                                <tr id="booking-${b.id}">
+                                    <td>${b.id}</td>
+                                    <td>${b.customer_name || '-'}</td>
+                                    <td>${b.car_name || '-'}</td>
+                                    <td>${b.instructor_name || '-'}</td>
+                                    <td>${b.branch || '-'}</td>
+                                    <td>${b.present_days || 0}/${b.training_days || '-'}</td>
+                                    <td>${b.attendance_status || '-'}</td>
+                                    <td>${b.starting_from ? formatDate(b.starting_from) : '-'}</td>
+                                    <td>
+                                        <button class="btn attendance" data-id="${b.id}">Attendance</button>
+                                        <button class="btn delete" data-id="${b.id}">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+                tableWrap.innerHTML = html;
                 window.scrollTo(0, scrollTop);
-            } catch(err) {
+
+            } catch (err) {
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
             }
