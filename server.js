@@ -8,6 +8,8 @@ import bcrypt from 'bcrypt';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import MySQLStoreImport from 'express-mysql-session';
+import cron from 'node-cron';
+import updateBookingsStatus from './scripts/updateBookings.js';
 
 dotenv.config();
 
@@ -17,8 +19,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// ---------- Create a mysql pool (used by both app and session store) ----------
-const dbPool = mysql.createPool({
+// ---------- Create a mysql pool ----------
+export const dbPool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
@@ -28,7 +30,6 @@ const dbPool = mysql.createPool({
   queueLimit: 0,
 });
 
-// optional: quick check that pool can connect (non-fatal)
 (async () => {
   try {
     const conn = await dbPool.getConnection();
@@ -39,11 +40,10 @@ const dbPool = mysql.createPool({
   }
 })();
 
-// ---------- Session store using the same pool ----------
+// ---------- Session ----------
 const MySQLStore = MySQLStoreImport(session);
 const sessionStore = new MySQLStore({}, dbPool);
 
-// ---------- Middleware ----------
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -57,31 +57,24 @@ app.use(
     saveUninitialized: false,
     store: sessionStore,
     cookie: {
-      secure: false, // set true if using HTTPS
+      secure: false,
       maxAge: 24 * 60 * 60 * 1000,
     },
   })
 );
 
 // ---------- Helpers ----------
-function toMySQLDate(value) {
-  if (!value) return null;
-  const d = new Date(value);
-  if (isNaN(d)) return null;
-  return d.toISOString().split('T')[0];
-}
-
-function computeAttendanceStatus(booking) {
+export function computeAttendanceStatus(booking) {
   const hold = Number(booking.hold_status) === 1;
   const presentDays = Number(booking.present_days) || 0;
-  const trainingDays = booking.training_days ? (Number(booking.training_days) || 15) : 15; // default 15 if missing
+  const trainingDays = booking.training_days ? Number(booking.training_days) || 15 : 15;
 
   const startDate = booking.starting_from ? new Date(booking.starting_from) : null;
   const today = new Date();
 
   if (hold) return 'Hold';
   if (presentDays >= trainingDays) return 'Completed';
-  if (!startDate) return 'Pending'; 
+  if (!startDate) return 'Pending';
   const expireDate = new Date(startDate);
   expireDate.setDate(expireDate.getDate() + 30);
   if (today > expireDate) return 'Expired';
@@ -94,23 +87,21 @@ async function fetchBookingMinimal(id) {
     `SELECT id, starting_from, training_days, present_days, hold_status FROM bookings WHERE id = ? LIMIT 1`,
     [id]
   );
-  return (rows && rows.length) ? rows[0] : null;
+  return rows.length ? rows[0] : null;
 }
 
-async function recomputeAndStoreAttendanceStatus(bookingId) {
+export async function recomputeAndStoreAttendanceStatus(bookingId) {
   const booking = await fetchBookingMinimal(bookingId);
-  if (!booking) {
-    console.warn(`recomputeAndStoreAttendanceStatus: booking ${bookingId} not found`);
-    return;
-  }
-
+  if (!booking) return;
   const newStatus = computeAttendanceStatus(booking);
-  try {
-    await dbPool.query(`UPDATE bookings SET attendance_status = ? WHERE id = ?`, [newStatus, bookingId]);
-  } catch (err) {
-    console.error('Error updating attendance_status for booking', bookingId, err);
-    throw err;
-  }
+  await dbPool.query(`UPDATE bookings SET attendance_status = ? WHERE id = ?`, [newStatus, bookingId]);
+}
+
+function toMySQLDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (isNaN(d)) return null;
+  return d.toISOString().split('T')[0];
 }
 
 function requireAdmin(req, res, next) {
@@ -118,9 +109,7 @@ function requireAdmin(req, res, next) {
   return res.status(401).json({ success: false, error: 'Unauthorized access' });
 }
 
-// ---------- Routes (use dbPool.query in all routes) ----------
-
-// AUTH
+// ---------- AUTH ----------
 app.post('/api/login', async (req, res, next) => {
   const { username, password } = req.body;
   try {
@@ -149,7 +138,7 @@ app.post('/api/logout', (req, res) => {
   });
 });
 
-// BOOKINGS CRUD
+// ---------- BOOKINGS CRUD ----------
 app.post('/api/bookings', async (req, res, next) => {
   const data = req.body;
   try {
@@ -164,7 +153,7 @@ app.post('/api/bookings', async (req, res, next) => {
     `;
 
     const initialPresentDays = 0;
-    const initialHoldStatus = data.hold_status ? (Number(data.hold_status) ? 1 : 0) : 0;
+    const initialHoldStatus = data.hold_status ? 1 : 0;
 
     const preliminaryBooking = {
       starting_from: data.starting_from || null,
@@ -196,7 +185,7 @@ app.post('/api/bookings', async (req, res, next) => {
       toMySQLDate(data.starting_from),
       data.total_fees || 0,
       data.advance || 0,
-      data.car_names || '',
+      data.car_name || '',
       data.instructor_name || '',
       initialPresentDays,
       initialHoldStatus,
@@ -204,8 +193,6 @@ app.post('/api/bookings', async (req, res, next) => {
     ];
 
     const [result] = await dbPool.query(sql, values);
-
-    // in case you want to return the newly computed attendance status to frontend:
     res.json({ success: true, booking_id: result.insertId, attendance_status: attendanceStatus });
   } catch (err) {
     console.error('BOOKING CREATE ERROR:', err);
@@ -231,16 +218,11 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
   }
 });
 
-/**
- * Update booking. 
- * After writing fields, recompute & persist attendance_status (using latest stored present_days).
- */
 app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   const id = req.params.id;
   const data = req.body;
 
   try {
-    // update booking fields (exclude attendance_status calculation here)
     const sql = `
       UPDATE bookings SET
         branch=?, training_days=?, customer_name=?, address=?, pincode=?, mobile_no=?, whatsapp_no=?,
@@ -278,10 +260,7 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
     ];
 
     await dbPool.query(sql, values);
-
-    // Recompute and persist attendance_status based on current DB present_days and updated fields
     await recomputeAndStoreAttendanceStatus(id);
-
     res.json({ success: true });
   } catch (err) {
     console.error('BOOKING UPDATE ERROR:', err);
@@ -299,8 +278,7 @@ app.delete('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
-// ATTENDANCE
-// ensure attendance table exists (idempotent)
+// ---------- ATTENDANCE TABLE ----------
 (async () => {
   try {
     await dbPool.query(`
@@ -336,17 +314,14 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
   const booking_id = req.params.booking_id;
   const { attendance } = req.body;
 
-  if (!Array.isArray(attendance))
-    return res.json({ success: false, error: 'attendance array required' });
+  if (!Array.isArray(attendance)) return res.json({ success: false, error: 'attendance array required' });
 
   const conn = await dbPool.getConnection();
   try {
     await conn.beginTransaction();
 
-    // delete existing attendance records for booking
     await conn.query('DELETE FROM attendance WHERE booking_id=?', [booking_id]);
 
-    // insert new records (present = 1)
     for (const item of attendance) {
       await conn.query(
         `INSERT INTO attendance (booking_id, date, present) VALUES (?, ?, 1)`,
@@ -354,7 +329,6 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
       );
     }
 
-    // update present_days in bookings table
     await conn.query(
       `UPDATE bookings SET present_days = (
           SELECT COUNT(*) FROM attendance WHERE booking_id=? AND present=1
@@ -363,10 +337,7 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
     );
 
     await conn.commit();
-
-    // recompute and persist attendance_status now that present_days changed
     await recomputeAndStoreAttendanceStatus(booking_id);
-
     res.json({ success: true });
   } catch (err) {
     await conn.rollback();
@@ -377,7 +348,7 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
   }
 });
 
-// INSTRUCTORS
+// ---------- INSTRUCTORS CRUD ----------
 app.get('/api/instructors', async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
@@ -461,7 +432,7 @@ app.put('/api/instructors/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
-// CARS
+// ---------- CARS CRUD ----------
 app.get('/api/cars', async (req, res, next) => {
   try {
     const [rows] = await dbPool.query('SELECT * FROM cars ORDER BY id ASC');
@@ -474,15 +445,8 @@ app.get('/api/cars', async (req, res, next) => {
 
 app.post('/api/cars', requireAdmin, async (req, res, next) => {
   const { 
-    car_name, 
-    branch,
-    car_registration_no,
-    insurance_policy_no, 
-    insurance_company, 
-    insurance_issue_date, 
-    insurance_expiry_date, 
-    puc_issue_date, 
-    puc_expiry_date 
+    car_name, branch, car_registration_no, insurance_policy_no, insurance_company, 
+    insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date 
   } = req.body;
 
   if (!car_name) return res.json({ success: false, error: 'Car name is required' });
@@ -494,15 +458,9 @@ app.post('/api/cars', requireAdmin, async (req, res, next) => {
        insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      car_name,
-      branch || '',
-      car_registration_no || '',
-      insurance_policy_no || null,
-      insurance_company || null,
-      toMySQLDate(insurance_issue_date),
-      toMySQLDate(insurance_expiry_date),
-      toMySQLDate(puc_issue_date),
-      toMySQLDate(puc_expiry_date)
+      car_name, branch || '', car_registration_no || '', insurance_policy_no || null,
+      insurance_company || null, toMySQLDate(insurance_issue_date),
+      toMySQLDate(insurance_expiry_date), toMySQLDate(puc_issue_date), toMySQLDate(puc_expiry_date)
     ]);
 
     res.json({ success: true, car_id: result.insertId });
@@ -514,17 +472,9 @@ app.post('/api/cars', requireAdmin, async (req, res, next) => {
 
 app.put('/api/cars/:id', requireAdmin, async (req, res, next) => {
   const { id } = req.params;
-
   const { 
-    car_name, 
-    branch,
-    car_registration_no,
-    insurance_policy_no, 
-    insurance_company, 
-    insurance_issue_date, 
-    insurance_expiry_date, 
-    puc_issue_date, 
-    puc_expiry_date 
+    car_name, branch, car_registration_no, insurance_policy_no, insurance_company, 
+    insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date 
   } = req.body;
 
   if (!car_name) return res.json({ success: false, error: 'Car name is required' });
@@ -532,27 +482,13 @@ app.put('/api/cars/:id', requireAdmin, async (req, res, next) => {
   try {
     await dbPool.query(`
       UPDATE cars SET
-        car_name=?, 
-        branch=?,
-        car_registration_no=?,
-        insurance_policy_no=?, 
-        insurance_company=?, 
-        insurance_issue_date=?, 
-        insurance_expiry_date=?, 
-        puc_issue_date=?, 
-        puc_expiry_date=?
+        car_name=?, branch=?, car_registration_no=?, insurance_policy_no=?, insurance_company=?,
+        insurance_issue_date=?, insurance_expiry_date=?, puc_issue_date=?, puc_expiry_date=?
       WHERE id=?
     `, [
-      car_name,
-      branch || '',
-      car_registration_no || '',
-      insurance_policy_no || null,
-      insurance_company || null,
-      toMySQLDate(insurance_issue_date),
-      toMySQLDate(insurance_expiry_date),
-      toMySQLDate(puc_issue_date),
-      toMySQLDate(puc_expiry_date),
-      id
+      car_name, branch || '', car_registration_no || '', insurance_policy_no || null,
+      insurance_company || null, toMySQLDate(insurance_issue_date), toMySQLDate(insurance_expiry_date),
+      toMySQLDate(puc_issue_date), toMySQLDate(puc_expiry_date), id
     ]);
 
     res.json({ success: true });
@@ -572,34 +508,12 @@ app.delete('/api/cars/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
-// ---------- Express global error handler ----------
-app.use((err, req, res, next) => {
-  console.error('EXPRESS ERROR:', err && (err.stack || err));
-  // don't leak internal details in production
-  res.status(500).json({ success: false, error: 'Internal server error' });
-});
-
-// ---------- Process-level handlers (log and keep process alive for PM2) ----------
-process.on('uncaughtException', (err) => {
-  console.error('UNCAUGHT EXCEPTION:', err && (err.stack || err));
-  // do not exit; let PM2 restart if needed
-});
-
-process.on('unhandledRejection', (reason) => {
-  console.error('UNHANDLED REJECTION:', reason);
-});
-
-// ===============================
-// BRANCHES CRUD
-// ===============================
-
-// GET ALL BRANCHES
+// ---------- BRANCHES CRUD ----------
 app.get('/api/branches', async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
       SELECT id, branch_name, address, city, state, postal_code, mobile_no, email, created_at
-      FROM branches
-      ORDER BY id DESC
+      FROM branches ORDER BY id DESC
     `);
     res.json({ success: true, branches: rows });
   } catch (err) {
@@ -608,31 +522,18 @@ app.get('/api/branches', async (req, res, next) => {
   }
 });
 
-// CREATE NEW BRANCH
 app.post('/api/branches', requireAdmin, async (req, res, next) => {
   const data = req.body;
-
-  if (!data.branch_name)
-    return res.json({ success: false, error: 'Branch name is required' });
+  if (!data.branch_name) return res.json({ success: false, error: 'Branch name is required' });
 
   try {
     const sql = `
-      INSERT INTO branches 
-        (branch_name, address, city, state, postal_code, mobile_no, email)
+      INSERT INTO branches (branch_name, address, city, state, postal_code, mobile_no, email)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
-    const values = [
-      data.branch_name,
-      data.address || '',
-      data.city || '',
-      data.state || '',
-      data.postal_code || '',
-      data.mobile_no || '',
-      data.email || '',
-    ];
-
+    const values = [data.branch_name, data.address || '', data.city || '', data.state || '',
+      data.postal_code || '', data.mobile_no || '', data.email || ''];
     const [result] = await dbPool.query(sql, values);
-
     res.json({ success: true, branch_id: result.insertId });
   } catch (err) {
     console.error('BRANCH CREATE ERROR:', err);
@@ -640,34 +541,19 @@ app.post('/api/branches', requireAdmin, async (req, res, next) => {
   }
 });
 
-// UPDATE BRANCH
 app.put('/api/branches/:id', requireAdmin, async (req, res, next) => {
   const { id } = req.params;
   const data = req.body;
-
-  if (!data.branch_name)
-    return res.json({ success: false, error: 'Branch name is required' });
+  if (!data.branch_name) return res.json({ success: false, error: 'Branch name is required' });
 
   try {
     const sql = `
-      UPDATE branches SET
-        branch_name=?, address=?, city=?, state=?, postal_code=?, 
-        mobile_no=?, email=?
+      UPDATE branches SET branch_name=?, address=?, city=?, state=?, postal_code=?, mobile_no=?, email=?
       WHERE id=?
     `;
-    const values = [
-      data.branch_name,
-      data.address || '',
-      data.city || '',
-      data.state || '',
-      data.postal_code || '',
-      data.mobile_no || '',
-      data.email || '',
-      id
-    ];
-
+    const values = [data.branch_name, data.address || '', data.city || '', data.state || '',
+      data.postal_code || '', data.mobile_no || '', data.email || '', id];
     await dbPool.query(sql, values);
-
     res.json({ success: true });
   } catch (err) {
     console.error('BRANCH UPDATE ERROR:', err);
@@ -675,10 +561,8 @@ app.put('/api/branches/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
-// DELETE BRANCH
 app.delete('/api/branches/:id', requireAdmin, async (req, res, next) => {
   const { id } = req.params;
-
   try {
     await dbPool.query('DELETE FROM branches WHERE id=?', [id]);
     res.json({ success: true });
@@ -688,7 +572,35 @@ app.delete('/api/branches/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
-// ---------- Start server ----------
+// ---------- GLOBAL ERROR HANDLER ----------
+app.use((err, req, res, next) => {
+  console.error('EXPRESS ERROR:', err && (err.stack || err));
+  res.status(500).json({ success: false, error: 'Internal server error' });
+});
+
+// ---------- PROCESS-LEVEL HANDLERS ----------
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err && (err.stack || err));
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('UNHANDLED REJECTION:', reason);
+});
+
+// ---------- CRON JOB ----------
+cron.schedule('1 0 * * *', async () => {
+  console.log(`[CRON] Running daily booking status update at ${new Date().toISOString()}`);
+  try {
+    await updateBookingsStatus();
+    console.log('[CRON] Booking status update completed.');
+  } catch (err) {
+    console.error('[CRON] Error updating bookings:', err);
+  }
+}, {
+  timezone: "Asia/Kolkata"
+});
+
+// ---------- START SERVER ----------
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
