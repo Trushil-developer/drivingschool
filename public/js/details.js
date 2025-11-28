@@ -6,6 +6,26 @@
     const saveBtn = document.getElementById('saveBtn');
     const backBtn = document.getElementById('backBtn');
     const attendanceBtn = document.getElementById('attendanceBtn');
+    const REQUIRED_FIELDS = [
+        "branch",
+        "training_days",
+        "car_name",
+        "customer_name",
+        "address",
+        "pincode",
+        "mobile_no",
+        "whatsapp_no",
+        "sex",
+        "birth_date",
+        "email",
+        "occupation",
+        "allotted_time",
+        "starting_from",
+        "total_fees",
+        "advance",
+        "instructor_name"
+    ];
+
 
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
@@ -184,43 +204,54 @@
     // =============================================
     // SAVE BOOKING (NO FRONTEND CALCULATIONS ANYMORE)
     // =============================================
-    saveBtn.addEventListener('click', async () => {
-        const updatedData = {};
+        saveBtn.addEventListener('click', async () => {
+            const updatedData = {};
 
-        detailsTable.querySelectorAll('td').forEach(td => {
-            const key = td.dataset.key;
-            if (!key || key === 'attendance_status') return;
+            let missingFields = [];
 
-            const input = td.querySelector('input, select');
-            if (!input) return;
+            detailsTable.querySelectorAll('td').forEach(td => {
+                const key = td.dataset.key;
+                if (!key || key === 'attendance_status') return;
 
-            let value;
-            if (input.type === 'checkbox') value = input.checked ? 1 : 0;
-            else value = input.value || '';
+                const input = td.querySelector('input, select');
+                if (!input) return;
 
-            updatedData[key] = value;
-        });
+                let value;
+                if (input.type === 'checkbox') value = input.checked ? 1 : 0;
+                else value = input.value.trim();
 
-        try {
-            const res = await window.api(`/api/bookings/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updatedData)
+                updatedData[key] = value;
+
+                if (REQUIRED_FIELDS.includes(key) && (value === '' || value === null || value === undefined)) {
+                    missingFields.push(key);
+                }
             });
 
-            if (res.success) {
-                alert('Booking updated successfully!');
-                saveBtn.style.display = 'none';
-                editBtn.style.display = 'inline-block';
-                await loadBooking(); // reload updated + backend-calculated data
-            } else {
-                alert('Failed to update booking: ' + res.error);
+            if (missingFields.length > 0) {
+                alert(`Please fill all required fields: ${missingFields.join(', ')}`);
+                return;
             }
-        } catch (err) {
-            console.error(err);
-            alert('Error updating booking.');
-        }
-    });
+
+            try {
+                const res = await window.api(`/api/bookings/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                });
+
+                if (res.success) {
+                    alert('Booking updated successfully!');
+                    saveBtn.style.display = 'none';
+                    editBtn.style.display = 'inline-block';
+                    await loadBooking(); // reload updated + backend-calculated data
+                } else {
+                    alert('Failed to update booking: ' + res.error);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error updating booking.');
+            }
+        });
 
     // =============================================
     // ATTENDANCE MODAL
