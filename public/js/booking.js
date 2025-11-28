@@ -61,7 +61,7 @@
         const body = {};
         body.branch = getCheckedValues("branch");
         body.training_days = v('input[name="training_days"]:checked');
-        body.car_names = v("select[name='car']");
+        body.car_name = v("select[name='car']");
         body.customer_name = v("input[name='customer_name']");
         body.address = v("input[name='address']");
         body.pincode = v("input[name='pincode']");
@@ -105,7 +105,7 @@
         // Validation
         if (!body.branch) return showModalAlert("Please select branch.");
         if (!body.training_days) return showModalAlert("Please select training days.");
-        if (!body.car_names) return showModalAlert("Please select one car.");
+        if (!body.car_name) return showModalAlert("Please select one car.");
         if (!body.customer_name) return showModalAlert("Please enter your full name.");
         if (!body.address) return showModalAlert("Please enter your address.");
         if (!body.pincode) return showModalAlert("Please enter pincode.");
