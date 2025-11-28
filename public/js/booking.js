@@ -9,10 +9,7 @@
     const formDate = document.getElementById("form_date");
     if (formDate) {
         const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, "0");
-        const dd = String(today.getDate()).padStart(2, "0");
-        formDate.value = `${yyyy}-${mm}-${dd}`;
+        formDate.valueAsDate = today;
     }
 
     const q = (s) => form.querySelector(s);
@@ -36,6 +33,7 @@
         }, 20);
     }
 
+    // Initialize Allotted Time picker
     function initAllottedTime() {
         const now = new Date();
         const hours = now.getHours().toString().padStart(2, '0');
@@ -55,7 +53,6 @@
         });
     }
 
-    // Initialize on load
     initAllottedTime();
 
     form.addEventListener("submit", async (e) => {
@@ -64,7 +61,7 @@
         const body = {};
         body.branch = getCheckedValues("branch");
         body.training_days = v('input[name="training_days"]:checked');
-        body.car_names = getCheckedValues("car");
+        body.car_names = v("select[name='car']");
         body.customer_name = v("input[name='customer_name']");
         body.address = v("input[name='address']");
         body.pincode = v("input[name='pincode']");
@@ -129,7 +126,7 @@
         const submitBtn = form.querySelector("button[type='submit']");
         submitBtn.disabled = true;
 
-        // Success modal
+        // Show success modal
         window.Modal.setContent(`
             <h2 style="margin-bottom:10px;">Booking Successful</h2>
             <p><br>Would you like to print the form?</p>
@@ -143,8 +140,8 @@
         setTimeout(() => {
             const printBtn = document.getElementById("modalPrint");
             const cancelBtn = document.getElementById("modalCancel");
-            if (printBtn) printBtn.onclick = () => { window.Modal.hide(); form.reset(); initAllottedTime(); };
-            if (cancelBtn) cancelBtn.onclick = () => { window.Modal.hide(); form.reset(); initAllottedTime(); };
+            if (printBtn) printBtn.onclick = () => { printFullForm(); window.Modal.hide(); if(window._shouldResetForm) form.reset(); initAllottedTime(); };
+            if (cancelBtn) cancelBtn.onclick = () => { window.Modal.hide(); if(window._shouldResetForm) form.reset(); initAllottedTime(); };
         }, 20);
 
         try {
@@ -155,11 +152,14 @@
             });
 
             const data = await res.json();
-            if (!data.success) showModalAlert("Error: " + data.error);
+            if (data.success) window._shouldResetForm = true;
+            else showModalAlert("Error: " + data.error);
+
         } catch {
             showModalAlert("Server error. Try again later.");
         } finally {
             submitBtn.disabled = false;
         }
     });
+
 })();
