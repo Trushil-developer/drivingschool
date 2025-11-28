@@ -71,6 +71,48 @@ function toMySQLDate(value) {
   return d.toISOString().split('T')[0];
 }
 
+function computeAttendanceStatus(booking) {
+  const hold = Number(booking.hold_status) === 1;
+  const presentDays = Number(booking.present_days) || 0;
+  const trainingDays = booking.training_days ? (Number(booking.training_days) || 15) : 15; // default 15 if missing
+
+  const startDate = booking.starting_from ? new Date(booking.starting_from) : null;
+  const today = new Date();
+
+  if (hold) return 'Hold';
+  if (presentDays >= trainingDays) return 'Completed';
+  if (!startDate) return 'Pending'; 
+  const expireDate = new Date(startDate);
+  expireDate.setDate(expireDate.getDate() + 30);
+  if (today > expireDate) return 'Expired';
+  if (startDate > today) return 'Pending';
+  return 'Active';
+}
+
+async function fetchBookingMinimal(id) {
+  const [rows] = await dbPool.query(
+    `SELECT id, starting_from, training_days, present_days, hold_status FROM bookings WHERE id = ? LIMIT 1`,
+    [id]
+  );
+  return (rows && rows.length) ? rows[0] : null;
+}
+
+async function recomputeAndStoreAttendanceStatus(bookingId) {
+  const booking = await fetchBookingMinimal(bookingId);
+  if (!booking) {
+    console.warn(`recomputeAndStoreAttendanceStatus: booking ${bookingId} not found`);
+    return;
+  }
+
+  const newStatus = computeAttendanceStatus(booking);
+  try {
+    await dbPool.query(`UPDATE bookings SET attendance_status = ? WHERE id = ?`, [newStatus, bookingId]);
+  } catch (err) {
+    console.error('Error updating attendance_status for booking', bookingId, err);
+    throw err;
+  }
+}
+
 function requireAdmin(req, res, next) {
   if (req.session && req.session.adminLoggedIn) return next();
   return res.status(401).json({ success: false, error: 'Unauthorized access' });
@@ -116,10 +158,22 @@ app.post('/api/bookings', async (req, res, next) => {
         branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
         sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
         occupation, ref, allotted_time, starting_from, total_fees, advance,
-        car_name, instructor_name, present_days
+        car_name, instructor_name, present_days, hold_status, attendance_status
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
+
+    const initialPresentDays = 0;
+    const initialHoldStatus = data.hold_status ? (Number(data.hold_status) ? 1 : 0) : 0;
+
+    const preliminaryBooking = {
+      starting_from: data.starting_from || null,
+      training_days: data.training_days || '15',
+      present_days: initialPresentDays,
+      hold_status: initialHoldStatus
+    };
+    const attendanceStatus = computeAttendanceStatus(preliminaryBooking);
+
     const values = [
       data.branch,
       data.training_days,
@@ -144,11 +198,15 @@ app.post('/api/bookings', async (req, res, next) => {
       data.advance || 0,
       data.car_names || '',
       data.instructor_name || '',
-      0,
+      initialPresentDays,
+      initialHoldStatus,
+      attendanceStatus
     ];
 
     const [result] = await dbPool.query(sql, values);
-    res.json({ success: true, booking_id: result.insertId });
+
+    // in case you want to return the newly computed attendance status to frontend:
+    res.json({ success: true, booking_id: result.insertId, attendance_status: attendanceStatus });
   } catch (err) {
     console.error('BOOKING CREATE ERROR:', err);
     next(err);
@@ -162,7 +220,7 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
         id, branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
         sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
         occupation, ref, allotted_time, starting_from, total_fees, advance,
-        car_name, instructor_name, present_days, created_at
+        car_name, instructor_name, present_days, hold_status, attendance_status, created_at
       FROM bookings
       ORDER BY id DESC
     `);
@@ -173,16 +231,22 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
   }
 });
 
+/**
+ * Update booking. 
+ * After writing fields, recompute & persist attendance_status (using latest stored present_days).
+ */
 app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   const id = req.params.id;
   const data = req.body;
+
   try {
+    // update booking fields (exclude attendance_status calculation here)
     const sql = `
       UPDATE bookings SET
         branch=?, training_days=?, customer_name=?, address=?, pincode=?, mobile_no=?, whatsapp_no=?,
         sex=?, birth_date=?, cov_lmv=?, cov_mc=?, dl_no=?, dl_from=?, dl_to=?, email=?,
         occupation=?, ref=?, allotted_time=?, starting_from=?, total_fees=?, advance=?,
-        car_name=?, instructor_name=?
+        car_name=?, instructor_name=?, hold_status=?
       WHERE id=?
     `;
     const values = [
@@ -209,10 +273,15 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
       data.advance || 0,
       data.car_name || '',
       data.instructor_name || '',
-      id,
+      data.hold_status ? 1 : 0,
+      id
     ];
 
     await dbPool.query(sql, values);
+
+    // Recompute and persist attendance_status based on current DB present_days and updated fields
+    await recomputeAndStoreAttendanceStatus(id);
+
     res.json({ success: true });
   } catch (err) {
     console.error('BOOKING UPDATE ERROR:', err);
@@ -270,27 +339,41 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
   if (!Array.isArray(attendance))
     return res.json({ success: false, error: 'attendance array required' });
 
+  const conn = await dbPool.getConnection();
   try {
-    await dbPool.query('DELETE FROM attendance WHERE booking_id=?', [booking_id]);
+    await conn.beginTransaction();
 
+    // delete existing attendance records for booking
+    await conn.query('DELETE FROM attendance WHERE booking_id=?', [booking_id]);
+
+    // insert new records (present = 1)
     for (const item of attendance) {
-      await dbPool.query(
+      await conn.query(
         `INSERT INTO attendance (booking_id, date, present) VALUES (?, ?, 1)`,
         [booking_id, toMySQLDate(item.date)]
       );
     }
 
-    await dbPool.query(
+    // update present_days in bookings table
+    await conn.query(
       `UPDATE bookings SET present_days = (
-         SELECT COUNT(*) FROM attendance WHERE booking_id=? AND present=1
+          SELECT COUNT(*) FROM attendance WHERE booking_id=? AND present=1
        ) WHERE id=?`,
       [booking_id, booking_id]
     );
 
+    await conn.commit();
+
+    // recompute and persist attendance_status now that present_days changed
+    await recomputeAndStoreAttendanceStatus(booking_id);
+
     res.json({ success: true });
   } catch (err) {
+    await conn.rollback();
     console.error('ATTENDANCE SAVE ERROR:', err);
     next(err);
+  } finally {
+    conn.release();
   }
 });
 
@@ -378,8 +461,6 @@ app.put('/api/instructors/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
-
-// CARS
 // CARS
 app.get('/api/cars', async (req, res, next) => {
   try {
@@ -491,7 +572,6 @@ app.delete('/api/cars/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
-
 // ---------- Express global error handler ----------
 app.use((err, req, res, next) => {
   console.error('EXPRESS ERROR:', err && (err.stack || err));
@@ -508,7 +588,6 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason) => {
   console.error('UNHANDLED REJECTION:', reason);
 });
-
 
 // ===============================
 // BRANCHES CRUD

@@ -113,7 +113,6 @@
     box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
     padding: 22px;
     z-index: 9999;
-
     transform: translate(-50%, -40%);
     opacity: 0;
     transition: all 0.35s ease;
@@ -160,17 +159,32 @@
 
 .status-completed {
     color: #0f9d58;
+    /* dark green */
+    font-weight: 700;
+}
+
+.status-active {
+    color: #34a853;
+    /* bright green */
     font-weight: 700;
 }
 
 .status-pending {
-    color: #f59e0b;
+    color: gray;
     font-weight: 700;
 }
 
 .status-expired {
     color: #dc2626;
+    /* red */
     font-weight: 700;
+}
+
+.status-hold {
+    color: #f59e0b;
+    /* orange */
+    font-weight: 700;
+    font-style: italic;
 }
 
 /* ===== Dropdown Styling ===== */
