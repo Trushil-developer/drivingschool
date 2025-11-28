@@ -81,18 +81,32 @@
                     const resBookings = await window.api('/api/bookings');
                     const bookings = resBookings.success ? resBookings.bookings : [];
                     const selectedDateStr = currentDate.toISOString().split("T")[0];
-                    const branchBookings = bookings.filter(b=>{
-                        if(!b.starting_from) return false;
-                        const bookingDateStr = new Date(b.starting_from).toISOString().split("T")[0];
-                        return b.branch.trim()===branch.trim() && bookingDateStr===selectedDateStr;
+
+                    const branchBookings = bookings.filter(b => {
+                        if (!b.starting_from) return false;
+
+                        const start = new Date(b.starting_from);
+                        const end = new Date(start);
+                        end.setDate(start.getDate() + 29); // 30 days
+
+                        const selectedTime = currentDate.getTime();
+
+                        return (
+                            b.branch.trim().toLowerCase() === branch.trim().toLowerCase() &&
+                            selectedTime >= start.getTime() &&
+                            selectedTime <= end.getTime()
+                        );
                     });
 
+
+
                     const bookedSlots = {};
-                    branchBookings.forEach(b=>{
+                    branchBookings.forEach(b => {
+                        if (!b.car_name || !b.allotted_time) return;
                         const car = b.car_name.trim();
                         const time = b.allotted_time.slice(0,5);
                         const customer = b.customer_name || '';
-                        if(!bookedSlots[car]) bookedSlots[car] = {};
+                        if (!bookedSlots[car]) bookedSlots[car] = {};
                         bookedSlots[car][time] = customer;
                     });
 
