@@ -33,6 +33,7 @@ window.CommonReady = (async () => {
             else if (section === 'instructors') window.location.href = 'admin.html?tab=instructors';
             else if (section === 'branches') window.location.href = 'admin.html?tab=branches';
             else if (section === 'cars') window.location.href = 'admin.html?tab=cars';
+            else if (section === 'schedule') window.location.href = 'admin.html?tab=schedule';
         });
     });
 
