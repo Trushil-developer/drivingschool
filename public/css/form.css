@@ -93,6 +93,10 @@ button {
     font-weight: bold;
 }
 
+input[type="text"] {
+    text-transform: uppercase;
+}
+
 @media (max-width: 450px) {
     .stack-mobile {
         flex-direction: column;

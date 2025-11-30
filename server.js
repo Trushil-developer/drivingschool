@@ -10,6 +10,8 @@ import dotenv from 'dotenv';
 import MySQLStoreImport from 'express-mysql-session';
 import cron from 'node-cron';
 import updateBookingsStatus from './scripts/updateBookings.js';
+import trainingDaysRoute from './routes/trainingDays.js';
+import instructorsRoute from './routes/instructorsRoutes.js';
 
 dotenv.config();
 
@@ -104,10 +106,6 @@ function toMySQLDate(value) {
   return d.toISOString().split('T')[0];
 }
 
-function requireAdmin(req, res, next) {
-  if (req.session && req.session.adminLoggedIn) return next();
-  return res.status(401).json({ success: false, error: 'Unauthorized access' });
-}
 
 // ---------- AUTH ----------
 app.post('/api/login', async (req, res, next) => {
@@ -348,90 +346,6 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
   }
 });
 
-// ---------- INSTRUCTORS CRUD ----------
-app.get('/api/instructors', async (req, res, next) => {
-  try {
-    const [rows] = await dbPool.query(`
-      SELECT id, employee_no, instructor_name, email, mobile_no, branch, 
-             drivers_license, adhar_no, address
-      FROM instructors
-      ORDER BY id DESC
-    `);
-    res.json({ success: true, instructors: rows });
-  } catch (err) {
-    console.error('INSTRUCTORS FETCH ERROR:', err);
-    next(err);
-  }
-});
-
-app.post('/api/instructors', requireAdmin, async (req, res, next) => {
-  const data = req.body;
-  if (!data.instructor_name) return res.json({ success: false, error: 'Instructor name is required' });
-
-  try {
-    const sql = `
-      INSERT INTO instructors 
-        (instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
-    const values = [
-      data.instructor_name,
-      data.email || '',
-      data.mobile_no || '',
-      data.branch || '',
-      data.drivers_license || '',
-      data.adhar_no || '',
-      data.address || ''
-    ];
-    const [result] = await dbPool.query(sql, values);
-    res.json({ success: true, instructor_id: result.insertId });
-  } catch (err) {
-    console.error('INSTRUCTOR CREATE ERROR:', err);
-    next(err);
-  }
-});
-
-app.delete('/api/instructors/:id', requireAdmin, async (req, res, next) => {
-  try {
-    await dbPool.query('DELETE FROM instructors WHERE id=?', [req.params.id]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('INSTRUCTOR DELETE ERROR:', err);
-    next(err);
-  }
-});
-
-app.put('/api/instructors/:id', requireAdmin, async (req, res, next) => {
-  const { id } = req.params;
-  const data = req.body;
-
-  if (!data.instructor_name) return res.json({ success: false, error: 'Instructor name is required' });
-
-  try {
-    const sql = `
-      UPDATE instructors SET
-        instructor_name=?, email=?, mobile_no=?, branch=?, drivers_license=?, adhar_no=?, address=?
-      WHERE id=?
-    `;
-    const values = [
-      data.instructor_name,
-      data.email || '',
-      data.mobile_no || '',
-      data.branch || '',
-      data.drivers_license || '',
-      data.adhar_no || '',
-      data.address || '',
-      id
-    ];
-
-    await dbPool.query(sql, values);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('INSTRUCTOR UPDATE ERROR:', err);
-    next(err);
-  }
-});
-
 // ---------- CARS CRUD ----------
 app.get('/api/cars', async (req, res, next) => {
   try {
@@ -600,7 +514,17 @@ cron.schedule('1 0 * * *', async () => {
   timezone: "Asia/Kolkata"
 });
 
+app.use('/api/training-days', trainingDaysRoute);
+app.use('/api/instructors', instructorsRoute);
+
+
 // ---------- START SERVER ----------
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
+
+
+export function requireAdmin(req, res, next) {
+  if (req.session && req.session.adminLoggedIn) return next();
+  return res.status(401).json({ success: false, error: 'Unauthorized access' });
+}

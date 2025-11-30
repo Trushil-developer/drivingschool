@@ -98,7 +98,11 @@ window.registerScheduleModule = function (factory) {
                             ${rows.map(b => `
                                 <tr id="booking-${b.id}">
                                     <td>${b.id}</td>
-                                    <td>${b.customer_name || '-'}</td>
+                                    <td>
+                                        <a href="details.html?id=${b.id}" class="customer-link">
+                                            ${b.customer_name || '-'}
+                                        </a>
+                                    </td>
                                     <td>${b.car_name || '-'}</td>
                                     <td>${b.instructor_name || '-'}</td>
                                     <td>${b.branch || '-'}</td>
@@ -107,7 +111,6 @@ window.registerScheduleModule = function (factory) {
                                     <td>${b.advance || 0}/${b.total_fees || 0}</td>
                                     <td>${b.starting_from ? formatDate(b.starting_from) : '-'}</td>
                                     <td>
-                                        <button class="btn details" data-id="${b.id}">Details</button>
                                         <button class="btn delete" data-id="${b.id}">Delete</button>
                                     </td>
                                 </tr>
@@ -166,7 +169,11 @@ window.registerScheduleModule = function (factory) {
                             ${rows.map(b => `
                                 <tr id="booking-${b.id}">
                                     <td>${b.id}</td>
-                                    <td>${b.customer_name || '-'}</td>
+                                    <td>
+                                        <a href="details.html?id=${b.id}" class="customer-link">
+                                            ${b.customer_name || '-'}
+                                        </a>
+                                    </td>
                                     <td>${b.car_name || '-'}</td>
                                     <td>${b.instructor_name || '-'}</td>
                                     <td>${b.branch || '-'}</td>
@@ -175,7 +182,6 @@ window.registerScheduleModule = function (factory) {
                                     <td>${b.starting_from ? formatDate(b.starting_from) : '-'}</td>
                                     <td>
                                         <button class="btn attendance" data-id="${b.id}">Attendance</button>
-                                        <button class="btn delete" data-id="${b.id}">Delete</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -191,48 +197,13 @@ window.registerScheduleModule = function (factory) {
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
             }
         },
-        instructors: async () => {
-            try {
-                const res = await window.api('/api/instructors');
-                if(!res.success) throw new Error(res.error || 'Failed to fetch instructors');
-                const rows = filterData('instructors', res.instructors, lastSearch);
-                if(!rows.length){
-                    tableWrap.innerHTML = '<div class="empty">No instructors found</div>';
-                    return;
-                }
-                const scrollTop = window.scrollY || document.documentElement.scrollTop;
-                let html = `<table class="bookings-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th><th>Employee No</th><th>Name</th><th>Email</th><th>Mobile</th>
-                            <th>Branch</th><th>Driver Licence</th><th>Adhar</th><th>Address</th><th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rows.map(i => `
-                        <tr id="instructor-${i.id}">
-                            <td>${i.id}</td>
-                            <td>${i.employee_no || '-'}</td>
-                            <td>${i.instructor_name || '-'}</td>
-                            <td>${i.email || '-'}</td>
-                            <td>${i.mobile_no || '-'}</td>
-                            <td>${i.branch || '-'}</td>
-                            <td>${i.drivers_license || '-'}</td>
-                            <td>${i.adhar_no || '-'}</td>
-                            <td>${i.address || '-'}</td>
-                            <td>
-                                <button class="btn edit-instructor" data-id="${i.id}" data-name="${i.instructor_name}" data-email="${i.email}" data-mobile="${i.mobile_no}" data-branch="${i.branch}" data-license="${i.drivers_license}" data-adhar="${i.adhar_no}" data-address="${i.address}">Edit</button>
-                                <button class="btn delete" data-id="${i.id}">Delete</button>
-                            </td>
-                        </tr>`).join('')}
-                    </tbody>
-                </table>`;
-                tableWrap.innerHTML = html;
-                window.scrollTo(0, scrollTop);
-            } catch(err){
-                console.error(err);
-                tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
+        instructors: () => {
+            if (typeof window.renderInstructorsModule !== "function") {
+                tableWrap.innerHTML = '<div class="error">Instructors module not loaded</div>';
+                return Promise.resolve();
             }
+            const renderer = window.renderInstructorsModule(tableWrap, tabRenderers, currentTab);
+            return renderer();
         },
         cars: async () => {
             try {
@@ -248,36 +219,25 @@ window.registerScheduleModule = function (factory) {
                 const scrollTop = window.scrollY || document.documentElement.scrollTop;
 
                 let html = `
-                    <table class="bookings-table">
+                    <table class="cars-table">
                         <thead>
                             <tr>
                                 <th>ID</th>
                                 <th>Car Name</th>
                                 <th>Branch</th>
                                 <th>Registration No</th>
-                                <th>Insurance Policy</th>
-                                <th>Insurance Company</th>
-                                <th>Insurance Issue</th>
-                                <th>Insurance Expiry</th>
-                                <th>PUC Issue</th>
-                                <th>PUC Expiry</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${rows.map(c => `
-                                <tr id="car-${c.id}">
+                                <tr class="car-row" data-id="${c.id}">
                                     <td>${c.id}</td>
-                                    <td>${c.car_name || '-'}</td>
+                                    <td class="car-name" style="cursor:pointer; color:blue; text-decoration:underline;">
+                                        ${c.car_name || '-'}
+                                    </td>
                                     <td>${c.branch || '-'}</td>
                                     <td>${c.car_registration_no || '-'}</td>
-                                    <td>${c.insurance_policy_no || '-'}</td>
-                                    <td>${c.insurance_company || '-'}</td>
-                                    <td>${c.insurance_issue_date ? formatDate(c.insurance_issue_date) : '-'}</td>
-                                    <td>${c.insurance_expiry_date ? formatDate(c.insurance_expiry_date) : '-'}</td>
-                                    <td>${c.puc_issue_date ? formatDate(c.puc_issue_date) : '-'}</td>
-                                    <td>${c.puc_expiry_date ? formatDate(c.puc_expiry_date) : '-'}</td>
-
                                     <td>
                                         <button class="btn edit"
                                             data-id="${c.id}"
@@ -291,8 +251,17 @@ window.registerScheduleModule = function (factory) {
                                             data-puc_issue_date="${c.puc_issue_date || ''}"
                                             data-puc_expiry_date="${c.puc_expiry_date || ''}"
                                         >Edit</button>
-
                                         <button class="btn delete" data-id="${c.id}">Delete</button>
+                                    </td>
+                                </tr>
+                                <tr class="car-details hidden" id="details-${c.id}">
+                                    <td colspan="5">
+                                        <strong>Insurance Policy:</strong> ${c.insurance_policy_no || '-'} <br>
+                                        <strong>Insurance Company:</strong> ${c.insurance_company || '-'} <br>
+                                        <strong>Insurance Issue:</strong> ${c.insurance_issue_date ? formatDate(c.insurance_issue_date) : '-'} <br>
+                                        <strong>Insurance Expiry:</strong> ${c.insurance_expiry_date ? formatDate(c.insurance_expiry_date) : '-'} <br>
+                                        <strong>PUC Issue:</strong> ${c.puc_issue_date ? formatDate(c.puc_issue_date) : '-'} <br>
+                                        <strong>PUC Expiry:</strong> ${c.puc_expiry_date ? formatDate(c.puc_expiry_date) : '-'}
                                     </td>
                                 </tr>
                             `).join('')}
@@ -300,82 +269,48 @@ window.registerScheduleModule = function (factory) {
                     </table>
                 `;
 
+
                 tableWrap.innerHTML = html;
                 window.scrollTo(0, scrollTop);
+
+                // Add click listener to toggle details
+                document.querySelectorAll(".car-name").forEach(el => {
+                    el.addEventListener("click", e => {
+                        const row = e.target.closest("tr");
+                        const id = row.dataset.id;
+                        const detailsRow = document.getElementById(`details-${id}`);
+                        if (detailsRow) detailsRow.classList.toggle("hidden");
+                    });
+                });
 
             } catch (err) {
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
             }
         },
-        branches: async () => {
-            try {
-                const res = await window.api('/api/branches');
-                if (!res.success) throw new Error(res.error || 'Failed to fetch branches');
-
-                const rows = filterData('branches', res.branches, lastSearch);
-                if (!rows.length) {
-                    tableWrap.innerHTML = '<div class="empty">No branches found</div>';
-                    return;
-                }
-
-                const scrollTop = window.scrollY || document.documentElement.scrollTop;
-
-                let html = `
-                    <table class="bookings-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Branch Name</th>
-                                <th>City</th>
-                                <th>State</th>
-                                <th>Mobile</th>
-                                <th>Email</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        ${rows.map(b => `
-                            <tr id="branch-${b.id}">
-                                <td>${b.id}</td>
-                                <td>${b.branch_name || '-'}</td>
-                                <td>${b.city || '-'}</td>
-                                <td>${b.state || '-'}</td>
-                                <td>${b.mobile_no || '-'}</td>
-                                <td>${b.email || '-'}</td>
-                                <td>
-                                    <button class="btn edit-branch" data-id="${b.id}" 
-                                        data-name="${b.branch_name}"
-                                        data-city="${b.city}"
-                                        data-state="${b.state}"
-                                        data-mobile="${b.mobile_no}"
-                                        data-email="${b.email}">
-                                        Edit
-                                    </button>
-
-                                    <button class="btn delete" data-id="${b.id}">Delete</button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                        </tbody>
-                    </table>
-                `;
-
-                tableWrap.innerHTML = html;
-                window.scrollTo(0, scrollTop);
-            } catch (err) {
-                console.error(err);
-                tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
+        branches: () => {
+            if (typeof window.renderBranchesModule !== "function") {
+                tableWrap.innerHTML = '<div class="error">Branches module not loaded</div>';
+                return Promise.resolve();
             }
-        },
+            const renderer = window.renderBranchesModule(tableWrap);
+            return renderer();
+        },  
         schedule: function () {
-            if (typeof window.renderScheduleSectionFactory !== "function") {
+            if (typeof window.renderScheduleModule !== "function") {
                 tableWrap.innerHTML = '<div class="error">Schedule module not loaded</div>';
                 return Promise.resolve();
             }
 
-            // Create a renderer instance bound to tableWrap
-            const renderer = window.renderScheduleSectionFactory(tableWrap);
+            const renderer = window.renderScheduleModule(tableWrap);
+            return renderer();
+        },
+        trainingDays: () => {
+            if(typeof window.renderTrainingDaysModule !== "function") {
+                tableWrap.innerHTML = '<div class="error">Training Days module not loaded</div>';
+                return Promise.resolve();
+            }
+            const renderer = window.renderTrainingDaysModule(tableWrap);
             return renderer();
         }
     };
@@ -390,7 +325,9 @@ window.registerScheduleModule = function (factory) {
         if (tab === 'schedule') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
-        } else {
+        } else if (tab === 'trainingDays') {
+            searchInput?.classList.add('hidden'); addBtn?.classList.remove('hidden'); 
+        }else {
             searchInput?.classList.remove('hidden');
             addBtn?.classList.remove('hidden');
         }
@@ -416,23 +353,63 @@ window.registerScheduleModule = function (factory) {
 
     addBtn?.addEventListener("click", e => {
         e.preventDefault();
-        if(currentTab === "instructors") openInstructorAddModal();
+        if (currentTab === "instructors") window.openInstructorAddModal(tabRenderers, currentTab)();
         else if (currentTab === "cars") openCarAddModal();
-        else if (currentTab === "branches") openBranchAddModal();
+        else if (currentTab === "branches") openBranchModal(tabRenderers, currentTab)();
+        else if (currentTab === "trainingDays") openTrainingDaysModal(tabRenderers, currentTab);
         else window.location.href = "index.html";
     });
 
     tableWrap.addEventListener('click', async e => {
         const id = e.target.dataset.id;
         if(!id) return;
-        if(e.target.classList.contains('delete')) {
-            if(!confirm("Are you sure?")) return;
-            if(currentTab === "bookings") await window.api(`/api/bookings/${id}`, { method: "DELETE" });
-            if(currentTab === "instructors") await window.api(`/api/instructors/${id}`, { method: "DELETE" });
-            if (currentTab === "cars") await window.api(`/api/cars/${id}`, { method: "DELETE" });
-            if (currentTab === "branches") await window.api(`/api/branches/${id}`, { method: "DELETE" });
-            if(tabRenderers[currentTab]) tabRenderers[currentTab]();
+
+        if (e.target.classList.contains('delete')) {
+
+            const id = e.target.dataset.id;
+            if (!id) return;
+
+            // Password protection
+            const pwd = prompt("Enter admin password to delete:");
+            if (!pwd) return alert("Deletion cancelled");
+
+            const ADMIN_PASSWORD = "1234"; 
+            if (pwd !== ADMIN_PASSWORD) {
+                alert("Incorrect password!");
+                return;
+            }
+
+            const deleteApiMap = {
+                bookings: '/api/bookings',
+                instructors: '/api/instructors',
+                cars: '/api/cars',
+                branches: '/api/branches',
+                trainingDays: '/api/training-days'
+            };
+
+            const apiUrl = deleteApiMap[currentTab];
+
+            try {
+                const res = await window.api(`${apiUrl}/${id}`, {
+                    method: "DELETE"
+                });
+
+                if (!res.success) {
+                    alert(res.error || "Delete failed");
+                    return;
+                }
+
+                alert("Deleted successfully!");
+
+                if (tabRenderers[currentTab]) {
+                    tabRenderers[currentTab]();
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error deleting record");
+            }
         }
+
         if(e.target.classList.contains('details') && currentTab === 'bookings') {
             window.location.href = `details.html?id=${id}`;
         }
@@ -475,120 +452,13 @@ window.registerScheduleModule = function (factory) {
                 email: e.target.dataset.email,
             };
 
-            openBranchEditModal(id, data);
+            openBranchEditModal(id, data, tabRenderers, currentTab)();
         }
 
     });
 
+
     await switchTab(currentTab);
-
-    function openInstructorAddModal() {
-        if(!window.Modal) return;
-        if(!window.Modal.el) try { window.Modal.init(); } catch(err){ console.error(err); return; }
-        const innerFormHTML = `
-            <h2>Add Instructor</h2>
-            <div class="modal-content-form">
-                <label>Name</label><input id="ins_name" type="text" placeholder="Instructor Name" required>
-                <label>Email</label><input id="ins_email" type="email" placeholder="Email" required>
-                <label>Mobile</label><input id="ins_mobile" type="text" placeholder="Mobile" required>
-                <label>Branch</label><input id="ins_branch" type="text" placeholder="Branch" required>
-                <label>Driver Licence</label><input id="ins_license" type="text" placeholder="Driver Licence" required>
-                <label>Adhar No</label><input id="ins_adhar" type="text" placeholder="Adhar" required>
-                <label>Address</label><textarea id="ins_address" placeholder="Address" required></textarea>
-                <button id="saveInstructor" class="btn primary">Save Instructor</button>
-            </div>
-        `;
-        window.Modal.setContent(innerFormHTML);
-        window.Modal.show();
-        setTimeout(() => {
-            const saveBtn = document.getElementById("saveInstructor");
-            if(!saveBtn) return;
-            saveBtn.addEventListener("click", async () => {
-                const instructorData = {
-                    instructor_name: document.getElementById("ins_name").value.trim(),
-                    email: document.getElementById("ins_email").value.trim(),
-                    mobile_no: document.getElementById("ins_mobile").value.trim(),
-                    branch: document.getElementById("ins_branch").value.trim(),
-                    drivers_license: document.getElementById("ins_license").value.trim(),
-                    adhar_no: document.getElementById("ins_adhar").value.trim(),
-                    address: document.getElementById("ins_address").value.trim(),
-                };
-                for (const [key, value] of Object.entries(instructorData)) {
-                    if (!value) {
-                        alert(`Please fill in the ${key.replace('_', ' ')}`);
-                        return;
-                    }
-                }
-                try {
-                    const res = await window.api("/api/instructors", {
-                        method: "POST",
-                        body: JSON.stringify(instructorData),
-                        headers: { "Content-Type": "application/json" }
-                    });
-                    if (!res.success) throw new Error(res.error || "Failed to save instructor");
-                    alert("Instructor saved successfully!");
-                    window.Modal.hide();
-                    if(tabRenderers[currentTab]) tabRenderers[currentTab]();
-                } catch(err) {
-                    alert("Error: " + err.message);
-                }
-            });
-        }, 50);
-    }
-
-    function openInstructorEditModal(id, data) {
-        if(!window.Modal) return;
-        if(!window.Modal.el) try { window.Modal.init(); } catch(err){ console.error(err); return; }
-        const innerFormHTML = `
-            <h2>Edit Instructor</h2>
-            <div class="modal-content-form">
-                <label>Name</label><input id="ins_name" type="text" value="${data.instructor_name || ''}" required>
-                <label>Email</label><input id="ins_email" type="email" value="${data.email || ''}" required>
-                <label>Mobile</label><input id="ins_mobile" type="text" value="${data.mobile_no || ''}" required>
-                <label>Branch</label><input id="ins_branch" type="text" value="${data.branch || ''}" required>
-                <label>Driver Licence</label><input id="ins_license" type="text" value="${data.drivers_license || ''}" required>
-                <label>Adhar No</label><input id="ins_adhar" type="text" value="${data.adhar_no || ''}" required>
-                <label>Address</label><textarea id="ins_address" required>${data.address || ''}</textarea>
-                <button id="saveInstructor" class="btn primary">Save Changes</button>
-            </div>
-        `;
-        window.Modal.setContent(innerFormHTML);
-        window.Modal.show();
-        setTimeout(() => {
-            const saveBtn = document.getElementById("saveInstructor");
-            if(!saveBtn) return;
-            saveBtn.addEventListener("click", async () => {
-                const instructorData = {
-                    instructor_name: document.getElementById("ins_name").value.trim(),
-                    email: document.getElementById("ins_email").value.trim(),
-                    mobile_no: document.getElementById("ins_mobile").value.trim(),
-                    branch: document.getElementById("ins_branch").value.trim(),
-                    drivers_license: document.getElementById("ins_license").value.trim(),
-                    adhar_no: document.getElementById("ins_adhar").value.trim(),
-                    address: document.getElementById("ins_address").value.trim(),
-                };
-                for (const [key, value] of Object.entries(instructorData)) {
-                    if (!value) {
-                        alert(`Please fill in the ${key.replace('_', ' ')}`);
-                        return;
-                    }
-                }
-                try {
-                    const res = await window.api(`/api/instructors/${id}`, {
-                        method: "PUT",
-                        body: JSON.stringify(instructorData),
-                        headers: { "Content-Type": "application/json" }
-                    });
-                    if(!res.success) throw new Error(res.error || "Failed to update instructor");
-                    alert("Instructor updated successfully!");
-                    window.Modal.hide();
-                    if(tabRenderers[currentTab]) tabRenderers[currentTab]();
-                } catch(err) {
-                    alert("Error: " + err.message);
-                }
-            });
-        }, 50);
-    }
 
     function openCarAddModal() {
         if (!window.Modal) return;
@@ -668,93 +538,6 @@ window.registerScheduleModule = function (factory) {
                 }
             };
         }, 50);
-    }
-
-    function openBranchAddModal() {
-    if (!window.Modal) return;
-    if (!window.Modal.el) window.Modal.init();
-
-    const form = `
-        <h2>Add Branch</h2>
-        <div class="modal-content-form">
-            <label>Branch Name</label><input id="br_name" type="text">
-            <label>City</label><input id="br_city" type="text">
-            <label>State</label><input id="br_state" type="text">
-            <label>Mobile</label><input id="br_mobile" type="text">
-            <label>Email</label><input id="br_email" type="email">
-            <button id="saveBranch" class="btn primary" style="margin-top: 15px;">Save Branch</button>
-        </div>
-    `;
-
-    window.Modal.setContent(form);
-    window.Modal.show();
-
-    setTimeout(() => {
-        document.getElementById("saveBranch").onclick = async () => {
-            const data = {
-                branch_name: br_name.value.trim(),
-                city: br_city.value.trim(),
-                state: br_state.value.trim(),
-                mobile_no: br_mobile.value.trim(),
-                email: br_email.value.trim(),
-            };
-
-            const res = await window.api("/api/branches", {
-                method: "POST",
-                body: JSON.stringify(data),
-                headers: { "Content-Type": "application/json" }
-            });
-
-            if (!res.success) return alert(res.error);
-            alert("Branch added!");
-            window.Modal.hide();
-            tabRenderers[currentTab]();
-        };
-    }, 30);
-}
-
-
-    function openBranchEditModal(id, data) {
-        if (!window.Modal) return;
-        if (!window.Modal.el) window.Modal.init();
-
-        const form = `
-            <h2>Edit Branch</h2>
-            <div class="modal-content-form">
-                <label>Branch Name</label><input id="br_name" type="text" value="${data.branch_name}">
-                <label>City</label><input id="br_city" type="text" value="${data.city}">
-                <label>State</label><input id="br_state" type="text" value="${data.state}">
-                <label>Mobile</label><input id="br_mobile" type="text" value="${data.mobile_no}">
-                <label>Email</label><input id="br_email" type="email" value="${data.email}">
-                <button id="saveBranch" class="btn primary">Save Changes</button>
-            </div>
-        `;
-
-        window.Modal.setContent(form);
-        window.Modal.show();
-
-        setTimeout(() => {
-            document.getElementById("saveBranch").onclick = async () => {
-                const payload = {
-                    branch_name: br_name.value.trim(),
-                    city: br_city.value.trim(),
-                    state: br_state.value.trim(),
-                    mobile_no: br_mobile.value.trim(),
-                    email: br_email.value.trim(),
-                };
-
-                const res = await window.api(`/api/branches/${id}`, {
-                    method: "PUT",
-                    body: JSON.stringify(payload),
-                    headers: { "Content-Type": "application/json" }
-                });
-
-                if (!res.success) return alert(res.error);
-                alert("Branch updated!");
-                window.Modal.hide();
-                tabRenderers[currentTab]();
-            };
-        }, 30);
     }
 
     function openCarEditModal(id, data) {

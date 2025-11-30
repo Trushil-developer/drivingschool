@@ -114,6 +114,17 @@
 
             booking._attendanceRecords = existingAttendance; // Keep for modal
 
+            attendanceBtn.onclick = () => {
+                if (!booking || !booking.starting_from) return alert("Booking starting date missing");
+
+                window.openAttendanceModal({
+                    ...booking,
+                    totalDays: Number(booking.training_days) || 30,
+                    refresh: loadBooking
+                });
+            };
+
+
         } catch (err) {
             console.error(err);
             detailsTable.innerHTML = `<tr><td colspan="2" class="error">Failed to load booking details.</td></tr>`;
@@ -129,76 +140,122 @@
         saveBtn.style.display = 'inline-block';
         editBtn.style.display = 'none';
 
-        const branchRes = await window.api("/api/branches");
-        const carRes = await window.api("/api/cars");
-        const allBranches = branchRes.branches || [];
-        const allCars = carRes.cars || [];
+        try {
+            // Fetch branches and cars via API
+            const [branchRes, carRes] = await Promise.all([
+                window.api("/api/branches"),
+                window.api("/api/cars")
+            ]);
 
-        detailsTable.querySelectorAll('td').forEach(td => {
-            const key = td.dataset.key;
-            if (!key || key === 'attendance_status') return;
+            const allBranches = branchRes.branches || [];
+            const allCars = carRes.cars || [];
 
-            let val = td.textContent.trim() || '';
-            td.innerHTML = "";
+            const tds = detailsTable.querySelectorAll('td[data-key]'); // only td with data-key
 
-            let input;
+            for (const td of tds) {
+                const key = td.dataset.key;
+                if (!key || key === 'attendance_status') continue;
 
-            if (key === "branch") {
-                input = document.createElement("select");
-                input.innerHTML = `<option value="">Select Branch</option>`;
-                allBranches.forEach(b => {
-                    const opt = document.createElement("option");
-                    opt.value = b.branch_name;
-                    opt.textContent = b.branch_name;
-                    if (val === b.branch_name) opt.selected = true;
-                    input.appendChild(opt);
-                });
+                let val = td.textContent.trim() || '';
+                td.innerHTML = ""; // clear existing content
 
-                input.addEventListener("change", () => {
-                    const carCell = detailsTable.querySelector('td[data-key="car_name"]');
-                    loadCarsDropdown(carCell, input.value, allCars, booking.car_name);
-                });
+                // --- Branch select ---
+                if (key === "branch") {
+                    const select = document.createElement("select");
+                    select.innerHTML = `<option value="">Select Branch</option>`;
+                    allBranches.forEach(b => {
+                        const opt = document.createElement("option");
+                        opt.value = b.branch_name;
+                        opt.textContent = b.branch_name;
+                        if (val === b.branch_name) opt.selected = true;
+                        select.appendChild(opt);
+                    });
 
-                td.appendChild(input);
-                return;
+                    // When branch changes, update car dropdown
+                    select.addEventListener("change", () => {
+                        const carCell = detailsTable.querySelector('td[data-key="car_name"]');
+                        loadCarsDropdown(carCell, select.value, allCars, booking.car_name);
+                    });
+
+                    td.appendChild(select);
+                    continue;
+                }
+
+                // --- Car select ---
+                if (key === "car_name") {
+                    const branchCell = detailsTable.querySelector('td[data-key="branch"] select');
+                    const currentBranch = branchCell ? branchCell.value : booking.branch;
+                    loadCarsDropdown(td, currentBranch, allCars, val);
+                    continue;
+                }
+
+                // --- Training days radio buttons ---
+                if (key === "training_days") {
+                    const container = document.createElement("div");
+                    td.appendChild(container);
+
+                    try {
+                        const res = await fetch("/api/training-days"); // ✅ correct endpoint
+                        const data = await res.json();
+
+                        const activeDays = (data.training_days || []).filter(d => d.is_active == 1);
+
+                        container.innerHTML = activeDays.map(d => {
+                            const checked = String(d.days) === val ? 'checked' : '';
+                            return `
+                                <label style="margin-right:10px;">
+                                    <input type="radio" name="training_days" value="${d.days}" ${checked}>
+                                    ${d.days} Days
+                                </label>
+                            `;
+                        }).join("");
+
+                    } catch (err) {
+                        container.innerHTML = "<p style='color:red;'>Error loading training days</p>";
+                        console.error(err);
+                    }
+
+                    continue; // skip default input
+                }
+
+                // --- Checkboxes ---
+                if (['cov_lmv','cov_mc','hold_status'].includes(key)) {
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.checked = (val === 'Yes');
+                    td.appendChild(checkbox);
+                    continue;
+                }
+
+                // --- Date fields ---
+                if (key.includes('date') || key === 'starting_from') {
+                    const dateInput = document.createElement('input');
+                    dateInput.type = 'date';
+                    dateInput.value = val;
+                    td.appendChild(dateInput);
+                    continue;
+                }
+
+                // --- Time field ---
+                if (key === 'allotted_time') {
+                    const timeInput = document.createElement('input');
+                    timeInput.type = 'time';
+                    timeInput.value = val;
+                    td.appendChild(timeInput);
+                    continue;
+                }
+
+                // --- Default text input ---
+                const textInput = document.createElement('input');
+                textInput.type = 'text';
+                textInput.value = val;
+                td.appendChild(textInput);
             }
 
-            if (key === "car_name") {
-                const branchCell = detailsTable.querySelector('td[data-key="branch"] select');
-                const currentBranch = branchCell ? branchCell.value : booking.branch;
-                loadCarsDropdown(td, currentBranch, allCars, val);
-                return;
-            }
-
-            if (['cov_lmv','cov_mc','hold_status'].includes(key)) {
-                input = document.createElement('input');
-                input.type = 'checkbox';
-                input.checked = (val === 'Yes');
-                td.appendChild(input);
-                return;
-            }
-
-            if (key.includes('date') || key === 'starting_from') {
-                input = document.createElement('input');
-                input.type = 'date';
-                input.value = val;
-                td.appendChild(input);
-                return;
-            }
-
-            if (key === 'allotted_time') {
-                input = document.createElement('input');
-                input.type = 'time';
-                input.value = val;
-                td.appendChild(input);
-                return;
-            }
-
-            input = document.createElement('input');
-            input.type = 'text';
-            input.value = val;
-            td.appendChild(input);
-        });
+        } catch (err) {
+            console.error("Failed to enter edit mode:", err);
+            alert("Error enabling edit mode.");
+        }
     });
 
     // =============================================
@@ -217,8 +274,15 @@
                 if (!input) return;
 
                 let value;
-                if (input.type === 'checkbox') value = input.checked ? 1 : 0;
-                else value = input.value.trim();
+                if (key === "training_days") {
+                    const selectedRadio = td.querySelector('input[name="training_days"]:checked');
+                    value = selectedRadio ? selectedRadio.value : null;
+                } else if (input.type === "checkbox") {
+                    value = input.checked ? 1 : 0;
+                } else {
+                    value = input.value.trim();
+                }
+
 
                 updatedData[key] = value;
 
@@ -252,16 +316,6 @@
                 alert('Error updating booking.');
             }
         });
-
-    // =============================================
-    // ATTENDANCE MODAL
-    // =============================================
-    attendanceBtn.addEventListener('click', () => {
-        window.openAttendanceModal({
-            ...booking,
-            refresh: loadBooking
-        });
-    });
 
     // Cars dropdown helper ------------------------
     function loadCarsDropdown(td, selectedBranch, allCars, selectedCar) {

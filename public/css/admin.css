@@ -197,6 +197,10 @@ body {
     margin-bottom: 0.25rem;
 }
 
+.modal-content-form button {
+    margin-top: 15px;
+}
+
 .modal-content-form input,
 .modal-content-form textarea {
     width: 100%;
@@ -219,6 +223,87 @@ body {
 
 .hidden {
     display: none !important;
+}
+
+.customer-link {
+    color: #007bff;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.customer-link:hover {
+    color: #0056b3;
+}
+
+/* ===== Slot Stats ===== */
+.day-nav-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.day-nav button {
+    padding: 0.4rem 0.8rem;
+    margin: 0 5px;
+    font-size: 0.9rem;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+    background: #fff;
+}
+
+#slotStats {
+    display: flex;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+#slotStats .active-slots {
+    color: #e53935;
+    background-color: #fdecea;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+#slotStats .available-slots {
+    color: #2e7d32;
+    background-color: #e8f5e9;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.instructor-active-switch {
+    position: relative;
+    width: 40px;
+    height: 20px;
+    -webkit-appearance: none;
+    background: #ccc;
+    outline: none;
+    border-radius: 20px;
+    transition: background 0.3s;
+    cursor: pointer;
+}
+
+.instructor-active-switch:checked {
+    background: #4caf50;
+}
+
+.instructor-active-switch::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    top: 1px;
+    left: 1px;
+    background: white;
+    transition: 0.3s;
+}
+
+.instructor-active-switch:checked::before {
+    transform: translateX(20px);
 }
 
 /* ===== Laptop / Desktop Styles (≥1024px) ===== */

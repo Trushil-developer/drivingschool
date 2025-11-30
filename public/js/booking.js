@@ -55,6 +55,16 @@
 
     initAllottedTime();
 
+    const uppercaseFields = ["customer_name", "address", "occupation", "ref"];
+    uppercaseFields.forEach(name => {
+        const input = document.querySelector(`input[name='${name}']`);
+        if (input) {
+            input.addEventListener("input", (e) => {
+                e.target.value = e.target.value.toUpperCase();
+            });
+        }
+    });
+
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 

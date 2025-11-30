@@ -65,30 +65,93 @@ CREATE TABLE IF NOT EXISTS instructors (
     instructor_name VARCHAR(100) NOT NULL
 );
 
--- Columns to ensure exist
-SET @columns = 'employee_no VARCHAR(10), email VARCHAR(100), mobile_no VARCHAR(20), drivers_license VARCHAR(30), adhar_no VARCHAR(20), address TEXT, branch VARCHAR(50)';
+-- Ensure employee_no exists
+SET @col_exists := (SELECT COUNT(*) 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='instructors' 
+                      AND column_name='employee_no');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE instructors ADD COLUMN employee_no VARCHAR(10);',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- Add each column if missing
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='employee_no');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN employee_no VARCHAR(10);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Ensure drivers_license exists
+SET @col_exists := (SELECT COUNT(*) 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='instructors' 
+                      AND column_name='drivers_license');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE instructors ADD COLUMN drivers_license VARCHAR(30);',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='email');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN email VARCHAR(100);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Ensure adhar_no exists
+SET @col_exists := (SELECT COUNT(*) 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='instructors' 
+                      AND column_name='adhar_no');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE instructors ADD COLUMN adhar_no VARCHAR(20);',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='mobile_no');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN mobile_no VARCHAR(20);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Ensure address exists
+SET @col_exists := (SELECT COUNT(*) 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='instructors' 
+                      AND column_name='address');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE instructors ADD COLUMN address TEXT;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='drivers_license');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN drivers_license VARCHAR(30);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Ensure branch exists
+SET @col_exists := (SELECT COUNT(*) 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='instructors' 
+                      AND column_name='branch');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE instructors ADD COLUMN branch VARCHAR(50);',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='adhar_no');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN adhar_no VARCHAR(20);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Ensure email exists
+SET @col_exists := (SELECT COUNT(*) 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='instructors' 
+                      AND column_name='email');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE instructors ADD COLUMN email VARCHAR(100);',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='address');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN address TEXT;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Ensure mobile_no exists
+SET @col_exists := (SELECT COUNT(*) 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='instructors' 
+                      AND column_name='mobile_no');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE instructors ADD COLUMN mobile_no VARCHAR(20);',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='branch');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN branch VARCHAR(50);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Ensure is_active exists
+SET @col_exists := (SELECT COUNT(*) 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE table_schema='drivingschool' 
+                      AND table_name='instructors' 
+                      AND column_name='is_active');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE instructors ADD COLUMN is_active TINYINT(1) DEFAULT 1;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- BOOKINGS TABLE
@@ -111,7 +174,7 @@ SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
                       AND table_name='bookings' 
                       AND column_name='training_days');
 SET @sql := IF(@col_exists=0,
-               'ALTER TABLE bookings ADD COLUMN training_days ENUM("21","15") NOT NULL;',
+               'ALTER TABLE bookings ADD COLUMN training_days INT NOT NULL;',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -324,5 +387,39 @@ SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
                       AND column_name='created_at');
 SET @sql := IF(@col_exists=0,
                'ALTER TABLE branches ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+
+
+-- =====================================
+-- TRAINING DAYS TABLE
+-- =====================================
+
+CREATE TABLE IF NOT EXISTS training_days (
+    id INT AUTO_INCREMENT PRIMARY KEY
+);
+
+-- Add 'days' column
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='training_days'
+      AND column_name='days'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE training_days ADD COLUMN days INT NOT NULL;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add 'is_active'
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='training_days'
+      AND column_name='is_active'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE training_days ADD COLUMN is_active TINYINT(1) DEFAULT 1;',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
