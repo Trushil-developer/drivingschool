@@ -294,6 +294,21 @@ app.delete('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   }
 })();
 
+app.get('/api/attendance-all', requireAdmin, async (req, res, next) => {
+  try {
+    const [rows] = await dbPool.query(`
+      SELECT booking_id, date, present 
+      FROM attendance
+      ORDER BY booking_id ASC, date ASC
+    `);
+
+    res.json({ success: true, records: rows });
+  } catch (err) {
+    console.error('ATTENDANCE-ALL ERROR:', err);
+    next(err);
+  }
+});
+
 app.get('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
   const booking_id = req.params.booking_id;
   try {

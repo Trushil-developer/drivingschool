@@ -133,12 +133,24 @@ window.registerScheduleModule = function (factory) {
 
                 const bookings = res.bookings;
 
-                // Calculate attendance fulfillment
+                    // Fetch ALL attendance at once
+                    const allAtt = await window.api('/api/attendance-all');
+
+                    // Build fast lookup table
+                    const attendanceMap = {};
+                    for (let row of allAtt.records) {
+                        if (!attendanceMap[row.booking_id]) {
+                            attendanceMap[row.booking_id] = [];
+                        }
+                        attendanceMap[row.booking_id].push(row);
+                    }
+
                 for (let b of bookings) {
-                    const attRes = await window.api(`/api/attendance/${b.id}`);
-                    const existingAttendance = attRes.records || [];
+                    const existingAttendance = attendanceMap[b.id] || [];
                     const totalDays = b.training_days == "21" ? 21 : 15;
-                    b.attendance_fulfilled = existingAttendance.filter(e => e.present == 1).length >= totalDays;
+
+                    b.attendance_fulfilled =
+                        existingAttendance.filter(e => e.present == 1).length >= totalDays;
                 }
 
                 const rows = filterData('bookings', filterUpcoming(bookings), lastSearch);
