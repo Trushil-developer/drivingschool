@@ -12,6 +12,7 @@ import cron from 'node-cron';
 import updateBookingsStatus from './scripts/updateBookings.js';
 import trainingDaysRoute from './routes/trainingDays.js';
 import instructorsRoute from './routes/instructorsRoutes.js';
+import carsRoute from './routes/carsRoutes.js';
 
 dotenv.config();
 
@@ -99,7 +100,7 @@ export async function recomputeAndStoreAttendanceStatus(bookingId) {
   await dbPool.query(`UPDATE bookings SET attendance_status = ? WHERE id = ?`, [newStatus, bookingId]);
 }
 
-function toMySQLDate(value) {
+export function toMySQLDate(value) {
   if (!value) return null;
   const d = new Date(value);
   if (isNaN(d)) return null;
@@ -361,82 +362,6 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
   }
 });
 
-// ---------- CARS CRUD ----------
-app.get('/api/cars', async (req, res, next) => {
-  try {
-    const [rows] = await dbPool.query('SELECT * FROM cars ORDER BY id ASC');
-    res.json({ success: true, cars: rows });
-  } catch (err) {
-    console.error('FETCH CARS ERROR:', err);
-    next(err);
-  }
-});
-
-app.post('/api/cars', requireAdmin, async (req, res, next) => {
-  const { 
-    car_name, branch, car_registration_no, insurance_policy_no, insurance_company, 
-    insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date 
-  } = req.body;
-
-  if (!car_name) return res.json({ success: false, error: 'Car name is required' });
-
-  try {
-    const [result] = await dbPool.query(`
-      INSERT INTO cars 
-      (car_name, branch, car_registration_no, insurance_policy_no, insurance_company,
-       insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      car_name, branch || '', car_registration_no || '', insurance_policy_no || null,
-      insurance_company || null, toMySQLDate(insurance_issue_date),
-      toMySQLDate(insurance_expiry_date), toMySQLDate(puc_issue_date), toMySQLDate(puc_expiry_date)
-    ]);
-
-    res.json({ success: true, car_id: result.insertId });
-  } catch (err) {
-    console.error('ADD CAR ERROR:', err);
-    next(err);
-  }
-});
-
-app.put('/api/cars/:id', requireAdmin, async (req, res, next) => {
-  const { id } = req.params;
-  const { 
-    car_name, branch, car_registration_no, insurance_policy_no, insurance_company, 
-    insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date 
-  } = req.body;
-
-  if (!car_name) return res.json({ success: false, error: 'Car name is required' });
-
-  try {
-    await dbPool.query(`
-      UPDATE cars SET
-        car_name=?, branch=?, car_registration_no=?, insurance_policy_no=?, insurance_company=?,
-        insurance_issue_date=?, insurance_expiry_date=?, puc_issue_date=?, puc_expiry_date=?
-      WHERE id=?
-    `, [
-      car_name, branch || '', car_registration_no || '', insurance_policy_no || null,
-      insurance_company || null, toMySQLDate(insurance_issue_date), toMySQLDate(insurance_expiry_date),
-      toMySQLDate(puc_issue_date), toMySQLDate(puc_expiry_date), id
-    ]);
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('UPDATE CAR ERROR:', err);
-    next(err);
-  }
-});
-
-app.delete('/api/cars/:id', requireAdmin, async (req, res, next) => {
-  try {
-    await dbPool.query('DELETE FROM cars WHERE id=?', [req.params.id]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('DELETE CAR ERROR:', err);
-    next(err);
-  }
-});
-
 // ---------- BRANCHES CRUD ----------
 app.get('/api/branches', async (req, res, next) => {
   try {
@@ -531,6 +456,7 @@ cron.schedule('1 0 * * *', async () => {
 
 app.use('/api/training-days', trainingDaysRoute);
 app.use('/api/instructors', instructorsRoute);
+app.use('/api/cars', carsRoute);
 
 
 // ---------- START SERVER ----------

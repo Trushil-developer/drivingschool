@@ -57,6 +57,23 @@ SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
 SET @sql := IF(@col_exists=0,'ALTER TABLE cars ADD COLUMN car_registration_no VARCHAR(50);','SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- Ensure is_active column exists in cars table
+SET @col_exists := (
+    SELECT COUNT(*) 
+    FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' 
+      AND table_name='cars' 
+      AND column_name='is_active'
+);
+
+SET @sql := IF(@col_exists = 0,
+               'ALTER TABLE cars ADD COLUMN is_active TINYINT(1) DEFAULT 1;',
+               'SELECT "exists";');
+
+PREPARE stmt FROM @sql; 
+EXECUTE stmt; 
+DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- INSTRUCTORS TABLE
 -- =====================================

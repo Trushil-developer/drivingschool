@@ -10,9 +10,15 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await res.json();
             if (!data.success) throw new Error("Failed to fetch cars");
 
-            const cars = data.cars.filter(c => c.branch === selectedBranch);
+            const cars = data.cars
+                .filter(c => c.branch === selectedBranch && !c.inactive);
 
             carSelect.innerHTML = `<option value="">Select Car</option>`;
+            if (!cars.length) {
+                carSelect.innerHTML = `<option value="">No active cars available</option>`;
+                return;
+            }
+
             cars.forEach(car => {
                 const opt = document.createElement("option");
                 opt.value = car.car_name;

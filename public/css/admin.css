@@ -563,6 +563,45 @@ body {
     font-weight: bold;
 }
 
+/* ===== Car Active / Inactive Switch ===== */
+.car-active-switch {
+    position: relative;
+    width: 40px;
+    height: 20px;
+    -webkit-appearance: none;
+    background: #ccc;
+    outline: none;
+    border-radius: 20px;
+    transition: background 0.3s;
+    cursor: pointer;
+}
+
+.car-active-switch:checked {
+    background: #4caf50;
+    /* Green when active */
+}
+
+.car-active-switch::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    top: 1px;
+    left: 1px;
+    background: white;
+    transition: 0.3s;
+}
+
+.car-active-switch:checked::before {
+    transform: translateX(20px);
+}
+
+/* Optional hover effect */
+.car-active-switch:hover {
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
+}
+
 /* Responsive adjustments for Cars table */
 @media (max-width: 767px) {
     .cars-table {
