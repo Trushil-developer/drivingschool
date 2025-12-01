@@ -114,19 +114,19 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
             tableWrap.querySelectorAll('.car-active-switch').forEach(switchEl => {
                 switchEl.addEventListener('change', async () => {
                     const id = switchEl.dataset.id;
-                    const is_active = switchEl.checked;
+                    const inactive = switchEl.checked ? 0 : 1; 
 
                     try {
                         const res = await window.api(`/api/cars/${id}/active`, {
                             method: "PATCH",
-                            body: JSON.stringify({ is_active: is_active ? 0 : 1 }),
+                            body: JSON.stringify({ inactive }),
                             headers: { "Content-Type": "application/json" },
                         });
 
                         if (!res.success) throw new Error(res.error || "Failed to update status");
                     } catch (err) {
                         alert("Error updating status: " + err.message);
-                        switchEl.checked = !is_active; 
+                        switchEl.checked = !switchEl.checked; 
                     }
                 });
             });

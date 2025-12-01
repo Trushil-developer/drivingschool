@@ -20,7 +20,7 @@ router.post('/', requireAdmin, async (req, res, next) => {
   const { 
     car_name, branch, car_registration_no, insurance_policy_no, insurance_company, 
     insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date,
-    is_active 
+    inactive 
   } = req.body;
 
   if (!car_name) return res.json({ success: false, error: 'Car name is required' });
@@ -29,13 +29,13 @@ router.post('/', requireAdmin, async (req, res, next) => {
     const [result] = await dbPool.query(`
       INSERT INTO cars 
       (car_name, branch, car_registration_no, insurance_policy_no, insurance_company,
-       insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date, is_active)
+       insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date, inactive)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      car_name, branch || '', car_registration_no || '', insurance_policy_no || null,
+      car_name, branch || null, car_registration_no || null, insurance_policy_no || null,
       insurance_company || null, toMySQLDate(insurance_issue_date),
       toMySQLDate(insurance_expiry_date), toMySQLDate(puc_issue_date), toMySQLDate(puc_expiry_date),
-      is_active ? 1 : 0 
+      inactive ? 1 : 0 
     ]);
 
     res.json({ success: true, car_id: result.insertId });
@@ -51,7 +51,7 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
   const { 
     car_name, branch, car_registration_no, insurance_policy_no, insurance_company, 
     insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date,
-    is_active 
+    inactive 
   } = req.body;
 
   if (!car_name) return res.json({ success: false, error: 'Car name is required' });
@@ -63,9 +63,9 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
         insurance_issue_date=?, insurance_expiry_date=?, puc_issue_date=?, puc_expiry_date=?, inactive=?
       WHERE id=?
     `, [
-      car_name, branch || '', car_registration_no || '', insurance_policy_no || null,
+      car_name, branch || null, car_registration_no || null, insurance_policy_no || null,
       insurance_company || null, toMySQLDate(insurance_issue_date), toMySQLDate(insurance_expiry_date),
-      toMySQLDate(puc_issue_date), toMySQLDate(puc_expiry_date), is_active ? 1 : 0, id
+      toMySQLDate(puc_issue_date), toMySQLDate(puc_expiry_date), inactive ? 1 : 0, id
     ]);
 
     res.json({ success: true });
@@ -89,18 +89,17 @@ router.delete('/:id', requireAdmin, async (req, res, next) => {
 // ---------- TOGGLE ACTIVE / INACTIVE ----------
 router.patch('/:id/active', requireAdmin, async (req, res, next) => {
   const { id } = req.params;
-  const { is_active } = req.body; // 0 = active, 1 = inactive
+  const { inactive } = req.body; // 0 = active, 1 = inactive
 
-  if (is_active === undefined) return res.json({ success: false, error: 'is_active field is required' });
+  if (inactive === undefined) return res.json({ success: false, error: 'inactive field is required' });
 
   try {
-    await dbPool.query('UPDATE cars SET inactive=? WHERE id=?', [is_active ? 1 : 0, id]);
+    await dbPool.query('UPDATE cars SET inactive=? WHERE id=?', [inactive ? 1 : 0, id]);
     res.json({ success: true });
   } catch (err) {
     console.error('TOGGLE CAR ACTIVE ERROR:', err);
     next(err);
   }
 });
-
 
 export default router;
