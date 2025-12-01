@@ -126,7 +126,7 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
                         if (!res.success) throw new Error(res.error || "Failed to update status");
                     } catch (err) {
                         alert("Error updating status: " + err.message);
-                        switchEl.checked = !isActive; 
+                        switchEl.checked = !is_active; 
                     }
                 });
             });
