@@ -17,6 +17,7 @@ window.renderScheduleModule = function(tableWrap) {
                                 </div>
                             `).join('')}
                         </div>
+                        
                         <div class="branch-content">
                             <div class="placeholder">Select a branch to view cars.</div>
                         </div>
@@ -40,6 +41,7 @@ window.renderScheduleModule = function(tableWrap) {
                                     <span id="currentDay"></span>
                                     <button id="nextDay">Next Day</button>
                                 </div>
+                                <button id="printScheduleBtn" class="print-btn">Print Schedule</button>
                                 <div id="slotStats">
                                     <span class="active-slots">Active Slots: 0</span>
                                     <span class="available-slots">Available Slots: 0</span>
@@ -155,6 +157,9 @@ window.renderScheduleModule = function(tableWrap) {
                     document.getElementById("scheduleTableWrap").innerHTML = html;
                 }
 
+                document.getElementById("printScheduleBtn").onclick = () => {
+                    printSchedule(branch, currentDate);
+                };
                 document.getElementById("prevDay").onclick = () => {
                     currentDate.setDate(currentDate.getDate()-1);
                     renderDay();
@@ -190,4 +195,47 @@ function to12HourFormat(time24) {
     hh = hh % 12;
     if (hh === 0) hh = 12;
     return `${hh}:${String(mm).padStart(2, '0')} ${ampm}`;
+}
+
+function printSchedule(branch, date) {
+    const scheduleTable = document.getElementById("scheduleTableWrap").innerHTML;
+    const dateStr = `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`;
+
+    const printWindow = window.open('', '', 'width=900,height=700');
+
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Schedule - ${branch} (${dateStr})</title>
+            <style>
+                body { font-family: Arial; padding: 10px; }
+                h2 { margin-bottom: 10px; }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 10px;
+                }
+                th, td {
+                    border: 1px solid #000;
+                    padding: 3px;
+                    text-align: center;
+                }
+                th {
+                    background: #f3f3f3;
+                }
+            </style>
+        </head>
+        <body>
+            <h2>Schedule - ${branch}</h2>
+            <div><strong>Date:</strong> ${dateStr}</div>
+            <br>
+            ${scheduleTable}
+        </body>
+        </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
 }

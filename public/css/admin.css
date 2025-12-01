@@ -306,11 +306,52 @@ body {
     transform: translateX(20px);
 }
 
+/* ===== Print Button Style ===== */
+.print-btn {
+    background-color: #1565c0;
+    /* Blue theme */
+    color: white;
+    border: none;
+    padding: 0.45rem 1rem;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Hover effect */
+.print-btn:hover {
+    background-color: #0d47a1;
+    transform: translateY(-2px);
+}
+
+/* Pressed effect */
+.print-btn:active {
+    transform: translateY(0);
+}
+
+/* Optional print icon using emoji (no images needed) */
+.print-btn::before {
+    content: "🖨️";
+    font-size: 1rem;
+}
+
+/* Responsive – smaller button for mobile */
+@media (max-width: 767px) {
+    .print-btn {
+        width: 100%;
+        justify-content: center;
+        font-size: 0.9rem;
+        padding: 0.5rem;
+    }
+}
+
 /* ===== Laptop / Desktop Styles (≥1024px) ===== */
 @media (min-width: 1024px) {
-    .content {
-        /* padding: 2rem 3rem; */
-    }
 
     .bookings-table th,
     .bookings-table td {
