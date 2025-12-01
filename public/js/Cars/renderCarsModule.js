@@ -95,7 +95,7 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
                     openModal();
                 });
             });
-            
+
             // -----------------------------
             // Toggle car details
             // -----------------------------
@@ -114,17 +114,17 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
             tableWrap.querySelectorAll('.car-active-switch').forEach(switchEl => {
                 switchEl.addEventListener('change', async () => {
                     const id = switchEl.dataset.id;
-                    const isActive = switchEl.checked;
+                    const is_active = switchEl.checked;
 
                     try {
                         const res = await window.api(`/api/cars/${id}/active`, {
                             method: "PATCH",
-                            body: JSON.stringify({ inactive: isActive ? 0 : 1 }),
+                            body: JSON.stringify({ is_active: is_active ? 0 : 1 }),
                             headers: { "Content-Type": "application/json" },
-                            
                         });
-                        if(!res.success) throw new Error(res.error || "Failed to update status");
-                    } catch(err) {
+
+                        if (!res.success) throw new Error(res.error || "Failed to update status");
+                    } catch (err) {
                         alert("Error updating status: " + err.message);
                         switchEl.checked = !isActive; 
                     }
