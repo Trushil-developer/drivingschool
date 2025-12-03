@@ -71,6 +71,7 @@ export function computeAttendanceStatus(booking) {
   const hold = Number(booking.hold_status) === 1;
   const presentDays = Number(booking.present_days) || 0;
   const trainingDays = booking.training_days ? Number(booking.training_days) || 15 : 15;
+  const extended = Number(booking.extended_days || 0);
 
   const startDate = booking.starting_from ? new Date(booking.starting_from) : null;
   const today = new Date();
@@ -78,12 +79,15 @@ export function computeAttendanceStatus(booking) {
   if (hold) return 'Hold';
   if (presentDays >= trainingDays) return 'Completed';
   if (!startDate) return 'Pending';
+
   const expireDate = new Date(startDate);
-  expireDate.setDate(expireDate.getDate() + 30);
+  expireDate.setDate(expireDate.getDate() + 30 + extended); 
+
   if (today > expireDate) return 'Expired';
   if (startDate > today) return 'Pending';
   return 'Active';
 }
+
 
 async function fetchBookingMinimal(id) {
   const [rows] = await dbPool.query(
@@ -217,19 +221,54 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
   }
 });
 
+app.get('/api/bookings/:id', requireAdmin, async (req, res, next) => {
+  try {
+    const [rows] = await dbPool.query(`SELECT * FROM bookings WHERE id = ?`, [req.params.id]);
+    if (!rows.length) return res.json({ success: false, error: 'Booking not found' });
+    res.json({ success: true, booking: rows[0] });
+  } catch (err) {
+    console.error('GET BOOKING ERROR:', err);
+    next(err);
+  }
+});
+
 app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   const id = req.params.id;
   const data = req.body;
 
   try {
+    const [rows] = await dbPool.query('SELECT hold_status, hold_from, extended_days FROM bookings WHERE id = ? LIMIT 1', [id]);
+    if (!rows.length) return res.json({ success: false, error: 'Booking not found' });
+
+    const current = rows[0];
+    const newHoldStatus = data.hold_status ? 1 : 0;
+    let hold_from = current.hold_from;
+    let extended_days = current.extended_days || 0;
+    let resume_from = null;
+
+    if (current.hold_status === 0 && newHoldStatus === 1) {
+      hold_from = new Date();
+    }
+
+    if (current.hold_status === 1 && newHoldStatus === 0) {
+      if (hold_from) {
+        const today = new Date();
+        const holdDays = Math.ceil((today - new Date(hold_from)) / (1000 * 60 * 60 * 24));
+        extended_days += holdDays;
+        resume_from = today;
+        hold_from = null; 
+      }
+    }
+
     const sql = `
       UPDATE bookings SET
         branch=?, training_days=?, customer_name=?, address=?, pincode=?, mobile_no=?, whatsapp_no=?,
         sex=?, birth_date=?, cov_lmv=?, cov_mc=?, dl_no=?, dl_from=?, dl_to=?, email=?,
         occupation=?, ref=?, allotted_time=?, starting_from=?, total_fees=?, advance=?,
-        car_name=?, instructor_name=?, hold_status=?
+        car_name=?, instructor_name=?, hold_status=?, hold_from=?, resume_from=?, extended_days=?
       WHERE id=?
     `;
+
     const values = [
       data.branch,
       data.training_days,
@@ -254,13 +293,18 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
       data.advance || 0,
       data.car_name || '',
       data.instructor_name || '',
-      data.hold_status ? 1 : 0,
+      newHoldStatus,
+      hold_from ? toMySQLDate(hold_from) : null,
+      resume_from ? toMySQLDate(resume_from) : null,
+      extended_days,
       id
     ];
 
     await dbPool.query(sql, values);
     await recomputeAndStoreAttendanceStatus(id);
-    res.json({ success: true });
+
+    res.json({ success: true, message: 'Booking updated successfully' });
+
   } catch (err) {
     console.error('BOOKING UPDATE ERROR:', err);
     next(err);

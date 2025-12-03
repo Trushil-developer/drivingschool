@@ -177,116 +177,238 @@ CREATE TABLE IF NOT EXISTS bookings (
     id INT AUTO_INCREMENT PRIMARY KEY
 );
 
+-- branch
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='bookings' 
-                      AND column_name='branch');
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='branch');
 SET @sql := IF(@col_exists=0,
-               'ALTER TABLE bookings ADD COLUMN branch VARCHAR(100) NOT NULL;',
-               'SELECT "exists";');
+    'ALTER TABLE bookings ADD COLUMN branch VARCHAR(100) NOT NULL;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- training_days
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='training_days');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN training_days INT NOT NULL;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- customer_name
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='customer_name');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN customer_name VARCHAR(100);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- address
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='address');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN address VARCHAR(255);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- pincode
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='pincode');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN pincode VARCHAR(10);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- mobile_no
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='mobile_no');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN mobile_no VARCHAR(20);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- whatsapp_no
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='whatsapp_no');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN whatsapp_no VARCHAR(20);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- sex
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='sex');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN sex ENUM("Male","Female","Other");',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- birth_date
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='birth_date');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN birth_date DATE;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- cov_lmv
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='cov_lmv');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN cov_lmv TINYINT(1) DEFAULT 0;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- cov_mc
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='cov_mc');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN cov_mc TINYINT(1) DEFAULT 0;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- dl_no / dl_from / dl_to
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='dl_no');
+SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN dl_no VARCHAR(50);','SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='bookings' 
-                      AND column_name='training_days');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE bookings ADD COLUMN training_days INT NOT NULL;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='car_name');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN car_name VARCHAR(50);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='customer_name');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN customer_name VARCHAR(100);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='address');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN address VARCHAR(255);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='pincode');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN pincode VARCHAR(10);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='mobile_no');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN mobile_no VARCHAR(20);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='whatsapp_no');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN whatsapp_no VARCHAR(20);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='sex');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN sex ENUM("Male","Female","Other");','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='birth_date');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN birth_date DATE;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='cov_lmv');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN cov_lmv BOOLEAN DEFAULT FALSE;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='cov_mc');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN cov_mc BOOLEAN DEFAULT FALSE;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='bookings' 
-                      AND column_name='total_fees');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE bookings ADD COLUMN total_fees DECIMAL(10,2);',
-               'SELECT "exists";');
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='dl_from');
+SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN dl_from VARCHAR(50);','SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='bookings' 
-                      AND column_name='advance');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE bookings ADD COLUMN advance DECIMAL(10,2);',
-               'SELECT "exists";');
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='dl_to');
+SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN dl_to VARCHAR(50);','SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- email
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='bookings' 
-                      AND column_name='created_at');
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='email');
 SET @sql := IF(@col_exists=0,
-               'ALTER TABLE bookings ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
-               'SELECT "exists";');
+    'ALTER TABLE bookings ADD COLUMN email VARCHAR(100);',
+    'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- occupation
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='bookings' 
-                      AND column_name='instructor_name');
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='occupation');
 SET @sql := IF(@col_exists=0,
-               'ALTER TABLE bookings ADD COLUMN instructor_name VARCHAR(100);',
-               'SELECT "exists";');
+    'ALTER TABLE bookings ADD COLUMN occupation VARCHAR(100);',
+    'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- ref
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='bookings' 
-                      AND column_name='hold_status');
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='ref');
 SET @sql := IF(@col_exists=0,
-               'ALTER TABLE bookings ADD COLUMN hold_status TINYINT DEFAULT 0;',
-               'SELECT "exists";');
+    'ALTER TABLE bookings ADD COLUMN ref VARCHAR(100);',
+    'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- allotted_time
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='bookings' 
-                      AND column_name='present_days');
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='allotted_time');
 SET @sql := IF(@col_exists=0,
-               'ALTER TABLE bookings ADD COLUMN present_days INT DEFAULT 0;',
-               'SELECT "exists";');
+    'ALTER TABLE bookings ADD COLUMN allotted_time TIME;',
+    'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- starting_from
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='bookings' 
-                      AND column_name='attendance_status');
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='starting_from');
 SET @sql := IF(@col_exists=0,
-               'ALTER TABLE bookings ADD COLUMN attendance_status ENUM("Pending","Active","Completed","Expired","Hold") DEFAULT "Pending";',
-               'SELECT "exists";');
+    'ALTER TABLE bookings ADD COLUMN starting_from DATE;',
+    'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- hold_from
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='hold_from');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN hold_from DATE;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- resume_from
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='resume_from');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN resume_from DATE;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- total_fees
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='total_fees');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN total_fees DECIMAL(10,2);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- advance
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='advance');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN advance DECIMAL(10,2);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- created_at
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='created_at');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- car_name
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='car_name');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN car_name VARCHAR(50);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- instructor_name
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='instructor_name');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN instructor_name VARCHAR(100);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- hold_status
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='hold_status');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN hold_status TINYINT DEFAULT 0;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- present_days
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='present_days');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN present_days INT DEFAULT 0;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- attendance_status
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='attendance_status');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN attendance_status ENUM("Pending","Active","Completed","Expired","Hold") DEFAULT "Pending";',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- extended_days
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='extended_days');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN extended_days INT DEFAULT 0;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 
 -- =====================================
 -- ATTENDANCE TABLE

@@ -56,16 +56,14 @@
     // =========================
     async function loadBooking() {
         try {
-            const res = await window.api('/api/bookings');
-            if (!res.success) throw new Error(res.error || 'Failed to fetch bookings');
-
-            booking = res.bookings.find(b => b.id == id);
+            const res = await window.api(`/api/bookings/${id}`);
+            if (!res.success) throw new Error(res.error || 'Failed to fetch booking');
+            booking = res.booking;
             if (!booking) {
                 detailsTable.innerHTML = `<tr><td colspan="2" class="error">Booking not found.</td></tr>`;
                 return;
             }
 
-            // Get attendance records only for modal use (not for calculation)
             const attRes = await window.api(`/api/attendance/${booking.id}`);
             const existingAttendance = attRes.records || [];
 
@@ -90,16 +88,30 @@
                         ${booking.hold_status ? 'Yes' : 'No'}
                     </td>
                 </tr>
+                <tr>
+                    <th>Hold From</th>
+                    <td>${booking.hold_from ? formatDate(booking.hold_from) : '-'}</td>
+                </tr>
+                <tr>
+                    <th>Resume From</th>
+                    <td>${booking.resume_from ? formatDate(booking.resume_from) : '-'}</td>
+                </tr>
+                <tr>
+                    <th>Extended Days</th>
+                    <td>${booking.extended_days || 0}</td>
+                </tr>
+                <tr>
+                    <th>Created At</th>
+                    <td>${booking.created_at ? formatDateTime(booking.created_at) : '-'}</td>
+                </tr>
             `);
 
-            // Print all other fields
             for (const key in booking) {
-                if (['id','attendance_status','present_days','hold_status','created_at'].includes(key)) continue;
+                if (['id','attendance_status','present_days','hold_status','hold_from','resume_from','extended_days','created_at'].includes(key)) continue;
 
                 let value = booking[key] || '';
 
                 if (key.includes('date') || key === 'starting_from') value = formatDate(value);
-                if (key === 'created_at') value = formatDateTime(value);
                 if (['cov_lmv','cov_mc'].includes(key)) value = value ? 'Yes' : 'No';
 
                 const label = key.replace(/_/g, " ");
@@ -112,7 +124,7 @@
                 `);
             }
 
-            booking._attendanceRecords = existingAttendance; // Keep for modal
+            booking._attendanceRecords = existingAttendance;
 
             attendanceBtn.onclick = () => {
                 if (!booking || !booking.starting_from) return alert("Booking starting date missing");
@@ -123,7 +135,6 @@
                     refresh: loadBooking
                 });
             };
-
 
         } catch (err) {
             console.error(err);

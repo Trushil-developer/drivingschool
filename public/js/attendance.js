@@ -65,7 +65,17 @@
         tableBody.innerHTML = "";
 
         const startDate = new Date(booking.starting_from);
-        const totalDays = 30;
+        const totalDays = 30 + Number(booking.extended_days || 0);
+
+        if (booking.hold_from && booking.resume_from) {
+            const holdStart = new Date(booking.hold_from);
+            const resumeStart = new Date(booking.resume_from);
+
+            const holdDays = Math.ceil((resumeStart - holdStart) / (1000 * 60 * 60 * 24));
+
+            startDate.setDate(startDate.getDate() + holdDays);
+        }
+
 
         const res = await window.api(`/api/attendance/${booking.id}`);
         const existing = res.records || [];
