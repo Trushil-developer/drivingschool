@@ -4,209 +4,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Driving School Registration</title>
-    <link rel="stylesheet" href="css/form.css">
-    <link rel="stylesheet" href="css/modal.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <style>
-        .required::after {
-            content: " *";
-            color: red;
-            font-weight: bold;
-        }
-    </style>
+    <title>Dwarkesh Motor Driving School</title>
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/index.css">
 </head>
 
 <body>
-    <div class="form-container">
-        <div class="header">
-            <img src="images/logo.png" alt="Driving School Logo">
-            <h1>DWARKESH MOTOR DRIVING SCHOOL</h1>
+    <div data-include="includes/header.html"></div>
+
+    <main>
+        <h2>Welcome to Your Driving Journey</h2>
+        <p>Learn to drive safely and confidently with our experienced instructors. Our training programs are designed to
+            help you get licensed efficiently while ensuring practical, hands-on experience.</p>
+
+        <div class="button-group">
+            <a href="register.html" class="btn">Register With Us</a>
+            <a href="enquiry.html" class="btn enquiry">Enquiry</a>
         </div>
+    </main>
 
-        <div class="row">
-            <div class="label required">Date:</div>
-            <input type="date" id="form_date" name="form_date">
-        </div>
-
-        <form id="mainForm">
-
-            <div class="section-title">Personal Details</div>
-
-            <div class="row stack-mobile">
-                <div class="label required">Branch:</div>
-                <div class="checkbox-group" id="branchCheckboxGroup">
-                </div>
-            </div>
-
-            <div class="row stack-mobile">
-                <div class="label required">Training Days:</div>
-                <div class="radio-group" id="trainingDaysGroup"></div>
-            </div>
-
-            <div class="row stack-mobile" id="durationRow">
-                <div class="label required">Session Duration:</div>
-                <select name="duration_minutes" id="durationSelect">
-                    <option value="">Select Duration</option>
-                    <option value="30" selected>30 min</option>
-                    <option value="60">1 hour</option>
-                    <option value="90">1.5 hours</option>
-                    <option value="120">2 hours</option>
-                </select>
-            </div>
-
-            <div class="row stack-mobile">
-                <div class="label required">Car:</div>
-                <select name="car" id="carSelect">
-                    <option value="">Select Branch First</option>
-                </select>
-            </div>
-
-            <div class="row">
-                <div class="label required">Full Name:</div>
-                <input type="text" name="customer_name">
-            </div>
-
-            <div class="row">
-                <div class="label required">Address:</div>
-                <input type="text" name="address">
-                <div class="label required">Pincode:</div>
-                <input type="text" name="pincode" pattern="\d{6}" maxlength="6" style="flex: 0.5; max-width: 120px;">
-            </div>
-
-            <div class="row">
-                <div class="label required">Mobile No.:</div>
-                <input type="text" name="mobile_no">
-            </div>
-
-            <div class="row">
-                <div class="label required">WhatsApp No.:</div>
-                <input type="text" name="whatsapp_no">
-            </div>
-
-            <div class="row stack-mobile">
-                <div class="label required">Sex:</div>
-                <select name="sex">
-                    <option value="">Select</option>
-                    <option>Male</option>
-                    <option>Female</option>
-                    <option>Other</option>
-                </select>
-
-                <div class="label required">Birth Date:</div>
-                <input type="date" name="birth_date">
-            </div>
-
-            <div class="row stack-mobile">
-                <div class="label">C.O.V.:</div>
-                <div class="checkbox-group">
-                    <label><input type="checkbox" name="cov_lmv" value="LMV"> LMV</label>
-                    <label><input type="checkbox" name="cov_mc" value="MC"> M/C</label>
-                </div>
-            </div>
-
-            <div class="row dl-row stack-mobile dl">
-                <div class="label">DL No.:</div>
-                <input type="text" name="dl_no">
-
-                <div class="label">From:</div>
-                <input type="date" name="dl_from">
-
-                <div class="label">To:</div>
-                <input type="date" name="dl_to">
-            </div>
-
-            <div class="row">
-                <div class="label required">Email:</div>
-                <input type="email" name="email">
-            </div>
-
-            <div class="row">
-                <div class="label required">Occupation:</div>
-                <input type="text" name="occupation">
-            </div>
-
-            <div class="row">
-                <div class="label">Ref:</div>
-                <input type="text" name="ref">
-            </div>
-
-            <div class="row stack-mobile">
-                <div class="label required">Allotted Time:</div>
-                <input type="text" id="allotted_time" name="allotted_time">
-
-                <div class="label required">Start Date:</div>
-                <input type="date" name="starting_from">
-            </div>
-
-            <div class="row">
-                <div class="label required">Total Fees:</div>
-                <input type="text" name="total_fees">
-
-                <div class="label required">Advance:</div>
-                <input type="text" name="advance">
-            </div>
-
-            <div class="row">
-                <div class="label required">Instructor:</div>
-                <select name="instructor_name" id="instructorSelect">
-                    <option value="">Select Instructor</option>
-                </select>
-            </div>
-
-            <div class="section-title">Notes</div>
-
-            <div class="notes-box">
-                <p>1. Fees are not refundable.</p>
-                <p>2. Course must be completed within 28 days.</p>
-                <p>3. Driving duration per day: 30 min / 7-8 km.</p>
-                <p>4. No one is allowed on the back seat.</p>
-                <label class="required">
-                    <input type="checkbox" id="accept_notes">
-                    I have read and accept the above notes.
-                </label>
-            </div>
-
-            <button type="submit">Submit Booking</button>
-        </form>
-    </div>
-
-    <div id="appModal" class="hidden">
-        <div class="modal-box">
-            <span class="modal-close">&times;</span>
-            <div class="modal-inner"></div>
-        </div>
-    </div>
-    <script type="module" src="js/modal.js"></script>
-
-    <script type="module" defer src="js/booking.js"></script>
-    <script type="module" src="js/TrainingDays/fetchTrainingDays.js"></script>
-    <script type="module" src="js/cars.js"></script>
-    <script type="module" src="js/instructors.js"></script>
-    <script type="module" src="js/branches.js"></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const now = new Date();
-            const hours = now.getHours().toString().padStart(2, '0');
-            const minutes = now.getMinutes();
-            const roundedMinutes = Math.round(minutes / 30) * 30; // round to nearest 30 minutes
-            const minsStr = (roundedMinutes === 60 ? '00' : roundedMinutes.toString().padStart(2, '0'));
-            const defaultTime = `${hours}:${minsStr}`;
-
-            flatpickr("#allotted_time", {
-                enableTime: true,
-                noCalendar: true,
-                dateFormat: "h:i K",
-                time_24hr: false,
-                minuteIncrement: 30,
-                minTime: "06:00",
-                maxTime: "22:00",
-                defaultDate: defaultTime
-            });
-        });
-    </script>
-
+    <div data-include="includes/footer.html"></div>
+    <script src="js/includeHTML.js"></script>
 </body>
 
 </html>

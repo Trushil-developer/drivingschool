@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hold On! Crazy Stuff Happening 😜</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Comic Sans MS', sans-serif;
+            overflow: hidden;
+            flex-direction: column;
+            text-align: center;
+
+            /* Animated gradient background */
+            background: linear-gradient(270deg, #ff69b4, #ff4500, #ffff00, #00ffff, #8a2be2, #ff1493);
+            background-size: 1200% 1200%;
+            animation: gradientShift 15s ease infinite;
+        }
+
+        /* Gradient animation */
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+
+        h1 {
+            font-size: 3rem;
+            color: white;
+            text-align: center;
+            animation: shake 0.5s infinite alternate;
+        }
+
+
+        @keyframes shake {
+            0% {
+                transform: rotate(-5deg);
+            }
+
+            50% {
+                transform: rotate(5deg);
+            }
+
+            100% {
+                transform: rotate(-5deg);
+            }
+        }
+
+        .fun-message {
+            font-size: 1.8rem;
+            color: yellow;
+            margin-top: 1rem;
+            animation: bounce 1s infinite alternate;
+        }
+
+        @keyframes bounce {
+            0% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
+
+            100% {
+                transform: translateY(0);
+            }
+        }
+
+        .emoji {
+            font-size: 5rem;
+            position: absolute;
+            animation: float 3s infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0) rotate(0deg);
+            }
+
+            50% {
+                transform: translateY(-50px) rotate(180deg);
+            }
+
+            100% {
+                transform: translateY(0) rotate(360deg);
+            }
+        }
+
+        .emoji:nth-child(1) {
+            top: 10%;
+            left: 20%;
+            animation-delay: 0s;
+        }
+
+        .emoji:nth-child(2) {
+            top: 50%;
+            left: 70%;
+            animation-delay: 1s;
+        }
+
+        .emoji:nth-child(3) {
+            top: 80%;
+            left: 40%;
+            animation-delay: 2s;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Haha…</h1>
+    <h1>can’t wait, right? 😎🔥</h1>
+    <div class="fun-message"> 😂 Sorry, still not ready. Will be back soon!</div>
+
+    <div class="emoji">🚀</div>
+    <div class="emoji">💥</div>
+    <div class="emoji">🤪</div>
+
+    <script>
+        // Add random crazy emojis flying around
+        const emojis = ["🎉", "🛸", "👽", "💩", "🐒", "🎈"];
+        setInterval(() => {
+            const e = document.createElement('div');
+            e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            e.className = 'emoji';
+            e.style.top = Math.random() * 90 + '%';
+            e.style.left = Math.random() * 90 + '%';
+            e.style.fontSize = (20 + Math.random() * 60) + 'px';
+            document.body.appendChild(e);
+            setTimeout(() => e.remove(), 3000);
+        }, 500);
+    </script>
+</body>
+
+</html>

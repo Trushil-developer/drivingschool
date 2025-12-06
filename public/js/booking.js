@@ -1,3 +1,5 @@
+let isSubmitting = false;
+
 (async () => {
     if (window.CommonReady) await window.CommonReady;
 
@@ -33,13 +35,12 @@
         }, 20);
     }
 
-    // Initialize Allotted Time picker
     function initAllottedTime() {
         const now = new Date();
-        const hours = now.getHours().toString().padStart(2, '0');
+        const hours = now.getHours().toString().padStart(2, "0");
         const minutes = now.getMinutes();
         const roundedMinutes = Math.round(minutes / 30) * 30;
-        const minsStr = roundedMinutes === 60 ? '00' : roundedMinutes.toString().padStart(2, '0');
+        const minsStr = roundedMinutes === 60 ? "00" : roundedMinutes.toString().padStart(2, "0");
 
         flatpickr("#allotted_time", {
             enableTime: true,
@@ -67,6 +68,9 @@
 
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
+
+        if (isSubmitting) return;
+       
 
         const body = {};
         body.branch = getCheckedValues("branch");
@@ -97,13 +101,12 @@
         if (!body.duration_minutes) return showModalAlert("Please select session duration.");
         body.duration_minutes = parseInt(body.duration_minutes);
 
-        // Convert AM/PM to 24h for DB
         if (body.allotted_time) {
-            const [time, modifier] = body.allotted_time.split(' ');
-            let [hours, minutes] = time.split(':').map(Number);
+            const [time, modifier] = body.allotted_time.split(" ");
+            let [hours, minutes] = time.split(":").map(Number);
             if (modifier === "PM" && hours !== 12) hours += 12;
             if (modifier === "AM" && hours === 12) hours = 0;
-            body.allotted_time = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00`;
+            body.allotted_time = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
         } else {
             body.allotted_time = "";
         }
@@ -115,7 +118,6 @@
             return birth <= today;
         };
 
-        // Validation
         if (!body.branch) return showModalAlert("Please select branch.");
         if (!body.training_days) return showModalAlert("Please select training days.");
         if (!body.car_name) return showModalAlert("Please select one car.");
@@ -137,10 +139,10 @@
         if (!body.instructor_name) return showModalAlert("Please enter the instructor name.");
         if (!document.getElementById("accept_notes").checked) return showModalAlert("Please confirm that you have read and accepted the notes.");
 
+        isSubmitting = true;
         const submitBtn = form.querySelector("button[type='submit']");
         submitBtn.disabled = true;
 
-        // Show success modal
         window.Modal.setContent(`
             <h2 style="margin-bottom:10px;">Booking Successful</h2>
             <p><br>Would you like to print the form?</p>
@@ -154,26 +156,114 @@
         setTimeout(() => {
             const printBtn = document.getElementById("modalPrint");
             const cancelBtn = document.getElementById("modalCancel");
-            if (printBtn) printBtn.onclick = () => { printFullForm(); window.Modal.hide(); if(window._shouldResetForm) form.reset(); initAllottedTime(); };
-            if (cancelBtn) cancelBtn.onclick = () => { window.Modal.hide(); if(window._shouldResetForm) form.reset(); initAllottedTime(); };
+            if (printBtn) printBtn.onclick = () => { printBtn.disabled = true; printFullForm(); window.Modal.hide(); if(window._shouldResetForm) form.reset(); initAllottedTime(); isSubmitting = false; };
+            if (cancelBtn) cancelBtn.onclick = () => { window.Modal.hide(); if(window._shouldResetForm) form.reset(); initAllottedTime(); isSubmitting = false; };
         }, 20);
 
         try {
             const res = await fetch("/api/bookings", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
+                body: JSON.stringify(body)
             });
-
             const data = await res.json();
             if (data.success) window._shouldResetForm = true;
             else showModalAlert("Error: " + data.error);
-
         } catch {
             showModalAlert("Server error. Try again later.");
         } finally {
             submitBtn.disabled = false;
         }
     });
-
 })();
+
+function printFullForm() {
+    const formCard = document.querySelector(".form-card");
+    if (!formCard) return;
+
+    const clone = formCard.cloneNode(true);
+
+    clone.querySelectorAll("input").forEach(input => {
+        const originalInput = formCard.querySelector(`[name="${input.name}"]`);
+        if (input.type !== "checkbox" && input.type !== "radio") {
+            if (originalInput) input.setAttribute("value", originalInput.value);
+        }
+    });
+
+    clone.querySelectorAll("textarea").forEach(t => {
+        const originalTextarea = formCard.querySelector(`[name="${t.name}"]`);
+        if (originalTextarea) t.textContent = originalTextarea.value;
+    });
+
+    clone.querySelectorAll("select").forEach(select => {
+        const originalSelect = formCard.querySelector(`[name="${select.name}"]`);
+        const selectedText = originalSelect?.options[originalSelect.selectedIndex]?.text || "";
+        const span = document.createElement("span");
+        span.textContent = selectedText;
+        span.style.display = "inline-block";
+        span.style.width = "100%";
+        span.style.padding = "6px 8px";
+        span.style.border = "1px solid #000";
+        span.style.borderRadius = "4px";
+        span.style.boxSizing = "border-box";
+        select.replaceWith(span);
+    });
+
+    clone.querySelectorAll("input[type='checkbox'], input[type='radio']").forEach(input => {
+        let originalInput = formCard.querySelector(`[name="${input.name}"][value="${input.value}"]`);
+        if (!originalInput && input.id === "accept_notes") originalInput = formCard.querySelector(`#accept_notes`);
+
+        const span = document.createElement("span");
+        span.style.display = "inline-block";
+        span.style.width = "18px";
+        span.style.height = "18px";
+        span.style.border = "1px solid #000";
+        span.style.borderRadius = "4px";
+        span.style.marginRight = "6px";
+        span.style.verticalAlign = "middle";
+
+        if (originalInput?.checked) {
+            span.textContent = "✔";
+            span.style.textAlign = "center";
+            span.style.lineHeight = "18px";
+        }
+
+        const parentLabel = input.closest("label");
+        if (parentLabel) {
+            const labelText = parentLabel.textContent.replace(/\*/g, "").trim();
+            parentLabel.innerHTML = "";
+            parentLabel.appendChild(span);
+            parentLabel.appendChild(document.createTextNode(labelText));
+        } else {
+            input.replaceWith(span);
+        }
+    });
+
+    const printWindow = window.open("", "", "width=900,height=1200");
+    printWindow.document.write(`
+        <html>
+        <head>
+        <title>Print Form</title>
+        <link rel="stylesheet" href="css/register.css">
+        <style>
+        @page { size: A4; margin: 3mm; }
+        body { margin: 0; padding: 3mm; font-size: 10px; }
+        .form-card { width: 100%; box-shadow: none; page-break-inside: avoid; }
+        input, span, textarea { font-size: 10px; }
+        label { font-weight: bold; }
+        .inline-options, .inline-row { flex-wrap: wrap; }
+        button[type='submit'] { display: none; }
+        </style>
+        </head>
+        <body>
+        ${clone.outerHTML}
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+    };
+}

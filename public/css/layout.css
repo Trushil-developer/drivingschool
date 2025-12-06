@@ -1,0 +1,113 @@
+/* -------------------- RESET -------------------- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    height: 100%;
+    font-family: Arial, sans-serif;
+    background-color: #f9f9f9;
+    color: #333;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+}
+
+/* -------------------- HEADER -------------------- */
+header {
+    background-color: #1565c0;
+    color: #fff;
+    padding: 2rem 1rem;
+}
+
+.header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* Push login button to the right */
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+/* Left side: logo + title */
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-left img {
+    max-width: 80px;
+    height: auto;
+}
+
+.header-left h1 {
+    font-size: 1.8rem;
+    margin: 0;
+}
+
+.logo-link {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Login button */
+.login-btn {
+    display: inline-block;
+    background-color: #ff9800;
+    color: #fff;
+    padding: 0.5rem 1.2rem;
+    font-size: 1rem;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.login-btn:hover {
+    background-color: #f57c00;
+}
+
+/* -------------------- FOOTER -------------------- */
+footer {
+    text-align: center;
+    padding: 1.5rem;
+    background-color: #1565c0;
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+/* -------------------- RESPONSIVE -------------------- */
+@media (max-width: 768px) {
+    .header-left h1 {
+        font-size: 1.6rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-container {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .header-left {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .header-left h1 {
+        font-size: 1.4rem;
+    }
+
+    .login-btn {
+        width: 100%;
+        text-align: center;
+    }
+}

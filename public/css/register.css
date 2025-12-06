@@ -1,0 +1,310 @@
+/* ------------------------------------------------
+   GLOBAL STYLES
+-------------------------------------------------- */
+body {
+    font-family: 'Arial', sans-serif;
+    background: #f3f3f3;
+    margin: 0;
+    padding: 0;
+    color: #333;
+}
+
+/* Inputs */
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #999;
+    font-size: 14px;
+    box-sizing: border-box;
+    outline: none;
+    transition: 0.2s ease-in-out;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 4px rgba(26, 115, 232, 0.4);
+}
+
+textarea {
+    resize: vertical;
+}
+
+/* Required Field */
+.required::after {
+    content: " *";
+    color: red;
+    font-weight: bold;
+}
+
+/* Uppercase Input */
+input[type="text"] {
+    text-transform: uppercase;
+}
+
+
+.header-container img {
+    max-width: 85px;
+}
+
+.header-container h1 {
+    font-size: 26px;
+    margin: 0;
+    font-weight: bold;
+}
+
+/* ------------------------------------------------
+   MAIN FORM LAYOUT
+-------------------------------------------------- */
+main {
+    padding: 30px 15px;
+    display: flex;
+    justify-content: center;
+}
+
+/* FORM CARD */
+.form-card {
+    width: 210mm;
+    max-width: 100%;
+    background: #fff;
+    padding: 25px 30px;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* Section Titles */
+.section-title {
+    font-size: 20px;
+    margin: 20px 0 10px;
+    font-weight: bold;
+    color: #1565c0;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 5px;
+}
+
+/* Form Groups */
+.form-group {
+    margin-bottom: 5px;
+}
+
+.form-group label {
+    font-weight: bold;
+    margin-right: 10px;
+    line-height: 2.0;
+}
+
+/* Form Rows */
+.form-row {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+/* Checkbox / Radio / Inline Groups */
+.inline-options,
+.inline-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.inline-options label,
+.inline-row label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+/* Make Branch / Training Days / C.O.V. inline */
+.inline-options {
+    flex-wrap: nowrap;
+    /* Keep in one line */
+    flex: 1;
+    flex-shrink: 0;
+}
+
+/* Notes checkbox in single line */
+.accept-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+/* Fix checkbox size */
+input[type="checkbox"],
+input[type="radio"] {
+    width: auto;
+    margin: 0;
+}
+
+/* ------------------------------------------------
+   NOTES BOX
+-------------------------------------------------- */
+.notes-box {
+    background: #fcfcfc;
+    border: 1px solid #ccc;
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.notes-box p {
+    margin: 4px 0;
+    font-size: 15px;
+}
+
+/* ------------------------------------------------
+   BUTTON
+-------------------------------------------------- */
+button {
+    width: 100%;
+    padding: 14px;
+    font-size: 17px;
+    margin-top: 20px;
+    border: none;
+    background: #1a73e8;
+    color: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+button:hover {
+    background: #0d47a1;
+}
+
+/* ------------------------------------------------
+   FOOTER
+-------------------------------------------------- */
+footer {
+    background: #1565c0;
+    color: #fff;
+    text-align: center;
+    padding: 1rem;
+    margin-top: auto;
+}
+
+/* ------------------------------------------------
+   MODAL
+-------------------------------------------------- */
+#appModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+}
+
+#appModal.active {
+    display: flex;
+}
+
+.modal-box {
+    background: #fff;
+    padding: 25px;
+    width: 90%;
+    max-width: 450px;
+    border-radius: 10px;
+    box-shadow: 0 4px 40px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.modal-close {
+    position: absolute;
+    right: 15px;
+    top: 10px;
+    font-size: 22px;
+    cursor: pointer;
+}
+
+/* ------------------------------------------------
+   RESPONSIVE DESIGN
+-------------------------------------------------- */
+@media (max-width: 600px) {
+
+    .form-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .inline-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .inline-options {
+        flex-direction: row;
+        /* Keep horizontal */
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .accept-row {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .header-container {
+        flex-direction: column;
+    }
+
+    .header-container img {
+        max-width: 70px;
+    }
+
+    .header-container h1 {
+        font-size: 20px;
+    }
+
+    .inline-options label {
+        margin-bottom: 0;
+        /* prevent breaking */
+    }
+}
+
+/* ------------------------------------------------
+   PRINT STYLES
+-------------------------------------------------- */
+@media print {
+
+    body {
+        margin: 0;
+        padding: 0;
+    }
+
+    header,
+    footer,
+    button {
+        display: none !important;
+    }
+
+    .form-card {
+        width: 210mm;
+        height: auto;
+        padding: 0 5mm;
+        box-shadow: none;
+        border-radius: 0;
+        page-break-inside: avoid;
+    }
+
+    input,
+    select,
+    textarea {
+        font-size: 12px;
+        border: 1px solid #000;
+    }
+
+    .notes-box {
+        padding: 6px;
+        font-size: 12px;
+        line-height: 1.1;
+        break-inside: avoid;
+    }
+}
