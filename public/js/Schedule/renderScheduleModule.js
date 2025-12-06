@@ -1,5 +1,8 @@
 window.renderScheduleModule = function(tableWrap) {
     return async function() {
+        // Show loading initially
+        tableWrap.innerHTML = `<div class="loading-overlay">Loading schedule...</div>`;
+
         try {
             const resBranches = await window.api('/api/branches');
             if (!resBranches.success) throw new Error(resBranches.error || "Failed to fetch branches");
@@ -46,7 +49,9 @@ window.renderScheduleModule = function(tableWrap) {
                                     <span class="available-slots">Available Slots: 0</span>
                                 </div>
                             </div>
-                            <div id="scheduleTableWrap"></div>
+                            <div id="scheduleTableWrap">
+                                <div class="loading-overlay">Loading schedule...</div>
+                            </div>
                         </div>
                     `;
 
@@ -83,8 +88,22 @@ window.renderScheduleModule = function(tableWrap) {
                         times.push(`${hh}:${mm}`);
                     }
 
-                    const resBookings = await window.api('/api/bookings');
+                    // Fetch bookings and attendance together
+                    const [resBookings, resAttendance] = await Promise.all([
+                        window.api('/api/bookings'),
+                        window.api('/api/attendance-all')
+                    ]);
+
                     const bookings = resBookings.success ? resBookings.bookings : [];
+                    const attendanceRecords = resAttendance.success ? resAttendance.records : [];
+
+                    // Build attendance map
+                    const attendanceMap = {};
+                    attendanceRecords.forEach(r => {
+                        if(!attendanceMap[r.booking_id]) attendanceMap[r.booking_id] = [];
+                        attendanceMap[r.booking_id].push(r);
+                    });
+
                     const branchBookings = bookings.filter(b => {
                         if (!b.starting_from) return false;
                         const status = (b.attendance_status || '').trim().toLowerCase();
@@ -105,7 +124,12 @@ window.renderScheduleModule = function(tableWrap) {
                     branchBookings.forEach(b => {
                         if(!b.car_name || !b.allotted_time) return;
                         const car = b.car_name.trim();
-                        const customer = b.customer_name || '';
+
+                        // Calculate present_days / training_days
+                        const totalDays = Number(b.training_days) || 15;
+                        const presentDays = (attendanceMap[b.id] || []).filter(a => a.present == 1).length;
+                        const customerWithDays = `${b.customer_name || ''} (${presentDays}/${totalDays})`;
+
                         const duration = Number(b.duration_minutes) || 30;
                         const slotCount = Math.ceil(duration / 30);
 
@@ -116,7 +140,7 @@ window.renderScheduleModule = function(tableWrap) {
                         for(let i=0;i<slotCount;i++){
                             const slotH = String(Math.floor(startMinutes/60)).padStart(2,'0');
                             const slotM = String(startMinutes%60).padStart(2,'0');
-                            bookedSlots[car][`${slotH}:${slotM}`] = i === 0 ? {customer, rowspan: slotCount} : {skip: true};
+                            bookedSlots[car][`${slotH}:${slotM}`] = i === 0 ? {customer: customerWithDays, rowspan: slotCount} : {skip: true};
                             startMinutes += 30;
                         }
                     });

@@ -16,6 +16,15 @@ window.registerScheduleModule = function (factory) {
 
     const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
+    function showLoading() {
+        tableWrap.innerHTML = `<div class="loading-overlay">Loading...</div>`;
+    }
+
+    function hideLoading() {
+        const overlay = tableWrap.querySelector('.loading-overlay');
+        if (overlay) overlay.remove();
+    }
+
     function formatDate(dateStr) {
         if (!dateStr) return '-';
         const d = new Date(dateStr);
@@ -65,6 +74,7 @@ window.registerScheduleModule = function (factory) {
 
     const tabRenderers = {
         bookings: async () => {
+            showLoading();
             try {
                 const res = await window.api('/api/bookings');
                 if (!res.success) throw new Error(res.error || 'Failed to fetch bookings');
@@ -124,26 +134,27 @@ window.registerScheduleModule = function (factory) {
             } catch (err) {
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
+            } finally {
+                hideLoading();
             }
         },
         upcoming: async () => {
+            showLoading();
             try {
                 const res = await window.api('/api/bookings');
                 if (!res.success) throw new Error(res.error || 'Failed to fetch bookings');
 
                 const bookings = res.bookings;
 
-                    // Fetch ALL attendance at once
-                    const allAtt = await window.api('/api/attendance-all');
+                const allAtt = await window.api('/api/attendance-all');
 
-                    // Build fast lookup table
-                    const attendanceMap = {};
-                    for (let row of allAtt.records) {
-                        if (!attendanceMap[row.booking_id]) {
-                            attendanceMap[row.booking_id] = [];
-                        }
-                        attendanceMap[row.booking_id].push(row);
+                const attendanceMap = {};
+                for (let row of allAtt.records) {
+                    if (!attendanceMap[row.booking_id]) {
+                        attendanceMap[row.booking_id] = [];
                     }
+                    attendanceMap[row.booking_id].push(row);
+                }
 
                 for (let b of bookings) {
                     const existingAttendance = attendanceMap[b.id] || [];
@@ -203,51 +214,76 @@ window.registerScheduleModule = function (factory) {
 
                 tableWrap.innerHTML = html;
                 window.scrollTo(0, scrollTop);
-
             } catch (err) {
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
+            } finally {
+                hideLoading();
             }
         },
-        instructors: () => {
-            if (typeof window.renderInstructorsModule !== "function") {
-                tableWrap.innerHTML = '<div class="error">Instructors module not loaded</div>';
-                return Promise.resolve();
+        instructors: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderInstructorsModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Instructors module not loaded</div>';
+                    return;
+                }
+                const renderer = window.renderInstructorsModule(tableWrap, tabRenderers, currentTab);
+                await renderer();
+            } finally {
+                hideLoading();
             }
-            const renderer = window.renderInstructorsModule(tableWrap, tabRenderers, currentTab);
-            return renderer();
         },
-        cars: () => {
-            if (typeof window.renderCarsModule !== "function") {
-                tableWrap.innerHTML = '<div class="error">Cars module not loaded</div>';
-                return Promise.resolve();
+        cars: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderCarsModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Cars module not loaded</div>';
+                    return;
+                }
+                await window.renderCarsModule(tableWrap, tabRenderers, currentTab)();
+            } finally {
+                hideLoading();
             }
-            return window.renderCarsModule(tableWrap, tabRenderers, currentTab)();
         },
-        branches: () => {
-            if (typeof window.renderBranchesModule !== "function") {
-                tableWrap.innerHTML = '<div class="error">Branches module not loaded</div>';
-                return Promise.resolve();
+        branches: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderBranchesModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Branches module not loaded</div>';
+                    return;
+                }
+                const renderer = window.renderBranchesModule(tableWrap);
+                await renderer();
+            } finally {
+                hideLoading();
             }
-            const renderer = window.renderBranchesModule(tableWrap);
-            return renderer();
-        },  
-        schedule: function () {
-            if (typeof window.renderScheduleModule !== "function") {
-                tableWrap.innerHTML = '<div class="error">Schedule module not loaded</div>';
-                return Promise.resolve();
-            }
-
-            const renderer = window.renderScheduleModule(tableWrap);
-            return renderer();
         },
-        trainingDays: () => {
-            if(typeof window.renderTrainingDaysModule !== "function") {
-                tableWrap.innerHTML = '<div class="error">Training Days module not loaded</div>';
-                return Promise.resolve();
+        schedule: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderScheduleModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Schedule module not loaded</div>';
+                    return;
+                }
+                const renderer = window.renderScheduleModule(tableWrap);
+                await renderer();
+            } finally {
+                hideLoading();
             }
-            const renderer = window.renderTrainingDaysModule(tableWrap);
-            return renderer();
+        },
+        trainingDays: async () => {
+            showLoading();
+            try {
+                if(typeof window.renderTrainingDaysModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Training Days module not loaded</div>';
+                    return;
+                }
+                const renderer = window.renderTrainingDaysModule(tableWrap);
+                await renderer();
+            } finally {
+                hideLoading();
+            }
         }
     };
 
@@ -257,13 +293,12 @@ window.registerScheduleModule = function (factory) {
         currentTab = tab;
         sidebarItems.forEach(i => i.classList.toggle('active', i.dataset.section === tab));
 
-        // Hide search/add for schedule tab
         if (tab === 'schedule') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
         } else if (tab === 'trainingDays') {
             searchInput?.classList.add('hidden'); addBtn?.classList.remove('hidden'); 
-        }else {
+        } else {
             searchInput?.classList.remove('hidden');
             addBtn?.classList.remove('hidden');
         }
@@ -296,25 +331,15 @@ window.registerScheduleModule = function (factory) {
         else window.location.href = "index.html";
     });
 
+    // Click handlers (delete/edit) remain unchanged
     tableWrap.addEventListener('click', async e => {
         const id = e.target.dataset.id;
         if(!id) return;
 
         if (e.target.classList.contains('delete')) {
-
-            const id = e.target.dataset.id;
-            if (!id) return;
-
-            // Password protection
             const pwd = prompt("Enter admin password to delete:");
             if (!pwd) return alert("Deletion cancelled");
-
-            const ADMIN_PASSWORD = "1234"; 
-            if (pwd !== ADMIN_PASSWORD) {
-                alert("Incorrect password!");
-                return;
-            }
-
+            if (pwd !== "1234") return alert("Incorrect password!");
             const deleteApiMap = {
                 bookings: '/api/bookings',
                 instructors: '/api/instructors',
@@ -322,28 +347,12 @@ window.registerScheduleModule = function (factory) {
                 branches: '/api/branches',
                 trainingDays: '/api/training-days'
             };
-
-            const apiUrl = deleteApiMap[currentTab];
-
             try {
-                const res = await window.api(`${apiUrl}/${id}`, {
-                    method: "DELETE"
-                });
-
-                if (!res.success) {
-                    alert(res.error || "Delete failed");
-                    return;
-                }
-
+                const res = await window.api(`${deleteApiMap[currentTab]}/${id}`, { method: "DELETE" });
+                if (!res.success) return alert(res.error || "Delete failed");
                 alert("Deleted successfully!");
-
-                if (tabRenderers[currentTab]) {
-                    tabRenderers[currentTab]();
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Error deleting record");
-            }
+                if (tabRenderers[currentTab]) tabRenderers[currentTab]();
+            } catch (err) { console.error(err); alert("Error deleting record"); }
         }
 
         if(e.target.classList.contains('details') && currentTab === 'bookings') {
@@ -368,7 +377,6 @@ window.registerScheduleModule = function (factory) {
             };
             window.openCarEditModal(id, data, tabRenderers, currentTab)();
         }
-
         if(e.target.classList.contains('edit-instructor') && currentTab === 'instructors') {
             const data = {
                 instructor_name: e.target.dataset.name,
@@ -389,12 +397,9 @@ window.registerScheduleModule = function (factory) {
                 mobile_no: e.target.dataset.mobile,
                 email: e.target.dataset.email,
             };
-
             openBranchEditModal(id, data, tabRenderers, currentTab)();
         }
-
     });
-
 
     await switchTab(currentTab);
 })();
