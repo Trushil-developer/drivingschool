@@ -107,7 +107,7 @@ window.registerScheduleModule = function (factory) {
                                     <td>${b.instructor_name || '-'}</td>
                                     <td>${b.branch || '-'}</td>
                                     <td>${b.present_days || 0}/${b.training_days || '-'}</td>
-                                    <td>${b.attendance_status || '-'}</td>
+                                    <td class="status-${b.attendance_status.toLowerCase()}">${b.attendance_status || '-'}</td>
                                     <td>${b.advance || 0}/${b.total_fees || 0}</td>
                                     <td>${b.starting_from ? formatDate(b.starting_from) : '-'}</td>
                                     <td>
@@ -190,7 +190,7 @@ window.registerScheduleModule = function (factory) {
                                     <td>${b.instructor_name || '-'}</td>
                                     <td>${b.branch || '-'}</td>
                                     <td>${b.present_days || 0}/${b.training_days || '-'}</td>
-                                    <td>${b.attendance_status || '-'}</td>
+                                    <td class="status-${b.attendance_status.toLowerCase()}">${b.attendance_status || '-'}</td>
                                     <td>${b.starting_from ? formatDate(b.starting_from) : '-'}</td>
                                     <td>
                                         <button class="btn attendance" data-id="${b.id}">Attendance</button>

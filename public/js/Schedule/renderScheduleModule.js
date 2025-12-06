@@ -17,7 +17,6 @@ window.renderScheduleModule = function(tableWrap) {
                                 </div>
                             `).join('')}
                         </div>
-                        
                         <div class="branch-content">
                             <div class="placeholder">Select a branch to view cars.</div>
                         </div>
@@ -86,13 +85,10 @@ window.renderScheduleModule = function(tableWrap) {
 
                     const resBookings = await window.api('/api/bookings');
                     const bookings = resBookings.success ? resBookings.bookings : [];
-
                     const branchBookings = bookings.filter(b => {
                         if (!b.starting_from) return false;
-
                         const status = (b.attendance_status || '').trim().toLowerCase();
-                        if (status !== 'active') return false; 
-
+                        if (status !== 'active') return false;
                         const start = new Date(b.starting_from);
                         const end = new Date(start);
                         end.setDate(start.getDate() + 29);
@@ -109,51 +105,61 @@ window.renderScheduleModule = function(tableWrap) {
                     branchBookings.forEach(b => {
                         if(!b.car_name || !b.allotted_time) return;
                         const car = b.car_name.trim();
-                        const time = b.allotted_time.slice(0,5);
                         const customer = b.customer_name || '';
+                        const duration = Number(b.duration_minutes) || 30;
+                        const slotCount = Math.ceil(duration / 30);
+
                         if(!bookedSlots[car]) bookedSlots[car] = {};
-                        bookedSlots[car][time] = customer;
+                        let [hhStr, mmStr] = b.allotted_time.split(':');
+                        let startMinutes = Number(hhStr)*60 + Number(mmStr);
+
+                        for(let i=0;i<slotCount;i++){
+                            const slotH = String(Math.floor(startMinutes/60)).padStart(2,'0');
+                            const slotM = String(startMinutes%60).padStart(2,'0');
+                            bookedSlots[car][`${slotH}:${slotM}`] = i === 0 ? {customer, rowspan: slotCount} : {skip: true};
+                            startMinutes += 30;
+                        }
                     });
 
-                    // Count active and available slots
+                    // Count active/available slots
                     let totalSlots = cars.length * times.length;
                     let activeSlots = 0;
                     cars.forEach(car => {
                         const carName = car.car_name.trim();
                         times.forEach(t => {
-                            if(bookedSlots[carName]?.[t]) activeSlots++;
+                            if(bookedSlots[carName]?.[t] && !bookedSlots[carName][t].skip) activeSlots++;
                         });
                     });
                     let availableSlots = totalSlots - activeSlots;
-
                     document.getElementById("slotStats").innerHTML = `
                         <span class="active-slots">Active Slots: ${activeSlots}</span>
                         <span class="available-slots">Available Slots: ${availableSlots}</span>
                     `;
 
                     // Render schedule table
-                    let html = `
-                        <table class="schedule-table">
-                            <thead>
-                                <tr>
-                                    <th>Time</th>
-                                    ${cars.map(c => `<th>${c.car_name}</th>`).join('')}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${times.map(t => `
-                                    <tr>
-                                        <td class="time-col">${to12HourFormat(t)}</td>
-                                        ${cars.map(car => {
-                                            const carName = car.car_name.trim();
-                                            const customerName = bookedSlots[carName]?.[t] || '';
-                                            return `<td class="slot">${customerName}</td>`;
-                                        }).join('')}
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
+                    let html = `<table class="schedule-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                ${cars.map(c => `<th>${c.car_name}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${times.map(t => {
+                                return `<tr>
+                                    <td class="time-col">${to12HourFormat(t)}</td>
+                                    ${cars.map(car => {
+                                        const carName = car.car_name.trim();
+                                        const slot = bookedSlots[carName]?.[t];
+                                        if(slot?.skip) return '';
+                                        if(slot) return `<td class="slot" rowspan="${slot.rowspan}">${slot.customer}</td>`;
+                                        return `<td class="slot"></td>`;
+                                    }).join('')}
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>`;
+
                     document.getElementById("scheduleTableWrap").innerHTML = html;
                 }
 
@@ -183,18 +189,16 @@ window.renderScheduleModule = function(tableWrap) {
     }
 };
 
-// Register the module
 if (typeof window.registerScheduleModule === "function") {
     window.registerScheduleModule(window.renderScheduleModule);
 }
 
-// Convert 24-hour time to 12-hour format
 function to12HourFormat(time24) {
     let [hh, mm] = time24.split(':').map(Number);
     const ampm = hh >= 12 ? 'PM' : 'AM';
     hh = hh % 12;
-    if (hh === 0) hh = 12;
-    return `${hh}:${String(mm).padStart(2, '0')} ${ampm}`;
+    if(hh===0) hh=12;
+    return `${hh}:${String(mm).padStart(2,'0')} ${ampm}`;
 }
 
 function printSchedule(branch, date) {

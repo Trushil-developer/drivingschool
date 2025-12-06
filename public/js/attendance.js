@@ -2,7 +2,7 @@
 
     const LOCK_PASSWORD = "1234"; 
 
-    function generateAttendanceRows(startDate, existing, totalDays) {
+    function generateAttendanceRows(startDate, existing, totalDays, isEditable) {
         const tbody = document.createElement('tbody');
         const todayStr = new Date().toISOString().split("T")[0];
 
@@ -21,10 +21,10 @@
             `;
 
             const cb = row.querySelector('input');
-            if (dateStr > todayStr) {
+
+            if (!isEditable || dateStr > todayStr) {
                 cb.disabled = true;
-            }
-            else if (dateStr < todayStr) {
+            } else if (dateStr < todayStr) {
                 cb.disabled = true;
 
                 const lockBtn = document.createElement('button');
@@ -80,7 +80,8 @@
         const res = await window.api(`/api/attendance/${booking.id}`);
         const existing = res.records || [];
 
-        const newTbody = generateAttendanceRows(startDate, existing, totalDays);
+        const isEditable = booking.attendance_status.toLowerCase() === "active";
+        const newTbody = generateAttendanceRows(startDate, existing, totalDays, isEditable);
         tableBody.replaceWith(newTbody);
         newTbody.id = "attendance-body";
 

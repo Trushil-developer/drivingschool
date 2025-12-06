@@ -149,10 +149,10 @@ app.post('/api/bookings', async (req, res, next) => {
       INSERT INTO bookings (
         branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
         sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
-        occupation, ref, allotted_time, starting_from, total_fees, advance,
-        car_name, instructor_name, present_days, hold_status, attendance_status
+        occupation, ref, allotted_time, duration_minutes, starting_from,
+        total_fees, advance, car_name, instructor_name, present_days, hold_status, attendance_status
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const initialPresentDays = 0;
@@ -185,6 +185,7 @@ app.post('/api/bookings', async (req, res, next) => {
       data.occupation || '',
       data.ref || '',
       data.allotted_time || null,
+      data.duration_minutes || 30, 
       toMySQLDate(data.starting_from),
       data.total_fees || 0,
       data.advance || 0,
@@ -209,7 +210,7 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
       SELECT 
         id, branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
         sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
-        occupation, ref, allotted_time, starting_from, total_fees, advance,
+        occupation, ref, allotted_time, duration_minutes, starting_from, total_fees, advance,
         car_name, instructor_name, present_days, hold_status, attendance_status, created_at
       FROM bookings
       ORDER BY id DESC
@@ -219,7 +220,7 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
     console.error('BOOKINGS LIST ERROR:', err);
     next(err);
   }
-});
+}); 
 
 app.get('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   try {
@@ -264,8 +265,8 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
       UPDATE bookings SET
         branch=?, training_days=?, customer_name=?, address=?, pincode=?, mobile_no=?, whatsapp_no=?,
         sex=?, birth_date=?, cov_lmv=?, cov_mc=?, dl_no=?, dl_from=?, dl_to=?, email=?,
-        occupation=?, ref=?, allotted_time=?, starting_from=?, total_fees=?, advance=?,
-        car_name=?, instructor_name=?, hold_status=?, hold_from=?, resume_from=?, extended_days=?
+        occupation=?, ref=?, allotted_time=?, duration_minutes=?, starting_from=?,
+        total_fees=?, advance=?, car_name=?, instructor_name=?, hold_status=?, hold_from=?, resume_from=?, extended_days=?
       WHERE id=?
     `;
 
@@ -288,6 +289,7 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
       data.occupation || '',
       data.ref || '',
       data.allotted_time || null,
+      data.duration_minutes || 30, 
       toMySQLDate(data.starting_from),
       data.total_fees || 0,
       data.advance || 0,

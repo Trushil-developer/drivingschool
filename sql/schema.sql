@@ -201,6 +201,14 @@ SET @sql := IF(@col_exists=0,
     'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- duration_minutes
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='duration_minutes');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN duration_minutes INT NOT NULL DEFAULT 30;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- address
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
     WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='address');

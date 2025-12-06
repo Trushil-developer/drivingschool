@@ -93,6 +93,9 @@
         body.advance = v("input[name='advance']");
         body.instructor_name = v("select[name='instructor_name']");
         body.instructor_id = null;
+        body.duration_minutes = v("select[name='duration_minutes']");
+        if (!body.duration_minutes) return showModalAlert("Please select session duration.");
+        body.duration_minutes = parseInt(body.duration_minutes);
 
         // Convert AM/PM to 24h for DB
         if (body.allotted_time) {
@@ -128,6 +131,7 @@
         if (!body.occupation) return showModalAlert("Please enter your occupation.");
         if (!body.allotted_time) return showModalAlert("Please select the allotted time.");
         if (!body.starting_from) return showModalAlert("Please select the start date.");
+        if (!body.duration_minutes) return showModalAlert("Please select session duration.");
         if (!body.total_fees) return showModalAlert("Please enter the total fees.");
         if (!body.advance) return showModalAlert("Please enter the advance amount.");
         if (!body.instructor_name) return showModalAlert("Please enter the instructor name.");

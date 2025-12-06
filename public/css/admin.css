@@ -602,6 +602,37 @@ body {
     box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
 }
 
+/* ===== Booking Status Colors ===== */
+.status-completed {
+    color: #0f9d58;
+    /* dark green */
+    font-weight: 700;
+}
+
+.status-active {
+    color: #1e88e5;
+    /* bright green */
+    font-weight: 700;
+}
+
+.status-pending {
+    color: gray;
+    font-weight: 700;
+}
+
+.status-expired {
+    color: #dc2626;
+    /* red */
+    font-weight: 700;
+}
+
+.status-hold {
+    color: #f59e0b;
+    /* orange */
+    font-weight: 700;
+    font-style: italic;
+}
+
 /* Responsive adjustments for Cars table */
 @media (max-width: 767px) {
     .cars-table {

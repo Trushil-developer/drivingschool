@@ -256,6 +256,24 @@
                     continue;
                 }
 
+                // --- Duration select ---
+                if (key === 'duration_minutes') {
+                    const select = document.createElement('select');
+                    const options = [
+                        { value: 30, label: '30 mins' },
+                        { value: 60, label: '1 hr' },
+                        { value: 90, label: '1.5 hr' },
+                        { value: 120, label: '2 hr' }
+                    ];
+
+                    select.innerHTML = options.map(opt => {
+                        const selected = String(opt.value) === val ? 'selected' : '';
+                        return `<option value="${opt.value}" ${selected}>${opt.label}</option>`;
+                    }).join('');
+
+                    td.appendChild(select);
+                    continue;
+                }
                 // --- Default text input ---
                 const textInput = document.createElement('input');
                 textInput.type = 'text';
