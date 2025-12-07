@@ -493,6 +493,17 @@ body {
     font-size: 0.95rem;
 }
 
+.missing {
+    color: red;
+    font-weight: bold;
+}
+
+.download-cert {
+    color: #007bff;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 /* ========================================
    Responsive Styles
 ======================================== */

@@ -1,3 +1,8 @@
+import { 
+    downloadCertificate, 
+    uploadCertificate,
+} from "./globals/certificates.js";
+
 (async () => {
     await window.CommonReady;
 
@@ -6,6 +11,7 @@
     const saveBtn = document.getElementById('saveBtn');
     const backBtn = document.getElementById('backBtn');
     const attendanceBtn = document.getElementById('attendanceBtn');
+
     const REQUIRED_FIELDS = [
         "branch",
         "training_days",
@@ -25,7 +31,6 @@
         "advance",
         "instructor_name"
     ];
-
 
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
@@ -52,7 +57,7 @@
     let booking = null;
 
     // =========================
-    // LOAD BOOKING (Now uses DB-calculated attendance)
+    // LOAD BOOKING
     // =========================
     async function loadBooking() {
         try {
@@ -67,11 +72,14 @@
             const attRes = await window.api(`/api/attendance/${booking.id}`);
             const existingAttendance = attRes.records || [];
 
-            // ------------------- UI BUILD -------------------
             detailsTable.innerHTML = '';
 
+            // ------------------- Build Booking Rows -------------------
             detailsTable.insertAdjacentHTML("beforeend", `
-                <tr><th>ID</th><td>${booking.id}</td></tr>
+                <tr>
+                    <th>ID</th>
+                    <td>${booking.id}</td>
+                </tr>
                 <tr>
                     <th>Attendance Status</th>
                     <td class="status-${booking.attendance_status.toLowerCase()}" data-key="attendance_status">
@@ -106,16 +114,15 @@
                 </tr>
             `);
 
+            // ------------------- Other Booking Fields -------------------
             for (const key in booking) {
-                if (['id','attendance_status','present_days','hold_status','hold_from','resume_from','extended_days','created_at'].includes(key)) continue;
+                if (['id','attendance_status','present_days','hold_status','hold_from','resume_from','extended_days','created_at','certificate_url'].includes(key)) continue;
 
                 let value = booking[key] || '';
-
                 if (key.includes('date') || key === 'starting_from') value = formatDate(value);
                 if (['cov_lmv','cov_mc'].includes(key)) value = value ? 'Yes' : 'No';
 
                 const label = key.replace(/_/g, " ");
-
                 detailsTable.insertAdjacentHTML("beforeend", `
                     <tr>
                         <th>${label}</th>
@@ -128,13 +135,37 @@
 
             attendanceBtn.onclick = () => {
                 if (!booking || !booking.starting_from) return alert("Booking starting date missing");
-
                 window.openAttendanceModal({
                     ...booking,
                     totalDays: Number(booking.training_days) || 30,
                     refresh: loadBooking
                 });
             };
+
+            // ------------------- Certificate Row -------------------
+            detailsTable.insertAdjacentHTML("beforeend", `
+                <tr>
+                    <th>Certificate</th>
+                    <td data-key="certificate_url" id="certCell">
+                        ${booking.certificate_url
+                            ? `<button id="downloadCertBtn" class="btn btn-primary">Download Certificate</button>
+                               <button id="replaceCertBtn" class="btn btn-warning">Replace</button>`
+                            : `<button id="uploadCertBtn" class="btn btn-success">Upload Certificate</button>`
+                        }
+                    </td>
+                </tr>
+            `);
+
+            setTimeout(() => {
+                const uploadBtn = document.getElementById("uploadCertBtn");
+                const replaceBtn = document.getElementById("replaceCertBtn");
+                const downloadBtn = document.getElementById("downloadCertBtn");
+
+                if (uploadBtn) uploadBtn.onclick = () => uploadCertificate(booking.id, loadBooking);
+                if (replaceBtn) replaceBtn.onclick = () => uploadCertificate(booking.id, loadBooking);
+                if (downloadBtn) downloadBtn.onclick = () => downloadCertificate(booking.id);
+
+            }, 50);
 
         } catch (err) {
             console.error(err);
@@ -145,14 +176,13 @@
     await loadBooking();
 
     // =============================================
-    // EDIT MODE (Same as before — except no attendance fields)
+    // EDIT MODE
     // =============================================
     editBtn.addEventListener('click', async () => {
         saveBtn.style.display = 'inline-block';
         editBtn.style.display = 'none';
 
         try {
-            // Fetch branches and cars via API
             const [branchRes, carRes] = await Promise.all([
                 window.api("/api/branches"),
                 window.api("/api/cars")
@@ -161,16 +191,15 @@
             const allBranches = branchRes.branches || [];
             const allCars = carRes.cars || [];
 
-            const tds = detailsTable.querySelectorAll('td[data-key]'); // only td with data-key
+            const tds = detailsTable.querySelectorAll('td[data-key]');
 
             for (const td of tds) {
                 const key = td.dataset.key;
                 if (!key || key === 'attendance_status') continue;
 
                 let val = td.textContent.trim() || '';
-                td.innerHTML = ""; // clear existing content
+                td.innerHTML = "";
 
-                // --- Branch select ---
                 if (key === "branch") {
                     const select = document.createElement("select");
                     select.innerHTML = `<option value="">Select Branch</option>`;
@@ -181,18 +210,14 @@
                         if (val === b.branch_name) opt.selected = true;
                         select.appendChild(opt);
                     });
-
-                    // When branch changes, update car dropdown
                     select.addEventListener("change", () => {
                         const carCell = detailsTable.querySelector('td[data-key="car_name"]');
                         loadCarsDropdown(carCell, select.value, allCars, booking.car_name);
                     });
-
                     td.appendChild(select);
                     continue;
                 }
 
-                // --- Car select ---
                 if (key === "car_name") {
                     const branchCell = detailsTable.querySelector('td[data-key="branch"] select');
                     const currentBranch = branchCell ? branchCell.value : booking.branch;
@@ -200,36 +225,27 @@
                     continue;
                 }
 
-                // --- Training days radio buttons ---
                 if (key === "training_days") {
                     const container = document.createElement("div");
                     td.appendChild(container);
-
                     try {
-                        const res = await fetch("/api/training-days"); // ✅ correct endpoint
+                        const res = await fetch("/api/training-days");
                         const data = await res.json();
-
                         const activeDays = (data.training_days || []).filter(d => d.is_active == 1);
-
                         container.innerHTML = activeDays.map(d => {
                             const checked = String(d.days) === val ? 'checked' : '';
-                            return `
-                                <label style="margin-right:10px;">
-                                    <input type="radio" name="training_days" value="${d.days}" ${checked}>
-                                    ${d.days} Days
-                                </label>
-                            `;
+                            return `<label style="margin-right:10px;">
+                                        <input type="radio" name="training_days" value="${d.days}" ${checked}>
+                                        ${d.days} Days
+                                    </label>`;
                         }).join("");
-
                     } catch (err) {
                         container.innerHTML = "<p style='color:red;'>Error loading training days</p>";
                         console.error(err);
                     }
-
-                    continue; // skip default input
+                    continue;
                 }
 
-                // --- Checkboxes ---
                 if (['cov_lmv','cov_mc','hold_status'].includes(key)) {
                     const checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
@@ -238,7 +254,6 @@
                     continue;
                 }
 
-                // --- Date fields ---
                 if (key.includes('date') || key === 'starting_from') {
                     const dateInput = document.createElement('input');
                     dateInput.type = 'date';
@@ -247,7 +262,6 @@
                     continue;
                 }
 
-                // --- Time field ---
                 if (key === 'allotted_time') {
                     const timeInput = document.createElement('input');
                     timeInput.type = 'time';
@@ -256,7 +270,6 @@
                     continue;
                 }
 
-                // --- Duration select ---
                 if (key === 'duration_minutes') {
                     const select = document.createElement('select');
                     const options = [
@@ -265,22 +278,19 @@
                         { value: 90, label: '1.5 hr' },
                         { value: 120, label: '2 hr' }
                     ];
-
                     select.innerHTML = options.map(opt => {
                         const selected = String(opt.value) === val ? 'selected' : '';
                         return `<option value="${opt.value}" ${selected}>${opt.label}</option>`;
                     }).join('');
-
                     td.appendChild(select);
                     continue;
                 }
-                // --- Default text input ---
+
                 const textInput = document.createElement('input');
                 textInput.type = 'text';
                 textInput.value = val;
                 td.appendChild(textInput);
             }
-
         } catch (err) {
             console.error("Failed to enter edit mode:", err);
             alert("Error enabling edit mode.");
@@ -288,65 +298,63 @@
     });
 
     // =============================================
-    // SAVE BOOKING (NO FRONTEND CALCULATIONS ANYMORE)
+    // SAVE BOOKING
     // =============================================
-        saveBtn.addEventListener('click', async () => {
-            const updatedData = {};
+    saveBtn.addEventListener('click', async () => {
+        const updatedData = {};
+        let missingFields = [];
 
-            let missingFields = [];
+        detailsTable.querySelectorAll('td').forEach(td => {
+            const key = td.dataset.key;
+            if (!key || key === 'attendance_status') return;
 
-            detailsTable.querySelectorAll('td').forEach(td => {
-                const key = td.dataset.key;
-                if (!key || key === 'attendance_status') return;
+            const input = td.querySelector('input, select');
+            if (!input) return;
 
-                const input = td.querySelector('input, select');
-                if (!input) return;
-
-                let value;
-                if (key === "training_days") {
-                    const selectedRadio = td.querySelector('input[name="training_days"]:checked');
-                    value = selectedRadio ? selectedRadio.value : null;
-                } else if (input.type === "checkbox") {
-                    value = input.checked ? 1 : 0;
-                } else {
-                    value = input.value.trim();
-                }
-
-
-                updatedData[key] = value;
-
-                if (REQUIRED_FIELDS.includes(key) && (value === '' || value === null || value === undefined)) {
-                    missingFields.push(key);
-                }
-            });
-
-            if (missingFields.length > 0) {
-                alert(`Please fill all required fields: ${missingFields.join(', ')}`);
-                return;
+            let value;
+            if (key === "training_days") {
+                const selectedRadio = td.querySelector('input[name="training_days"]:checked');
+                value = selectedRadio ? selectedRadio.value : null;
+            } else if (input.type === "checkbox") {
+                value = input.checked ? 1 : 0;
+            } else {
+                value = input.value.trim();
             }
 
-            try {
-                const res = await window.api(`/api/bookings/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedData)
-                });
+            updatedData[key] = value;
 
-                if (res.success) {
-                    alert('Booking updated successfully!');
-                    saveBtn.style.display = 'none';
-                    editBtn.style.display = 'inline-block';
-                    await loadBooking(); // reload updated + backend-calculated data
-                } else {
-                    alert('Failed to update booking: ' + res.error);
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Error updating booking.');
+            if (REQUIRED_FIELDS.includes(key) && (value === '' || value === null || value === undefined)) {
+                missingFields.push(key);
             }
         });
 
-    // Cars dropdown helper ------------------------
+        if (missingFields.length > 0) {
+            alert(`Please fill all required fields: ${missingFields.join(', ')}`);
+            return;
+        }
+
+        try {
+            const res = await window.api(`/api/bookings/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedData)
+            });
+
+            if (res.success) {
+                alert('Booking updated successfully!');
+                saveBtn.style.display = 'none';
+                editBtn.style.display = 'inline-block';
+                await loadBooking();
+            } else {
+                alert('Failed to update booking: ' + res.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Error updating booking.');
+        }
+    });
+
+    // ------------------- Helper: Cars Dropdown -------------------
     function loadCarsDropdown(td, selectedBranch, allCars, selectedCar) {
         td.innerHTML = "";
         const carSelect = document.createElement("select");
@@ -358,10 +366,7 @@
             return;
         }
 
-        const carsForBranch = allCars.filter(c => 
-            (c.branch || "").toLowerCase() === selectedBranch.toLowerCase()
-        );
-
+        const carsForBranch = allCars.filter(c => (c.branch || "").toLowerCase() === selectedBranch.toLowerCase());
         carSelect.innerHTML = `<option value="">Select Car</option>`;
 
         carsForBranch.forEach(car => {
@@ -374,4 +379,5 @@
 
         td.appendChild(carSelect);
     }
+
 })();

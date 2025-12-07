@@ -1,3 +1,5 @@
+import { downloadCertificate, uploadCertificate } from "./globals/certificates.js";
+
 window.renderScheduleSectionFactory = null;
 window.registerScheduleModule = function (factory) {
     window.renderScheduleSectionFactory = factory;
@@ -72,11 +74,13 @@ window.registerScheduleModule = function (factory) {
         });
     }
 
+    
     const tabRenderers = {
         bookings: async () => {
             showLoading();
             try {
                 const res = await window.api('/api/bookings');
+                 console.log(res)
                 if (!res.success) throw new Error(res.error || 'Failed to fetch bookings');
 
                 const rows = filterData('bookings', res.bookings, lastSearch);
@@ -87,6 +91,7 @@ window.registerScheduleModule = function (factory) {
                 }
 
                 const scrollTop = window.scrollY || document.documentElement.scrollTop;
+               
 
                 const html = `
                     <table class="bookings-table">
@@ -101,6 +106,7 @@ window.registerScheduleModule = function (factory) {
                                 <th>Status</th>
                                 <th>Total Fees</th>
                                 <th>Starting From</th>
+                                <th>Certificate</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -120,6 +126,15 @@ window.registerScheduleModule = function (factory) {
                                     <td class="status-${b.attendance_status.toLowerCase()}">${b.attendance_status || '-'}</td>
                                     <td>${b.advance || 0}/${b.total_fees || 0}</td>
                                     <td>${b.starting_from ? formatDate(b.starting_from) : '-'}</td>
+                                    <td>
+                                        ${
+                                            b.certificate_url && b.certificate_url !== "null"
+                                                ? `<a class="btn download-cert" data-id="${b.id}">Download</a>`
+                                                : b.attendance_status === "Completed"
+                                                    ? `<span class="missing">Missing...</span>`
+                                                    : `<button class="btn upload" data-id="${b.id}">Upload</button>`
+                                        }
+                                    </td>
                                     <td>
                                         <button class="btn delete" data-id="${b.id}">Delete</button>
                                     </td>
@@ -334,7 +349,20 @@ window.registerScheduleModule = function (factory) {
     // Click handlers (delete/edit) remain unchanged
     tableWrap.addEventListener('click', async e => {
         const id = e.target.dataset.id;
-        if(!id) return;
+        if (!id) return;
+        
+
+        if (e.target.classList.contains('upload')) {
+            const bookingId = e.target.dataset.id;
+            uploadCertificate(bookingId, () => {
+                if (tabRenderers[currentTab]) tabRenderers[currentTab]();
+            });
+        }
+
+        if (e.target.classList.contains("download-cert")) {
+            const bookingId = e.target.dataset.id;
+            downloadCertificate(bookingId);
+        }
 
         if (e.target.classList.contains('delete')) {
             const pwd = prompt("Enter admin password to delete:");

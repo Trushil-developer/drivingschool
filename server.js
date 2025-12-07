@@ -13,6 +13,8 @@ import updateBookingsStatus from './scripts/updateBookings.js';
 import trainingDaysRoute from './routes/trainingDays.js';
 import instructorsRoute from './routes/instructorsRoutes.js';
 import carsRoute from './routes/carsRoutes.js';
+import upload from "./public/middleware/upload.js";
+import AWS from "aws-sdk";
 
 dotenv.config();
 
@@ -21,6 +23,12 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+const s3 = new AWS.S3({
+    accessKeyId: process.env.S3_ACCESS_KEY,
+    secretAccessKey: process.env.S3_SECRET_KEY,
+    region: process.env.S3_REGION 
+});
 
 // ---------- Create a mysql pool ----------
 export const dbPool = mysql.createPool({
@@ -150,9 +158,10 @@ app.post('/api/bookings', async (req, res, next) => {
         branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
         sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
         occupation, ref, allotted_time, duration_minutes, starting_from,
-        total_fees, advance, car_name, instructor_name, present_days, hold_status, attendance_status
+        total_fees, advance, car_name, instructor_name, present_days, hold_status, attendance_status,
+        certificate_url
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const initialPresentDays = 0;
@@ -164,6 +173,7 @@ app.post('/api/bookings', async (req, res, next) => {
       present_days: initialPresentDays,
       hold_status: initialHoldStatus
     };
+
     const attendanceStatus = computeAttendanceStatus(preliminaryBooking);
 
     const values = [
@@ -193,7 +203,8 @@ app.post('/api/bookings', async (req, res, next) => {
       data.instructor_name || '',
       initialPresentDays,
       initialHoldStatus,
-      attendanceStatus
+      attendanceStatus,
+      data.certificate_url || null  
     ];
 
     const [result] = await dbPool.query(sql, values);
@@ -211,7 +222,8 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
         id, branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
         sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
         occupation, ref, allotted_time, duration_minutes, starting_from, total_fees, advance,
-        car_name, instructor_name, present_days, hold_status, attendance_status, created_at
+        car_name, instructor_name, present_days, hold_status, attendance_status, certificate_url,
+        created_at
       FROM bookings
       ORDER BY id DESC
     `);
@@ -220,7 +232,8 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
     console.error('BOOKINGS LIST ERROR:', err);
     next(err);
   }
-}); 
+});
+
 
 app.get('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   try {
@@ -321,6 +334,71 @@ app.delete('/api/bookings/:id', requireAdmin, async (req, res, next) => {
     console.error('BOOKING DELETE ERROR:', err);
     next(err);
   }
+});
+
+// =====================
+// UPLOAD CERTIFICATE
+// =====================
+app.post("/api/bookings/:id/certificate", requireAdmin, upload.single("file"), async (req, res) => {
+    try {
+        const bookingId = req.params.id;
+        if (!req.file) return res.json({ success: false, error: "No file uploaded" });
+
+        const [rows] = await dbPool.query('SELECT certificate_url FROM bookings WHERE id = ?', [bookingId]);
+        const oldKey = rows[0]?.certificate_url;
+
+        // Delete old file if exists
+        if (oldKey) {
+            await s3.deleteObject({
+                Bucket: process.env.S3_BUCKET,
+                Key: oldKey
+            }).promise();
+        }
+
+        // Upload new file
+        const ext = req.file.originalname.split(".").pop();
+        const s3Key = `certificates/${process.env.ENV}/${bookingId}_${Date.now()}.${ext}`;
+        await s3.upload({
+            Bucket: process.env.S3_BUCKET,
+            Key: s3Key,
+            Body: req.file.buffer,
+            ContentType: req.file.mimetype
+        }).promise();
+
+        // Update DB
+        await dbPool.query("UPDATE bookings SET certificate_url = ? WHERE id = ?", [s3Key, bookingId]);
+
+        res.json({ success: true, message: "Certificate uploaded successfully" });
+    } catch (err) {
+        console.error("Certificate Upload Error:", err);
+        res.json({ success: false, error: "Upload failed" });
+    }
+});
+
+// =====================
+// DOWNLOAD CERTIFICATE 
+// =====================
+app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res) => {
+    try {
+        const bookingId = req.params.id;
+
+        const [rows] = await dbPool.query('SELECT certificate_url FROM bookings WHERE id = ?', [bookingId]);
+        if (!rows.length || !rows[0].certificate_url) 
+            return res.status(404).json({ success: false, error: 'Certificate not found' });
+
+        const key = rows[0].certificate_url; 
+
+        const presignedUrl = s3.getSignedUrl('getObject', {
+            Bucket: process.env.S3_BUCKET,
+            Key: key,
+            Expires: 60 
+        });
+
+        res.json({ success: true, url: presignedUrl });
+    } catch (err) {
+        console.error('Certificate download error:', err);
+        res.status(500).json({ success: false, error: 'Failed to generate download link' });
+    }
 });
 
 // ---------- ATTENDANCE TABLE ----------

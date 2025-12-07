@@ -417,7 +417,13 @@ SET @sql := IF(@col_exists=0,
     'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-
+-- certificate_url
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='certificate_url');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN certificate_url VARCHAR(255);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- =====================================
 -- ATTENDANCE TABLE
 -- =====================================
