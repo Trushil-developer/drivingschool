@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (!data.success) throw new Error(data.error || "Failed to load courses");
 
-            courseSelect.innerHTML = `<option value="">Select Course</option>`;
+            courseSelect.innerHTML = `<option value="">Select Service</option>`;
 
             data.courses
             .filter(course => course.status === "active")

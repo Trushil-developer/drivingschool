@@ -35,6 +35,8 @@ window.CommonReady = (async () => {
             else if (section === 'cars') window.location.href = 'admin.html?tab=cars';
             else if (section === 'schedule') window.location.href = 'admin.html?tab=schedule';
             else if (section === 'trainingDays') window.location.href = 'admin.html?tab=trainingDays';
+            else if (section === 'enquiries') window.location.href = 'admin.html?tab=enquiries';
+            else if (section === 'courses') window.location.href = 'admin.html?tab=courses';
         });
     });
 
