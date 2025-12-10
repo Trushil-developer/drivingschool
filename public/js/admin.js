@@ -208,7 +208,7 @@ window.registerScheduleModule = function (factory) {
                                 <tr id="booking-${b.id}">
                                     <td>${b.id}</td>
                                     <td>
-                                        <a href="details.html?id=${b.id}" class="customer-link">
+                                        <a href="#" class="customer-link" data-id="${b.id}">
                                             ${b.customer_name || '-'}
                                         </a>
                                     </td>
@@ -390,6 +390,19 @@ window.registerScheduleModule = function (factory) {
             downloadCertificate(bookingId);
         }
 
+        if (e.target.classList.contains('customer-link')) {
+            e.preventDefault();
+            const id = e.target.dataset.id;
+            if(currentTab === 'bookings') {
+                window.location.href = `details.html?id=${id}`;
+            } else if(currentTab === 'upcoming') {
+                const bookings = (await window.api('/api/bookings')).bookings;
+                const booking = bookings.find(b => b.id == id);
+                window.openAttendanceModal({ ...booking, refresh: () => tabRenderers[currentTab]() });
+            }
+        }
+
+        
         if (e.target.classList.contains('delete')) {
             const pwd = prompt("Enter admin password to delete:");
             if (!pwd) return alert("Deletion cancelled");
