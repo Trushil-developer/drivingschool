@@ -546,6 +546,340 @@ body {
     }
 }
 
+/* ========================================
+   Enquiries Tab Styles
+======================================== */
+.enquiries-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    background: #fff;
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
+}
+
+.enquiries-table th,
+.enquiries-table td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.enquiries-table th {
+    background-color: #f0f0f0;
+    font-weight: 600;
+}
+
+.enquiries-table tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+.enquiries-table td .btn {
+    margin-right: 0.25rem;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.enquiries-table td:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+/* Form styles for enquiry modal or section */
+.enquiry-modal .modal-content-form {
+    max-width: 500px;
+    padding: 1.5rem 2rem;
+}
+
+.enquiry-modal .modal-content-form h2 {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.enquiry-modal .modal-content-form label {
+    display: block;
+    font-weight: 600;
+    margin-top: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.enquiry-modal .modal-content-form input,
+.enquiry-modal .modal-content-form select,
+.enquiry-modal .modal-content-form textarea {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 1rem;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+    outline: none;
+    transition: 0.25s ease;
+    background: #f9f9f9;
+}
+
+.enquiry-modal .modal-content-form select:focus,
+.enquiry-modal .modal-content-form input:focus,
+.enquiry-modal .modal-content-form textarea:focus {
+    border-color: #4A90E2;
+    background: #fff;
+    box-shadow: 0px 0px 4px rgba(74, 144, 226, 0.4);
+}
+
+.enquiry-modal .modal-content-form textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* Buttons */
+.enquiry-modal .modal-content-form .btn.submit-enquiry {
+    margin-top: 1rem;
+    width: 100%;
+    font-weight: 600;
+    background-color: #1a73e8;
+    color: #fff;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.enquiry-modal .modal-content-form .btn.submit-enquiry:hover {
+    opacity: 0.9;
+}
+
+/* Empty / Error states for enquiries */
+.enquiries-table .empty,
+.enquiries-table .error {
+    padding: 2rem;
+    text-align: center;
+    color: #666;
+}
+
+/* Responsive adjustments for enquiries tab */
+@media (max-width: 767px) {
+
+    .enquiries-table th,
+    .enquiries-table td {
+        font-size: 13px;
+        padding: 0.35rem 0.5rem;
+    }
+
+    .enquiry-modal .modal-content-form {
+        max-width: 90%;
+        padding: 1rem 1.2rem;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .enquiries-table th,
+    .enquiries-table td {
+        font-size: 12px;
+        padding: 0.25rem 0.4rem;
+    }
+
+    .enquiry-modal .modal-content-form input,
+    .enquiry-modal .modal-content-form textarea,
+    .enquiry-modal .modal-content-form select {
+        font-size: 14px;
+        padding: 0.35rem 0.4rem;
+    }
+
+    .enquiry-modal .modal-content-form .btn.submit-enquiry {
+        font-size: 13px;
+        padding: 0.35rem 0.5rem;
+    }
+}
+
+/* ========================================
+   Courses Table
+======================================== */
+
+.courses-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    font-size: 15px;
+}
+
+.courses-table td.actions-cell {
+    padding: 10px 14px;
+}
+
+.courses-table th {
+    background: #f7f9fc;
+    padding: 12px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 1px solid #e3e6ea;
+}
+
+.courses-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #eceff3;
+    vertical-align: middle;
+}
+
+.courses-table tr:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+/* Clickable course name */
+.course-name {
+    color: #1a73e8;
+    cursor: pointer;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.course-name:hover {
+    color: #0c47a1;
+}
+
+.courses-table .btn {
+    padding: 6px 10px;
+    font-size: 14px;
+    border-radius: 5px;
+}
+
+.btn.edit {
+    background: #1a73e8;
+    color: white;
+}
+
+.btn.edit:hover {
+    background: #0f56b3;
+}
+
+.btn.delete {
+    background: #e53935;
+    color: white;
+}
+
+.btn.delete:hover {
+    background: #c62828;
+}
+
+/* Status Switch */
+.course-status-switch {
+    width: 42px;
+    height: 22px;
+    background: #ccc;
+    border-radius: 20px;
+    position: relative;
+    cursor: pointer;
+    appearance: none;
+    transition: background 0.25s ease;
+}
+
+.course-status-switch:checked {
+    background: #4caf50;
+}
+
+.course-status-switch::before {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    top: 2px;
+    left: 2px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.25s ease;
+}
+
+.course-status-switch:checked::before {
+    transform: translateX(20px);
+}
+
+/* Expandable details row */
+.course-details {
+    background: #fbfcfe;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e3e6ea;
+    color: #444;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.course-details strong {
+    color: #222;
+}
+
+/* Hidden row */
+.hidden {
+    display: none;
+}
+
+/* Empty state */
+.empty {
+    padding: 2rem;
+    text-align: center;
+    color: #777;
+    font-size: 15px;
+}
+
+/* Error state */
+.error {
+    padding: 2rem;
+    text-align: center;
+    color: #c62828;
+    font-weight: 600;
+}
+
+/* ========================================
+   Mobile Responsive
+======================================== */
+@media (max-width: 768px) {
+
+    .courses-table th,
+    .courses-table td {
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+
+    .courses-table td:last-child {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .btn {
+        padding: 5px 8px !important;
+        font-size: 12px !important;
+    }
+
+    .course-status-switch {
+        transform: scale(0.9);
+    }
+}
+
+@media (max-width: 480px) {
+
+    .courses-table th,
+    .courses-table td {
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+
+    .btn {
+        padding: 4px 7px !important;
+        font-size: 11px !important;
+    }
+
+    .course-details {
+        font-size: 13px;
+    }
+}
+
 /* Mobile (<768px) */
 @media (max-width: 767px) {
     .main {

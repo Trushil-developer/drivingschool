@@ -299,6 +299,31 @@ window.registerScheduleModule = function (factory) {
             } finally {
                 hideLoading();
             }
+        },
+        enquiries: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderEnquiryModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Enquiries module not loaded</div>';
+                    return;
+                }
+                await window.renderEnquiryModule(tableWrap);
+            } finally {
+                hideLoading();
+            }
+        },
+        courses: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderCoursesModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Courses module not loaded</div>';
+                    return;
+                }
+                const renderer = window.renderCoursesModule(tableWrap, tabRenderers, currentTab);
+                await renderer();
+            } finally {
+                hideLoading();
+            }
         }
     };
 
@@ -308,10 +333,10 @@ window.registerScheduleModule = function (factory) {
         currentTab = tab;
         sidebarItems.forEach(i => i.classList.toggle('active', i.dataset.section === tab));
 
-        if (tab === 'schedule') {
+        if (tab === 'schedule' || tab === 'enquiries') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
-        } else if (tab === 'trainingDays') {
+        } else if (tab === 'trainingDays'|| tab === 'courses') {
             searchInput?.classList.add('hidden'); addBtn?.classList.remove('hidden'); 
         } else {
             searchInput?.classList.remove('hidden');
@@ -343,6 +368,7 @@ window.registerScheduleModule = function (factory) {
         else if (currentTab === "cars") window.openCarAddModal(tabRenderers, currentTab)();
         else if (currentTab === "branches") openBranchModal(tabRenderers, currentTab)();
         else if (currentTab === "trainingDays") openTrainingDaysModal(tabRenderers, currentTab);
+        else if (currentTab === "courses") window.openCourseAddModal(tabRenderers, currentTab)();
         else window.location.href = "index.html";
     });
 
@@ -373,7 +399,8 @@ window.registerScheduleModule = function (factory) {
                 instructors: '/api/instructors',
                 cars: '/api/cars',
                 branches: '/api/branches',
-                trainingDays: '/api/training-days'
+                trainingDays: '/api/training-days',
+                courses: '/api/courses'
             };
             try {
                 const res = await window.api(`${deleteApiMap[currentTab]}/${id}`, { method: "DELETE" });
@@ -427,7 +454,18 @@ window.registerScheduleModule = function (factory) {
             };
             openBranchEditModal(id, data, tabRenderers, currentTab)();
         }
-    });
+        if (e.target.classList.contains("edit-course") && currentTab === "courses") {
+            const data = {
+                name: e.target.dataset.name || "",
+                duration: e.target.dataset.duration || "",
+                fees: e.target.dataset.fees || "",
+                description: e.target.dataset.description || "",
+                status: e.target.dataset.status || "active"
+            };
+            window.openCourseEditModal(id, data, tabRenderers, currentTab)();
+        }
 
+
+    });
     await switchTab(currentTab);
 })();

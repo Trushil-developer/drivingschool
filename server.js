@@ -12,6 +12,8 @@ import cron from 'node-cron';
 import updateBookingsStatus from './scripts/updateBookings.js';
 import trainingDaysRoute from './routes/trainingDays.js';
 import instructorsRoute from './routes/instructorsRoutes.js';
+import preferredCoursesRoutes from "./routes/preferredCoursesRoutes.js";
+import enquiriesRoutes from "./routes/enquiriesRoutes.js";
 import carsRoute from './routes/carsRoutes.js';
 import upload from "./public/middleware/upload.js";
 import AWS from "aws-sdk";
@@ -581,7 +583,8 @@ cron.schedule('1 0 * * *', async () => {
 app.use('/api/training-days', trainingDaysRoute);
 app.use('/api/instructors', instructorsRoute);
 app.use('/api/cars', carsRoute);
-
+app.use("/api/courses", preferredCoursesRoutes);
+app.use("/api/enquiries", enquiriesRoutes);
 
 // ---------- START SERVER ----------
 app.listen(PORT, '0.0.0.0', () => {

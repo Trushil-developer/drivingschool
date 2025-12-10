@@ -576,3 +576,141 @@ SET @sql := IF(@col_exists=0,
                'ALTER TABLE training_days ADD COLUMN is_active TINYINT(1) DEFAULT 1;',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+
+-- =====================================
+-- ENQUIRIES TABLE
+-- =====================================
+
+CREATE TABLE IF NOT EXISTS enquiries (
+    id INT AUTO_INCREMENT PRIMARY KEY
+);
+
+-- full_name
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='full_name'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE enquiries ADD COLUMN full_name VARCHAR(150) NOT NULL;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- email
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='email'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE enquiries ADD COLUMN email VARCHAR(150) NOT NULL;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- phone
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='phone'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE enquiries ADD COLUMN phone VARCHAR(50) NOT NULL;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- branch_id
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='branch_id'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE enquiries ADD COLUMN branch_id INT;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- course_id
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='course_id'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE enquiries ADD COLUMN course_id INT;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- has_licence
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='has_licence'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE enquiries ADD COLUMN has_licence ENUM("Yes","No") NOT NULL DEFAULT "No";',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- message
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='message'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE enquiries ADD COLUMN message TEXT;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- created_at
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='created_at'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE enquiries ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+
+-- =====================================
+-- COURSES TABLE
+-- =====================================
+
+CREATE TABLE IF NOT EXISTS courses (
+    id INT AUTO_INCREMENT PRIMARY KEY
+);
+
+-- course_name
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='course_name'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE courses ADD COLUMN course_name VARCHAR(100) NOT NULL;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- description
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='description'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE courses ADD COLUMN description TEXT;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- status
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='status'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE courses ADD COLUMN status ENUM("active","inactive") DEFAULT "active";',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- created_at
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='created_at'
+);
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE courses ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
