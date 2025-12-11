@@ -183,13 +183,15 @@ import {
         editBtn.style.display = 'none';
 
         try {
-            const [branchRes, carRes] = await Promise.all([
+            const [branchRes, carRes, instructorRes] = await Promise.all([
                 window.api("/api/branches"),
-                window.api("/api/cars")
+                window.api("/api/cars"),
+                window.api("/api/instructors") 
             ]);
 
             const allBranches = branchRes.branches || [];
             const allCars = carRes.cars || [];
+            const allInstructors = (instructorRes.instructors || []).filter(i => i.is_active == 1); 
 
             const tds = detailsTable.querySelectorAll('td[data-key]');
 
@@ -224,6 +226,25 @@ import {
                     loadCarsDropdown(td, currentBranch, allCars, val);
                     continue;
                 }
+
+                // ------------------ Instructor Dropdown ------------------
+                if (key === "instructor_name") {
+                    const select = document.createElement("select");
+                    select.innerHTML = `<option value="">Select Instructor</option>`;
+
+                    allInstructors.forEach(instr => {
+                        const opt = document.createElement("option");
+                        opt.value = instr.instructor_name;
+                        opt.textContent = instr.instructor_name;
+
+                        if (val === instr.instructor_name) opt.selected = true;
+                        select.appendChild(opt);
+                    });
+
+                    td.appendChild(select);
+                    continue;
+                }
+
 
                 if (key === "training_days") {
                     const container = document.createElement("div");
