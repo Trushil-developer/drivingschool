@@ -837,6 +837,57 @@ body {
 }
 
 /* ========================================
+   Filter Bar Styles
+======================================== */
+.filter-bar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-bar select {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.95rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 150px;
+    outline: none;
+}
+
+.filter-bar select:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 4px rgba(26, 115, 232, 0.4);
+    background-color: #fff;
+}
+
+.filter-bar select option {
+    padding: 0.5rem;
+}
+
+/* Hover effect for better UX */
+.filter-bar select:hover {
+    border-color: #1a73e8;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .filter-bar select {
+        width: 100%;
+        min-width: unset;
+    }
+}
+
+/* ========================================
    Mobile Responsive
 ======================================== */
 @media (max-width: 768px) {

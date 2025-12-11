@@ -1,4 +1,5 @@
 import { downloadCertificate, uploadCertificate } from "./globals/certificates.js";
+import { loadFilterBranches, filterData, attachFilterListeners } from "./globals/filters.js";
 
 window.renderScheduleSectionFactory = null;
 window.registerScheduleModule = function (factory) {
@@ -8,6 +9,8 @@ window.registerScheduleModule = function (factory) {
 (async () => {
     await window.CommonReady;
 
+    loadFilterBranches();
+   
     const tableWrap = document.getElementById('tableWrap');
     const searchInput = document.getElementById('searchInput');
     const addBtn = document.getElementById('addBtn');
@@ -31,36 +34,6 @@ window.registerScheduleModule = function (factory) {
         if (!dateStr) return '-';
         const d = new Date(dateStr);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    }
-
-    function filterData(tab, items, query) {
-        if (!query) return items;
-        query = query.trim().toLowerCase();
-        switch(tab) {
-            case 'bookings':
-            case 'upcoming':
-                return items.filter(b =>
-                    [b.customer_name, b.mobile_no, b.whatsapp_no, b.branch, b.car_name, b.instructor_name]
-                    .some(f => (f||'').toLowerCase().includes(query))
-                );
-            case 'instructors':
-                return items.filter(i =>
-                    [i.instructor_name, i.email, i.mobile_no, i.branch, i.drivers_license, i.adhar_no]
-                    .some(f => (f||'').toLowerCase().includes(query))
-                );
-            case 'cars':
-                return items.filter(c =>
-                    [c.car_name, c.branch, c.car_registration_no]
-                    .some(f => (f || '').toLowerCase().includes(query))
-                );
-            case 'branches':
-                return items.filter(b =>
-                    [b.branch_name, b.city, b.state, b.mobile_no, b.email]
-                    .some(f => (f || '').toLowerCase().includes(query))
-                );
-            default:
-                return items;
-        }
     }
 
     function filterUpcoming(bookings) {
@@ -352,17 +325,32 @@ window.registerScheduleModule = function (factory) {
         }
     };
 
+    attachFilterListeners(tabRenderers, () => currentTab);
+
     const sidebarItems = document.querySelectorAll('.sidebar li');
 
     async function switchTab(tab) {
         currentTab = tab;
         sidebarItems.forEach(i => i.classList.toggle('active', i.dataset.section === tab));
 
+        const filterBar = document.getElementById('filterBar');
+
+        if (filterBar) {
+            if (tab === 'bookings' || tab === 'upcoming') {
+                filterBar.classList.remove('hidden');
+            } else {
+                filterBar.classList.add('hidden');
+            }
+        }
+
         if (tab === 'schedule' || tab === 'enquiries') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
-        } else if (tab === 'trainingDays'|| tab === 'courses') {
-            searchInput?.classList.add('hidden'); addBtn?.classList.remove('hidden'); 
+        } else if (tab === 'trainingDays' || tab === 'courses') {
+            searchInput?.classList.add('hidden'); 
+            addBtn?.classList.remove('hidden'); 
+        } else if (tab === 'cars' || tab == 'branches' || tab == 'instructors'  ) {
+            searchInput?.classList.add('hidden'); 
         } else {
             searchInput?.classList.remove('hidden');
             addBtn?.classList.remove('hidden');
@@ -374,6 +362,7 @@ window.registerScheduleModule = function (factory) {
         newUrl.searchParams.set('tab', tab);
         window.history.replaceState({}, '', newUrl);
     }
+
 
     sidebarItems.forEach(i => {
         i.addEventListener('click', e => {
@@ -426,7 +415,6 @@ window.registerScheduleModule = function (factory) {
                 window.openAttendanceModal({ ...booking, refresh: () => tabRenderers[currentTab]() });
             }
         }
-
         
         if (e.target.classList.contains('delete')) {
             const pwd = prompt("Enter admin password to delete:");
@@ -507,3 +495,19 @@ window.registerScheduleModule = function (factory) {
     });
     await switchTab(currentTab);
 })();
+
+window.addEventListener("DOMContentLoaded", () => {
+    const sidebar = document.getElementById("sidebar");
+    const toggleBtn = document.getElementById("sidebarToggle");
+
+    toggleBtn.addEventListener("click", () => {
+        sidebar.classList.toggle("active");
+    });
+
+    // Optional: close sidebar when clicking outside
+    document.addEventListener("click", (e) => {
+        if (!sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
+            sidebar.classList.remove("active");
+        }
+    });
+});

@@ -21,6 +21,18 @@
         <section class="content ">
             <div class="controls">
                 <input id="searchInput" type="search" placeholder="Search bookings, customers..." class="search-input">
+                <div id="filterBar" class="filter-bar">
+                    <select id="filterBranch">
+                        <option value="">All Branches</option>
+                    </select>
+
+                    <select id="filterStatus">
+                        <option value="">All Status</option>
+                        <option value="Active">Active</option>
+                        <option value="Hold">Hold</option>
+                        <option value="Completed">Completed</option>
+                    </select>
+                </div>
                 <button id="addBtn" class="btn btn-primary">Add New</button>
             </div>
 
