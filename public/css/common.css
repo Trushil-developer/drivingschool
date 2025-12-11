@@ -369,6 +369,7 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: 0.2s;
+    justify-content: center;
 }
 
 .attendance-counter button:hover {
