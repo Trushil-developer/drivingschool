@@ -451,42 +451,74 @@ app.get('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
 });
 
 app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
-  const booking_id = req.params.booking_id;
-  const { attendance } = req.body;
+    const booking_id = req.params.booking_id;
+    const { date, increment } = req.body;
 
-  if (!Array.isArray(attendance)) return res.json({ success: false, error: 'attendance array required' });
-
-  const conn = await dbPool.getConnection();
-  try {
-    await conn.beginTransaction();
-
-    await conn.query('DELETE FROM attendance WHERE booking_id=?', [booking_id]);
-
-    for (const item of attendance) {
-      await conn.query(
-        `INSERT INTO attendance (booking_id, date, present) VALUES (?, ?, 1)`,
-        [booking_id, toMySQLDate(item.date)]
-      );
+    if (!date || typeof increment !== 'number') {
+        return res.status(400).json({ success: false, error: 'Date and increment required' });
     }
 
-    await conn.query(
-      `UPDATE bookings SET present_days = (
-          SELECT COUNT(*) FROM attendance WHERE booking_id=? AND present=1
-       ) WHERE id=?`,
-      [booking_id, booking_id]
-    );
+    const mysqlDate = date.split("T")[0];
+    const conn = await dbPool.getConnection();
 
-    await conn.commit();
-    await recomputeAndStoreAttendanceStatus(booking_id);
-    res.json({ success: true });
-  } catch (err) {
-    await conn.rollback();
-    console.error('ATTENDANCE SAVE ERROR:', err);
-    next(err);
-  } finally {
-    conn.release();
-  }
+    try {
+        await conn.beginTransaction();
+
+        // 1) Update existing attendance or insert if none
+        const [updateResult] = await conn.query(
+            `UPDATE attendance SET present = present + ? WHERE booking_id = ? AND date = ?`,
+            [increment, booking_id, mysqlDate]
+        );
+
+        if (updateResult.affectedRows === 0) {
+            await conn.query(
+                `INSERT INTO attendance (booking_id, date, present) VALUES (?, ?, ?)`,
+                [booking_id, mysqlDate, increment]
+            );
+        }
+
+        // 2) Update present_days
+        const [presentSumRows] = await conn.query(
+            `SELECT COALESCE(SUM(present),0) AS total_present FROM attendance WHERE booking_id = ?`,
+            [booking_id]
+        );
+
+        const totalPresent = presentSumRows[0].total_present;
+
+        await conn.query(
+            `UPDATE bookings SET present_days = ? WHERE id = ?`,
+            [totalPresent, booking_id]
+        );
+
+        // 3) Immediately recompute attendance_status based on updated present_days
+        const [bookingRows] = await conn.query(
+            `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?`,
+            [booking_id]
+        );
+
+        const booking = bookingRows[0];
+        const newStatus = computeAttendanceStatus(booking);
+
+        await conn.query(
+            `UPDATE bookings SET attendance_status = ? WHERE id = ?`,
+            [newStatus, booking_id]
+        );
+
+        await conn.commit();
+        res.json({ success: true, present_days: totalPresent, attendance_status: newStatus });
+
+    } catch (err) {
+        await conn.rollback();
+        console.error('ATTENDANCE UPDATE ERROR:', err);
+        next(err);
+    } finally {
+        conn.release();
+    }
 });
+
+
+
+
 
 // ---------- BRANCHES CRUD ----------
 app.get('/api/branches', async (req, res, next) => {

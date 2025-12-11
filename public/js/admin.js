@@ -64,15 +64,21 @@ window.registerScheduleModule = function (factory) {
     }
 
     function filterUpcoming(bookings) {
-        const today = new Date(); today.setHours(0,0,0,0);
+        const today = new Date(); 
+        today.setHours(0,0,0,0);
+
         return bookings.filter(b => {
             if (!b.starting_from) return false;
             if (b.attendance_fulfilled) return false;
-            const start = new Date(b.starting_from); start.setHours(0,0,0,0);
+            if (b.attendance_status !== "Active") return false;
+
+            const start = new Date(b.starting_from); 
+            start.setHours(0,0,0,0);
             const diffDays = (today - start) / MS_PER_DAY;
             return diffDays >= 0 && diffDays <= 30;
         });
     }
+
 
     
     const tabRenderers = {
@@ -171,13 +177,32 @@ window.registerScheduleModule = function (factory) {
                     attendanceMap[row.booking_id].push(row);
                 }
 
-                for (let b of bookings) {
+               for (let b of bookings) {
                     const existingAttendance = attendanceMap[b.id] || [];
-                    const totalDays = b.training_days == "21" ? 21 : 15;
+                    const totalDays = parseInt(b.training_days, 10) || 0; 
+                    const totalAttended = existingAttendance.reduce((sum, e) => {
+                        const val = Number(e.present);
+                        return sum + (isNaN(val) ? 0 : val);
+                    }, 0);
 
-                    b.attendance_fulfilled =
-                        existingAttendance.filter(e => e.present == 1).length >= totalDays;
+                    b.present_days = totalAttended;
+
+                    // If totalAttended >= training_days AND status is not Completed, update DB
+                    if(totalAttended >= totalDays && b.attendance_status !== "Completed") {
+                        b.attendance_status = "Completed"; // Update in-memory
+                        b.attendance_fulfilled = true;
+
+                        // Update DB
+                        await window.api(`/api/bookings/${b.id}`, {
+                            method: 'PUT',   // or PUT depending on your API
+                            body: JSON.stringify({ attendance_status: "Completed" })
+                        });
+                    } else {
+                        b.attendance_fulfilled = false;
+                        if(b.attendance_status !== "Completed") b.attendance_status = "Active";
+                    }
                 }
+
 
                 const rows = filterData('bookings', filterUpcoming(bookings), lastSearch);
 

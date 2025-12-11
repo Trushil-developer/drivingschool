@@ -87,7 +87,7 @@ import {
                     </td>
                 </tr>
                 <tr>
-                    <th>Present Days</th>
+                    <th>Slots</th>
                     <td>${booking.present_days} / ${booking.training_days}</td>
                 </tr>
                 <tr>

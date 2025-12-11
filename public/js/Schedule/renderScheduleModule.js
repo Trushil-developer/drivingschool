@@ -127,8 +127,7 @@ window.renderScheduleModule = function(tableWrap) {
 
                         // Calculate present_days / training_days
                         const totalDays = Number(b.training_days) || 15;
-                        const presentDays = (attendanceMap[b.id] || []).filter(a => a.present == 1).length;
-                        const customerWithDays = `${b.customer_name || ''} (${presentDays}/${totalDays})`;
+                        const customerWithDays = `${b.customer_name || ''} (${b.present_days}/${totalDays})`;
 
                         const duration = Number(b.duration_minutes) || 30;
                         const slotCount = Math.ceil(duration / 30);

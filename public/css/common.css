@@ -352,6 +352,35 @@ body {
     pointer-events: auto;
 }
 
+.attendance-counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.attendance-counter button {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.attendance-counter button:hover {
+    background: var(--primary-dark);
+}
+
+.attendance-counter span {
+    min-width: 24px;
+    text-align: center;
+    font-weight: 500;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 480px) {
     body {
