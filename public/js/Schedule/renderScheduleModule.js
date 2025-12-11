@@ -125,7 +125,6 @@ window.renderScheduleModule = function(tableWrap) {
                         if(!b.car_name || !b.allotted_time) return;
                         const car = b.car_name.trim();
 
-                        // Calculate present_days / training_days
                         const totalDays = Number(b.training_days) || 15;
                         const customerWithDays = `${b.customer_name || ''} (${b.present_days}/${totalDays})`;
 
@@ -139,7 +138,11 @@ window.renderScheduleModule = function(tableWrap) {
                         for(let i=0;i<slotCount;i++){
                             const slotH = String(Math.floor(startMinutes/60)).padStart(2,'0');
                             const slotM = String(startMinutes%60).padStart(2,'0');
-                            bookedSlots[car][`${slotH}:${slotM}`] = i === 0 ? {customer: customerWithDays, rowspan: slotCount} : {skip: true};
+
+                            bookedSlots[car][`${slotH}:${slotM}`] = i === 0 
+                                ? { customer: customerWithDays, rowspan: slotCount, instructor_name: b.instructor_name || "N/A" } 
+                                : { skip: true };
+
                             startMinutes += 30;
                         }
                     });
@@ -175,7 +178,17 @@ window.renderScheduleModule = function(tableWrap) {
                                         const carName = car.car_name.trim();
                                         const slot = bookedSlots[carName]?.[t];
                                         if(slot?.skip) return '';
-                                        if(slot) return `<td class="slot" rowspan="${slot.rowspan}">${slot.customer}</td>`;
+                                        if(slot) {
+                                            const instructor = slot.instructor_name || "N/A";
+                                            return `<td class="slot" rowspan="${slot.rowspan}">
+                                                        ${slot.customer} 
+                                                        <span class="info-tooltip">
+                                                            ℹ
+                                                            <span class="tooltip-text">${instructor}</span>
+                                                        </span>
+                                                    </td>`;
+                                        }
+
                                         return `<td class="slot"></td>`;
                                     }).join('')}
                                 </tr>`;
@@ -184,6 +197,8 @@ window.renderScheduleModule = function(tableWrap) {
                     </table>`;
 
                     document.getElementById("scheduleTableWrap").innerHTML = html;
+
+                    initTooltips();
                 }
 
                 document.getElementById("printScheduleBtn").onclick = () => {
@@ -214,6 +229,21 @@ window.renderScheduleModule = function(tableWrap) {
 
 if (typeof window.registerScheduleModule === "function") {
     window.registerScheduleModule(window.renderScheduleModule);
+}
+
+function initTooltips() {
+    document.querySelectorAll('.info-tooltip').forEach(icon => {
+        icon.addEventListener('click', e => {
+            e.stopPropagation();
+            icon.classList.toggle('active');
+        });
+    });
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.info-tooltip.active').forEach(icon => {
+            icon.classList.remove('active');
+        });
+    });
 }
 
 function to12HourFormat(time24) {

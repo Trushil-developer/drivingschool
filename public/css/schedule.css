@@ -144,6 +144,81 @@
     color: #ef4444;
 }
 
+/* Info button circle */
+.info-tooltip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #fff;
+    background-color: #1E90FF;
+    border-radius: 50%;
+    cursor: pointer;
+    margin-left: 5px;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+/* Hover effect on info button */
+.info-tooltip:hover {
+    background-color: #0d6efd;
+}
+
+/* Tooltip box */
+.info-tooltip .tooltip-text {
+    visibility: hidden;
+    opacity: 0;
+    width: max-content;
+    max-width: 180px;
+    background-color: #fff;
+    color: #333;
+    text-align: center;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    position: absolute;
+    bottom: 150%;
+    left: 50%;
+    transform: translateX(-50%) scale(0.8);
+    transition: all 0.25s ease-in-out;
+    font-size: 13px;
+    pointer-events: none;
+    z-index: 100;
+    white-space: nowrap;
+}
+
+/* Arrow under tooltip */
+.info-tooltip .tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: #fff transparent transparent transparent;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.1));
+}
+
+/* Show on hover for desktop */
+.info-tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+
+/* Show on tap (tablet/mobile) */
+.info-tooltip.active .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+
 /* -----------------------------
    Responsive
 --------------------------------*/
