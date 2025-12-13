@@ -1,8 +1,7 @@
 // includeHTML.js
-async function includeHTML() {
+function includeHTML() {
     const elements = document.querySelectorAll('[data-include]');
-    
-    for (const el of elements) {
+    elements.forEach(async el => {
         const file = el.getAttribute('data-include');
         if (file) {
             try {
@@ -14,18 +13,7 @@ async function includeHTML() {
                 console.error(err);
             }
         }
-    }
-
-    // Initialize hamburger menu AFTER HTML has been loaded
-    const hamburger = document.getElementById("hamburger");
-    const navMenu = document.getElementById("nav-menu");
-
-    if (hamburger && navMenu) {
-        hamburger.addEventListener("click", () => {
-            hamburger.classList.toggle("active");
-            navMenu.classList.toggle("open");
-        });
-    }
+    });
 }
 
 document.addEventListener("DOMContentLoaded", includeHTML);

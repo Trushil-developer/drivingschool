@@ -2,16 +2,52 @@
 window.CommonReady = (async () => {
 
     // -------- Load HTML fragments --------
-    async function loadHTML(id, url) {
-        const res = await fetch(url);
-        if (!res.ok) return console.error(`Failed to load ${url}`);
-        const html = await res.text();
-        document.getElementById(id).innerHTML = html;
+    async function loadHTML(selectorOrId, url) {
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`Failed to load ${url}`);
+            const html = await res.text();
+
+            // Determine if it's a selector (querySelectorAll) or an ID
+            if (selectorOrId.startsWith('#')) {
+                const el = document.getElementById(selectorOrId.slice(1));
+                if (el) el.innerHTML = html;
+            } else {
+                document.querySelectorAll(selectorOrId).forEach(el => el.innerHTML = html);
+            }
+        } catch (err) {
+            console.error(err);
+        }
     }
 
-    await loadHTML('topbar', '/includes/topbar.html');
-    await loadHTML('sidebar', '/includes/sidebar.html');
-    await loadHTML('attendanceModalContainer', '/includes/attendance-modal.html');
+    // -------- Data-include support --------
+    const includeElements = document.querySelectorAll('[data-include]');
+    for (const el of includeElements) {
+        const file = el.getAttribute('data-include');
+        if (file) await loadHTML(`#${el.id}`, file).catch(() => {
+            // fallback to direct innerHTML if no id
+            fetch(file)
+                .then(r => r.text())
+                .then(txt => el.innerHTML = txt)
+                .catch(err => console.error(err));
+        });
+    }
+
+    // -------- Hamburger Menu --------
+    const hamburger = document.getElementById("hamburger");
+    const navMenu = document.getElementById("nav-menu");
+
+    if (hamburger && navMenu) {
+        hamburger.addEventListener("click", () => {
+            hamburger.classList.toggle("active");
+            navMenu.classList.toggle("open");
+        });
+    }
+
+    // -------- Other specific includes --------
+    await loadHTML('#topbar', '/includes/topbar.html');
+    await loadHTML('#sidebar', '/includes/sidebar.html');
+    await loadHTML('#attendanceModalContainer', '/includes/attendance-modal.html');
 
     // -------- Logout --------
     document.getElementById('logoutBtn')?.addEventListener('click', async () => {
@@ -28,15 +64,18 @@ window.CommonReady = (async () => {
             sidebarItems.forEach(i => i.classList.remove('active'));
             li.classList.add('active');
             const section = li.dataset.section;
-            if (section === 'bookings') window.location.href = 'admin.html';
-            else if (section === 'upcoming') window.location.href = 'admin.html?tab=upcoming';
-            else if (section === 'instructors') window.location.href = 'admin.html?tab=instructors';
-            else if (section === 'branches') window.location.href = 'admin.html?tab=branches';
-            else if (section === 'cars') window.location.href = 'admin.html?tab=cars';
-            else if (section === 'schedule') window.location.href = 'admin.html?tab=schedule';
-            else if (section === 'trainingDays') window.location.href = 'admin.html?tab=trainingDays';
-            else if (section === 'enquiries') window.location.href = 'admin.html?tab=enquiries';
-            else if (section === 'courses') window.location.href = 'admin.html?tab=courses';
+            const tabMapping = {
+                bookings: 'admin.html',
+                upcoming: 'admin.html?tab=upcoming',
+                instructors: 'admin.html?tab=instructors',
+                branches: 'admin.html?tab=branches',
+                cars: 'admin.html?tab=cars',
+                schedule: 'admin.html?tab=schedule',
+                trainingDays: 'admin.html?tab=trainingDays',
+                enquiries: 'admin.html?tab=enquiries',
+                courses: 'admin.html?tab=courses'
+            };
+            if (tabMapping[section]) window.location.href = tabMapping[section];
         });
     });
 
@@ -49,9 +88,10 @@ window.CommonReady = (async () => {
         if (res.status === 401) window.location.href = 'login.html';
         return res.json();
     };
+
 })();
 
-
+// Initialize modal if available
 window.addEventListener("DOMContentLoaded", () => {
     if (window.Modal) Modal.init();
 });

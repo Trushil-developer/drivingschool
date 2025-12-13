@@ -53,7 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             alt="${altText}" 
                             loading="lazy"
                         />
-                        ${img.studentName ? `<h3>${img.studentName}</h3>` : ""}
+                      
                         ${img.course ? `<p><strong>Car Trained On:</strong> ${img.course}</p>` : ""}
                         ${img.date ? `<p><strong>Completion Date:</strong> ${img.date}</p>` : ""}
                     `;
