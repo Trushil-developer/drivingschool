@@ -1,57 +1,81 @@
+/* ==================== MAIN LAYOUT ==================== */
 main {
     flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 4rem 1rem;
+    background-color: #f5f8ff;
+    min-height: 80vh;
 }
 
-/* Form Container */
+/* ==================== FORM CONTAINER ==================== */
 .form-container {
     background-color: #fff;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    padding: 2.5rem 2rem;
+    border-radius: 10px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
     max-width: 500px;
     width: 100%;
 }
 
+/* ==================== HEADINGS ==================== */
+.enquiry-section h1,
 h2 {
     color: #1565c0;
     text-align: center;
+    margin-bottom: 1rem;
+}
+
+h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+h2 {
+    font-size: 1.75rem;
     margin-bottom: 1.5rem;
 }
 
-/* Form Groups */
+.form-intro {
+    text-align: center;
+    font-size: 1rem;
+    color: #555;
+    margin-bottom: 2rem;
+}
+
+/* ==================== FORM GROUPS ==================== */
 .form-group {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 .form-group label {
     display: block;
     font-weight: 600;
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.4rem;
+    color: #333;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
     width: 100%;
-    padding: 0.5rem;
+    padding: 0.6rem 0.75rem;
     font-size: 1rem;
-    border-radius: 4px;
+    border-radius: 6px;
     border: 1px solid #ccc;
     outline: none;
-    transition: 0.2s ease;
+    transition: 0.3s ease;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
     border-color: #1a73e8;
-    box-shadow: 0 0 4px rgba(26, 115, 232, 0.4);
+    box-shadow: 0 0 6px rgba(26, 115, 232, 0.3);
 }
 
+/* ==================== RADIO BUTTONS ==================== */
 .radio-inline {
     display: flex;
     align-items: center;
@@ -64,35 +88,57 @@ h2 {
     align-items: center;
     gap: 6px;
     margin: 0;
+    font-weight: 500;
 }
 
-/* Textarea */
+/* ==================== TEXTAREA ==================== */
 textarea {
     resize: vertical;
     min-height: 100px;
 }
 
-/* Submit Button */
-button {
+/* ==================== SUBMIT BUTTON ==================== */
+button.btn-submit {
     width: 100%;
     padding: 0.75rem;
     font-size: 1rem;
     border: none;
-    border-radius: 5px;
-    background-color: #43a047;
+    border-radius: 6px;
+    background-color: #1a73e8;
     color: #fff;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
-button:hover {
-    background-color: #2e7d32;
+button.btn-submit:hover {
+    background-color: #0d47a1;
+    transform: translateY(-2px);
 }
 
-/* Responsive */
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 768px) {
+    main {
+        padding: 3rem 1rem;
+    }
+}
+
 @media (max-width: 480px) {
-    h2 {
+    h1 {
         font-size: 1.5rem;
+    }
+
+    h2 {
+        font-size: 1.3rem;
+    }
+
+    .form-container {
+        padding: 2rem 1rem;
+    }
+
+    .radio-inline {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
     }
 }

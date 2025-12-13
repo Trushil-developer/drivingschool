@@ -612,6 +612,60 @@ cron.schedule('1 0 * * *', async () => {
   timezone: "Asia/Kolkata"
 });
 
+// =====================
+// PUBLIC: LIST CERTIFICATE IMAGES WITH BOOKING INFO
+// =====================
+app.get("/api/public/certificates", async (req, res) => {
+  try {
+    const prefix = "certificates/production/";
+
+    const params = {
+      Bucket: process.env.S3_BUCKET,
+      Prefix: prefix
+    };
+
+    const data = await s3.listObjectsV2(params).promise();
+
+    const images = [];
+
+    for (const obj of data.Contents || []) {
+      if (!/\.(jpg|jpeg|png|webp)$/i.test(obj.Key)) continue;
+
+      // Extract booking id from filename: "100_1765062519993.png"
+      const match = obj.Key.match(/certificates\/production\/(\d+)_\d+\.(jpg|jpeg|png|webp)$/i);
+      if (!match) continue;
+      const bookingId = match[1];
+
+      // Fetch booking details
+      const [rows] = await dbPool.query(
+        `SELECT customer_name, car_name, starting_from FROM bookings WHERE id = ? LIMIT 1`,
+        [bookingId]
+      );
+
+      if (!rows.length) continue;
+      const booking = rows[0];
+
+      images.push({
+        bookingId,
+        studentName: booking.customer_name,
+        course: booking.car_name,
+        date: booking.starting_from ? booking.starting_from.toISOString().split("T")[0] : null,
+        url: `https://${process.env.S3_BUCKET}.s3.${process.env.S3_REGION}.amazonaws.com/${obj.Key}`
+      });
+    }
+
+    // Reverse to show newest first
+    images.reverse();
+
+    res.json({ success: true, images });
+
+  } catch (err) {
+    console.error("Public certificate fetch error:", err);
+    res.status(500).json({ success: false, error: "Failed to load certificates" });
+  }
+});
+
+
 app.use('/api/training-days', trainingDaysRoute);
 app.use('/api/instructors', instructorsRoute);
 app.use('/api/cars', carsRoute);
