@@ -107,7 +107,8 @@ window.renderScheduleModule = function(tableWrap) {
                     const branchBookings = bookings.filter(b => {
                         if (!b.starting_from) return false;
                         const status = (b.attendance_status || '').trim().toLowerCase();
-                        if (status !== 'active') return false;
+                        if (!['active', 'pending'].includes(status)) return false;
+
                         const start = new Date(b.starting_from);
                         const end = new Date(start);
                         end.setDate(start.getDate() + 29);
