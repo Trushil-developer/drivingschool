@@ -1,0 +1,282 @@
+/* ---------- BASE ---------- */
+body {
+    margin: 0;
+    font-family: Inter, Arial, sans-serif;
+    background: linear-gradient(135deg, #eef2f7, #f9fafb);
+}
+
+/* ---------- LAYOUT ---------- */
+.wizard {
+    min-height: calc(100vh - 140px);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    /* align to left by default */
+    padding: 24px;
+    margin-left: 100px;
+    /* default desktop offset */
+}
+
+.wizard-card {
+    width: 100%;
+    max-width: 700px;
+    padding: 0;
+    background: none;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* ---------- HEADER ---------- */
+.form-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.form-title {
+    color: #1a73e8;
+    font-size: 26px;
+    margin-bottom: 12px;
+}
+
+/* ---------- PROGRESS ---------- */
+.progress {
+    height: 6px;
+    background: #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: #1a73e8;
+    width: 0;
+    transition: width .3s ease;
+}
+
+.step-badge {
+    display: inline-block;
+    margin-top: 10px;
+    background: #e3f2fd;
+    color: #1a73e8;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* ---------- STEP ---------- */
+.step h2 {
+    margin: 12px 0 6px;
+}
+
+.step p {
+    color: #555;
+    margin-bottom: 16px;
+}
+
+/* ---------- OPTIONS ---------- */
+.option-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+}
+
+.option {
+    padding: 16px;
+    border-radius: 12px;
+    border: 2px solid #ddd;
+    text-align: center;
+    font-weight: 600;
+    cursor: pointer;
+    transition: .2s;
+}
+
+.option:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, .12);
+}
+
+.option.active {
+    background: #e8f0fe;
+    border-color: #1a73e8;
+}
+
+/* ---------- INPUTS ---------- */
+input {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 12px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+}
+
+/* ---------- ACTIONS ---------- */
+.wizard-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+button {
+    flex: 1;
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+#backBtn {
+    background: #eee;
+}
+
+#nextBtn,
+#submitBtn {
+    background: #1a73e8;
+    color: #fff;
+}
+
+.form-group {
+    margin-bottom: 28px;
+}
+
+/* ---------- ERROR ---------- */
+.form-error {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #fdecea;
+    color: #b71c1c;
+}
+
+/* ---------- HELPERS ---------- */
+.hidden {
+    display: none;
+}
+
+.hint {
+    text-align: center;
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+/* ---------- SELECT DROPDOWN ---------- */
+.wizard-select {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    background: #fff;
+    appearance: none;
+    cursor: pointer;
+}
+
+/* Dropdown arrow */
+.wizard-select {
+    background-image:
+        linear-gradient(45deg, transparent 50%, #666 50%),
+        linear-gradient(135deg, #666 50%, transparent 50%);
+    background-position:
+        calc(100% - 20px) calc(1em + 6px),
+        calc(100% - 15px) calc(1em + 6px);
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+}
+
+.field-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+/* ---------- ANIMATION ---------- */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 1024px) {
+    .wizard {
+        margin-left: 40px;
+        padding: 20px;
+    }
+}
+
+@media (max-width: 992px) {
+    .wizard {
+        margin-left: 30px;
+    }
+}
+
+@media (max-width: 768px) {
+    .wizard {
+        margin-left: 15px;
+        padding: 16px;
+        align-items: center;
+        /* center content for smaller screens */
+    }
+
+    .form-title {
+        font-size: 22px;
+    }
+
+    .option-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    }
+
+    .wizard-actions {
+        flex-direction: column;
+    }
+
+    button {
+        flex: none;
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .wizard {
+        margin-left: 8px;
+        padding: 12px;
+    }
+
+    .form-title {
+        font-size: 20px;
+    }
+
+    input,
+    .wizard-select,
+    .option {
+        padding: 12px;
+        font-size: 13px;
+    }
+
+    .step h2 {
+        font-size: 18px;
+    }
+
+    .step p {
+        font-size: 13px;
+    }
+}

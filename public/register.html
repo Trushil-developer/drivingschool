@@ -2,242 +2,81 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Driving Course Registration</title>
+
+    <!-- Analytics / Includes -->
     <div data-include="includes/analytics.html"></div>
-    <title>Register - Dwarkesh Motor Driving School</title>
 
-    <!-- Flatpickr CSS -->
+    <!-- Styles -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-
-    <!-- Form-specific styles -->
+    <link rel="stylesheet" href="css/register-wizard.css">
     <link rel="stylesheet" href="css/layout.css">
-    <link rel="stylesheet" href="css/register.css">
 </head>
 
 <body>
-    <!-- Common Header -->
+
     <div data-include="includes/header.html"></div>
 
-    <!-- Main Form Section -->
-    <main>
-        <div class="form-card">
-            <h2>Register for Driving Course</h2>
+    <main class="wizard">
+        <form id="mainForm" class="wizard-card">
 
-            <form id="mainForm">
+            <!-- HEADER -->
 
-                <!-- Form Date -->
-                <div class="form-group inline-row">
-                    <label class="required"> Date</label>
-                    <input type="date" id="form_date" name="form_date" disabled>
-                </div>
+            <h1 class="form-title">Driving Course Registration</h1>
 
-                <!-- Branch Selection -->
-                <div class="form-group inline-row">
-                    <label class="required">Branch</label>
-                    <div class="inline-options" id="branchCheckboxGroup"></div>
-                </div>
-
-                <!-- Training Days -->
-                <div class="form-group inline-row">
-                    <label class="required">Training Days</label>
-                    <div class="inline-options" id="trainingDaysGroup"></div>
-                </div>
-
-                <!-- Session Duration -->
-                <div class="form-group inline-row">
-                    <label class="required" for="durationSelect">Session Duration (per day)</label>
-                    <select name="duration_minutes" id="durationSelect">
-                        <option value="30" selected>1 Slot (30 minutes)</option>
-                        <option value="60">2 Slots (1 hour)</option>
-                        <option value="90">3 Slots (1.5 hours)</option>
-                        <option value="120">4 Slots (2 hours)</option>
-                    </select>
-                </div>
-
-                <!-- Car Selection -->
-                <div class="form-group">
-                    <label class="required">Car</label>
-                    <select name="car" id="carSelect">
-                        <option value="">Select Branch First</option>
-                    </select>
-                </div>
-
-                <!-- Personal Details -->
-                <div class="form-group">
-                    <label class="required">Full Name</label>
-                    <input type="text" name="customer_name" placeholder="Enter your full name">
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group" style="flex: 2;">
-                        <label class="required">Address</label>
-                        <input type="text" name="address" placeholder="Enter your address">
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label class="required">Pincode</label>
-                        <input type="text" name="pincode" maxlength="6" pattern="\d{6}"
-                            placeholder="Enter 6-digit pincode">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="required">Mobile No.</label>
-                    <input type="text" name="mobile_no" placeholder="Enter mobile number">
-                </div>
-
-                <div class="form-group">
-                    <label class="required">WhatsApp No.</label>
-                    <input type="text" name="whatsapp_no" placeholder="Enter WhatsApp number">
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group" style="flex:1;">
-                        <label class="required">Sex</label>
-                        <select name="sex">
-                            <option value="">Select</option>
-                            <option>Male</option>
-                            <option>Female</option>
-                            <option>Other</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label class="required">Birth Date</label>
-                        <input type="date" name="birth_date" placeholder="Select birth date">
-                    </div>
-                </div>
-
-                <!-- C.O.V. -->
-                <div class="form-group inline-row">
-                    <label>C.O.V.</label>
-                    <div class="inline-options">
-                        <label><input type="checkbox" name="cov_lmv" value="LMV"> LMV</label>
-                        <label><input type="checkbox" name="cov_mc" value="MC"> M/C</label>
-                    </div>
-                </div>
-
-                <!-- Driving License -->
-                <div class="form-row">
-                    <div class="form-group" style="flex:1;">
-                        <label>DL No.</label>
-                        <input type="text" name="dl_no" placeholder="Enter driving license number">
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>From</label>
-                        <input type="date" name="dl_from" placeholder="Start date of DL">
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>To</label>
-                        <input type="date" name="dl_to" placeholder="End date of DL">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="required">Email</label>
-                    <input type="email" name="email" placeholder="Enter your email">
-                </div>
-
-                <div class="form-group">
-                    <label class="required">Occupation</label>
-                    <input type="text" name="occupation" placeholder="Enter your occupation">
-                </div>
-
-                <div class="form-group">
-                    <label>Reference</label>
-                    <input type="text" name="ref" placeholder="Who referred you?">
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group" style="flex:1;">
-                        <label class="required">Allotted Time</label>
-                        <input type="text" id="allotted_time" name="allotted_time" placeholder="Select time">
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label class="required">Start Date</label>
-                        <input type="date" name="starting_from" placeholder="Select start date">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group" style="flex:1;">
-                        <label class="required">Total Fees</label>
-                        <input type="text" name="total_fees" placeholder="Enter total fees">
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label class="required">Advance</label>
-                        <input type="text" name="advance" placeholder="Enter advance paid">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="required">Instructor</label>
-                    <select name="instructor_name" id="instructorSelect">
-                        <option value="">Select Instructor</option>
-                    </select>
-                </div>
-
-                <!-- Notes -->
-                <div class="section-title">Important Notes</div>
-                <div class="form-group">
-                    <p>1. Fees are not refundable.</p>
-                    <p>2. Course must be completed within 28 days.</p>
-                    <p>3. Driving duration per day: 30 min / 7-8 km.</p>
-                    <p>4. No one is allowed on the back seat.</p>
-                    <label class="required accept-row">
-                        <input type="checkbox" id="accept_notes">
-                        I have read and accept the above notes.
-                    </label>
-                </div>
-
-                <!-- Submit Button -->
-                <button type="submit">Submit Booking</button>
-            </form>
-        </div>
-
-        <!-- Modal -->
-        <div id="appModal" class="hidden">
-            <div class="modal-box">
-                <span class="modal-close">&times;</span>
-                <div class="modal-inner"></div>
+            <div class="progress">
+                <div id="progressBar" class="progress-bar"></div>
             </div>
-        </div>
+
+            <span id="stepBadge" class="step-badge"></span>
+
+
+            <!-- STEP CONTENT -->
+            <section class="step">
+                <h2 id="stepTitle"></h2>
+                <p id="stepDesc"></p>
+                <div id="stepBody"></div>
+            </section>
+
+            <!-- ERROR -->
+            <div id="formError" class="form-error hidden"></div>
+
+            <!-- ACTIONS -->
+            <div class="wizard-actions">
+                <button type="button" id="backBtn">Back</button>
+                <button type="button" id="nextBtn">Next</button>
+                <button type="submit" id="submitBtn" class="hidden">Submit</button>
+            </div>
+
+            <!-- REAL FORM INPUTS (HIDDEN) -->
+            <div class="hidden">
+                <div id="branchCheckboxGroup"></div>
+                <div id="trainingDaysGroup"></div>
+                <select id="courseSelect" name="course_id"></select>
+                <select id="carSelect" name="car"></select>
+                <select id="instructorSelect" name="instructor_name"></select>
+            </div>
+
+        </form>
     </main>
 
-    <!-- Common Footer -->
     <div data-include="includes/footer.html"></div>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="js/includeHTML.js"></script>
-    <script type="module" src="js/modal.js"></script>
-    <script type="module" src="js/booking.js"></script>
+
+    <!-- Data Providers -->
+    <script type="module" src="js/branches.js"></script>
     <script type="module" src="js/TrainingDays/fetchTrainingDays.js"></script>
     <script type="module" src="js/cars.js"></script>
     <script type="module" src="js/instructors.js"></script>
-    <script type="module" src="js/branches.js"></script>
+    <script type="module" src="js/courses.js"></script>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const now = new Date();
-            const hours = now.getHours().toString().padStart(2, '0');
-            const minutes = now.getMinutes();
-            const roundedMinutes = Math.round(minutes / 30) * 30;
-            const minsStr = (roundedMinutes === 60 ? '00' : roundedMinutes.toString().padStart(2, '0'));
-            const defaultTime = `${hours}:${minsStr}`;
-
-            flatpickr("#allotted_time", {
-                enableTime: true,
-                noCalendar: true,
-                dateFormat: "h:i K",
-                time_24hr: false,
-                minuteIncrement: 30,
-                minTime: "06:00",
-                maxTime: "22:00",
-                defaultDate: defaultTime
-            });
-        });
-    </script>
-
+    <!-- Wizard Logic -->
+    <script src="js/register-wizard.js"></script>
 </body>
 
 </html>
