@@ -1,7 +1,6 @@
 /* ===============================
    REGISTER WIZARD – FULL VERSION
 ================================ */
-
 let currentStep = 0;
 const form = document.getElementById("mainForm");
 
@@ -26,29 +25,29 @@ const showError = msg => {
 const clearError = () => ui.error.classList.add("hidden");
 
 /* ---------- DATA STORAGE ---------- */
-const wizardData = {}; // Stores all inputs for persistence
+const wizardData = {}; 
 
 function saveStepData() {
-  // save wizard body inputs
   const inputs = ui.body.querySelectorAll("input, select, textarea");
+
   inputs.forEach(input => {
+    const key = input.name || input.id;
+
+    // Only skip slots here, allowing 'branch' to be saved
+    if (key === "training_slots") return;
+
     if (input.type === "radio") {
-      if (input.checked) wizardData[input.name || input.id] = input.value;
-    } else if (input.type === "checkbox") {
-      wizardData[input.name || input.id] = input.checked;
-    } else {
-      wizardData[input.name || input.id] = input.value;
-    }
-  });
-
-
-  const branchInputs = document.querySelectorAll("#branchCheckboxGroup input");
-  branchInputs.forEach(input => {
-    if (input.type === "radio" && input.checked) {
-      wizardData[input.name || input.id] = input.value;
+      if (input.checked) wizardData[key] = input.value;
+    } 
+    else if (input.type === "checkbox") {
+      wizardData[key] = input.checked;
+    } 
+    else {
+      wizardData[key] = input.value;
     }
   });
 }
+
 
 /* ---------- STEPS ---------- */
 const steps = [
@@ -59,17 +58,48 @@ const steps = [
       const name = document.querySelector('input[name="customer_name"]')?.value.trim();
       const mobile = document.querySelector('input[name="mobile_no"]')?.value.trim();
       const email = document.querySelector('input[name="email"]')?.value.trim();
+      const licence = wizardData.has_licence;
 
       if (!name) return "Please enter your full name.";
       if (!mobile) return "Please enter your mobile number.";
       if (!email) return "Please enter your email address.";
+      if (!licence) return "Please tell us if you have a learner's or driver's licence.";
+
       return true;
     },
     render: () => `
       <input name="customer_name" placeholder="Full Name" required>
       <input name="mobile_no" placeholder="Mobile Number" required>
       <input name="email" placeholder="Email Address" required>
-    `
+
+      <div class="form-group">
+        <div class="section-title">Do you have a Learner's / Driver's Licence?</div>
+        <div class="option-grid" id="licenceOptions">
+          <label class="option">
+            <input type="radio" name="has_licence" value="yes" hidden> Yes
+          </label>
+          <label class="option">
+            <input type="radio" name="has_licence" value="no" hidden> No
+          </label>
+        </div>
+      </div>
+    `,
+    onLoad: () => {
+      const options = document.querySelectorAll('#licenceOptions .option');
+      options.forEach(option => {
+        const input = option.querySelector('input');
+        if (wizardData.has_licence === input.value) {
+          option.classList.add('active');
+          input.checked = true;
+        }
+        option.addEventListener('click', () => {
+          options.forEach(o => o.classList.remove('active'));
+          input.checked = true;
+          option.classList.add('active');
+          wizardData.has_licence = input.value;
+        });
+      });
+    }
   },
   {
     title: "Select Service & Branch",
@@ -83,14 +113,14 @@ const steps = [
     },
     render: () => `
       <div class="form-group">
-        <div class="section-title">Select service you're intrestred</div>
+        <div class="section-title">Select service you're interested in</div>
         <select id="wizardCourseSelect" class="wizard-select">
           <option value="">Select Service</option>
         </select>
       </div>
 
       <div class="form-group">
-        <div class="section-title">Select Your near by branch</div>
+        <div class="section-title">Select Your nearby branch</div>
         <div id="wizardBranch" class="option-grid"></div>
       </div>
     `,
@@ -99,86 +129,112 @@ const steps = [
       mirrorOptions("#branchCheckboxGroup", "#wizardBranch", true);
     }
   },
-{
-  title: "Pricing",
-  desc: "Would you like to know pricing?",
-  required: () => true, // no blocking here
-  render: () => `
-    <div class="form-group">
-      <div class="section-title">How many slots do you want?</div>
-      <div id="wizardTraining" class="option-grid"></div>
-    </div>
-
-    <div class="form-group hidden" id="carSection">
-      <div class="section-title">Which car would you like to do?</div>
-      <div id="wizardCars" class="option-grid"></div>
-    </div>
-
-    <div class="form-group hidden" id="priceSection">
-      <div class="section-title">Your Price</div>
-
-      <div class="price-box">
-        ₹ <strong id="finalPrice">5000</strong>
+  {
+    title: "Pricing",
+    desc: "Choose your training plan",
+    required: () => {
+      const hear = document.getElementById("hearAboutSelect")?.value;
+      if (!hear) return "Please tell us how you heard about us.";
+      return true;
+    },
+    render: () => `
+      <div class="form-group">
+        <div class="section-title">Where did you hear about us?</div>
+        <select id="hearAboutSelect" name="hear_about" class="wizard-select">
+          <option value="">Select an option</option>
+          <option value="google">Google Search / Website</option>
+          <option value="instagram">Instagram</option>
+          <option value="facebook">Facebook</option>
+          <option value="friend">Friend / Referral</option>
+          <option value="walkin">Walk-in / Near Branch</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <div class="section-title">How many slots do you want?</div>
+        <div id="wizardTraining" class="option-grid"></div>
       </div>
 
-      <div class="cta-row">
-        <button type="button" id="bookNowBtn" class="cta-primary">
-          Would you like to book session?
-        </button>
-
-        <button type="button" id="enquiryBtn" class="cta-secondary">
-          Enquiry Now
-        </button>
+      <div class="form-group hidden" id="carSection">
+        <div class="section-title">Which car would you like to do?</div>
+        <div id="wizardCars" class="option-grid"></div>
       </div>
-    </div>
-  `,
-  onLoad: () => {
-    // hide wizard navigation
-    ui.back.style.display = "none";
-    ui.next.style.display = "none";
-    ui.submit.classList.add("hidden");
 
-    // load training days
-    mirrorOptions("#trainingDaysGroup", "#wizardTraining");
+      <div class="form-group hidden" id="priceSection">
+        <div class="section-title price-title-row">
+          <span>Your Price</span>
+          <span class="price-note">(No payment required now. Pay during your first lesson.)</span>
+        </div>
+        <div class="price-box">₹ <strong id="finalPrice">5000</strong></div>
+        <div class="cta-row">
+          <button type="button" id="bookNowBtn" class="cta-primary cta-orange cta-main">Book Session <span class="cta-arrow">→</span></button>
+          <button type="button" id="enquiryBtn" class="cta-secondary cta-blue cta-small">Enquiry Now</button>
+        </div>
+      </div>
+    `,
+    onLoad: () => {
+      ui.back.style.display = "block";
+      ui.next.classList.add("hidden");
+      ui.submit.classList.add("hidden");
 
-    // show car section after training selection
-    document.getElementById("wizardTraining").addEventListener("click", () => {
-      document.getElementById("carSection").classList.remove("hidden");
-      waitForCars();
-    });
+      mirrorOptions("#trainingDaysGroup", "#wizardTraining");
 
-    // show price + CTA after car selection
-    document.addEventListener("click", e => {
-      if (e.target.closest("#wizardCars .option")) {
-        document.getElementById("priceSection").classList.remove("hidden");
+      document.getElementById("wizardTraining").addEventListener("click", () => {
+        document.getElementById("carSection").classList.remove("hidden");
+        waitForCars();
+      });
 
-        wizardData.price = 5000;
-        document.getElementById("finalPrice").textContent = "5000";
-      }
-    });
+      document.addEventListener("click", e => {
+        if (e.target.closest("#wizardCars .option")) {
+          document.getElementById("priceSection").classList.remove("hidden");
+          wizardData.price = 5000;
+          document.getElementById("finalPrice").textContent = "5000";
+        }
+      });
 
-    // BOOK SESSION (primary CTA)
-    document.getElementById("bookNowBtn")?.addEventListener("click", () => {
-      wizardData.intent = "book";
+      document.getElementById("bookNowBtn")?.addEventListener("click", () => {
+        wizardData.intent = "book";
+        currentStep++;
+        loadStep();
+      });
 
-      // You can:
-      // 1️⃣ submit form
-      // form.submit();
+      document.getElementById("enquiryBtn")?.addEventListener("click", async () => {
+        saveStepData();
 
-      // 2️⃣ OR go to booking step
-      currentStep++;
-      loadStep();
-    });
+        if (!wizardData.customer_name || !wizardData.mobile_no) {
+          alert("Please complete your basic details first.");
+          return;
+        }
 
-    // ENQUIRY (secondary CTA)
-    document.getElementById("enquiryBtn")?.addEventListener("click", () => {
-      wizardData.intent = "enquiry";
+        const selectedBranch = (window.branchList || []).find(b => b.branch_name === wizardData.branch);
+        const bId = selectedBranch ? selectedBranch.id : null;
 
-      // Example: open modal / redirect / submit
-      alert("Our team will contact you shortly.");
-    });
-  }
-},
+        const enquiryPayload = {
+          full_name: wizardData.customer_name,
+          email: wizardData.email || "",
+          phone: wizardData.mobile_no,
+          branch_id: bId ? Number(bId) : null,
+          course_id: Number(wizardData.wizardCourseSelect) || null,
+          has_licence: wizardData.has_licence === "yes" ? "Yes" : "No",
+          hear_about: wizardData.hear_about || null,
+          training_slots: Number(wizardData.training_slots) || null,
+          preferred_car: wizardData.preferred_car || null,
+          message: "Enquiry from registration wizard"
+        };
+
+        console.log("SUBMITTING ENQUIRY:", enquiryPayload);
+
+        const result = await window.enquiryService.submit(enquiryPayload);
+        if (result.success) {
+          alert("Thank you! Our team will contact you shortly.");
+          resetWizard();
+        } else {
+          alert(result.error || "Unable to submit enquiry.");
+        }
+      });
+    }
+  },
   {
     title: "Instructor",
     desc: "Choose your instructor",
@@ -227,43 +283,44 @@ const steps = [
 function mirrorOptions(source, target, triggerChange = false) {
   const inputs = document.querySelectorAll(`${source} input`);
   const container = document.querySelector(target);
+  if (!container) return;
   container.innerHTML = "";
 
   inputs.forEach(input => {
     const card = document.createElement("div");
     card.className = "option";
-    card.textContent = input.value;
+    card.textContent = input.dataset.label || input.value;
 
-    const saved = wizardData[input.name || input.id];
+    const key = input.name || input.id;
+    const saved = wizardData[key];
 
-    // Restore active state
-    if (input.type === "radio" && saved === input.value) {
+    if (input.checked || saved === input.value) {
       card.classList.add("active");
-      input.checked = true;
-    }
-    if (input.type === "checkbox" && saved === true) {
-      card.classList.add("active");
-      input.checked = true;
     }
 
     card.onclick = () => {
       if (input.type === "radio") {
-        // uncheck all radios
-        inputs.forEach(i => i.checked = false);
+        inputs.forEach(i => (i.checked = false));
         container.querySelectorAll(".option").forEach(o => o.classList.remove("active"));
-
         input.checked = true;
         card.classList.add("active");
-        wizardData[input.name || input.id] = input.value;
-      } else if (input.type === "checkbox") {
+        
+        // Handle special slot mapping or standard save
+        if (input.name === "training_slots") {
+            wizardData.training_slots = Number(input.value);
+        } else {
+            wizardData[key] = input.value;
+        }
+      } else {
         input.checked = !input.checked;
         card.classList.toggle("active");
-        wizardData[input.name || input.id] = input.checked;
+        wizardData[key] = input.checked;
       }
 
-      if (triggerChange) input.dispatchEvent(new Event("change", { bubbles: true }));
+      if (triggerChange) {
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
     };
-
     container.appendChild(card);
   });
 }
@@ -271,6 +328,7 @@ function mirrorOptions(source, target, triggerChange = false) {
 function mirrorSelect(selectId, targetId) {
   const select = document.querySelector(selectId);
   const target = document.querySelector(targetId);
+  if (!target || !select) return;
   target.innerHTML = "";
 
   [...select.options].forEach(opt => {
@@ -279,7 +337,6 @@ function mirrorSelect(selectId, targetId) {
     card.className = "option";
     card.textContent = opt.text;
 
-    // Restore active if previously selected
     if (wizardData[select.name || select.id] === opt.value) {
       card.classList.add("active");
       select.value = opt.value;
@@ -289,9 +346,9 @@ function mirrorSelect(selectId, targetId) {
       select.value = opt.value;
       target.querySelectorAll(".option").forEach(o => o.classList.remove("active"));
       card.classList.add("active");
-      wizardData[select.name || select.id] = opt.value;
+      const key = select.id === "carSelect" ? "preferred_car" : (select.name || select.id);
+      wizardData[key] = opt.value;
     };
-
     target.appendChild(card);
   });
 }
@@ -299,11 +356,9 @@ function mirrorSelect(selectId, targetId) {
 function syncCourseDropdown() {
   const hiddenSelect = document.getElementById("courseSelect");
   const wizardSelect = document.getElementById("wizardCourseSelect");
-
   if (!hiddenSelect || !wizardSelect) return;
 
   wizardSelect.innerHTML = `<option value="">Select Service</option>`;
-
   [...hiddenSelect.options].forEach(opt => {
     if (!opt.value) return;
     const option = document.createElement("option");
@@ -312,9 +367,7 @@ function syncCourseDropdown() {
     wizardSelect.appendChild(option);
   });
 
-  // Restore previous selection
   wizardSelect.value = hiddenSelect.value || wizardData["wizardCourseSelect"] || "";
-
   wizardSelect.addEventListener("change", () => {
     hiddenSelect.value = wizardSelect.value;
     wizardData["wizardCourseSelect"] = wizardSelect.value;
@@ -323,17 +376,13 @@ function syncCourseDropdown() {
 
 function waitForCars() {
   const select = document.getElementById("carSelect");
-  const debug = document.getElementById("carDebug");
   let attempts = 0;
-
   const timer = setInterval(() => {
     const cars = [...select.options].filter(o => o.value);
     attempts++;
-
     if (cars.length || attempts > 15) {
       clearInterval(timer);
       mirrorSelect("#carSelect", "#wizardCars");
-      if (!cars.length) debug.textContent = "❌ No cars available";
     }
   }, 200);
 }
@@ -349,33 +398,29 @@ function loadStep() {
   ui.badge.textContent = `Step ${currentStep + 1} of ${steps.length}`;
   ui.progress.style.width = ((currentStep + 1) / steps.length) * 100 + "%";
 
-if (step.hideNav) {
-  ui.back.style.display = "none";
-  ui.next.classList.add("hidden");
-  ui.submit.classList.add("hidden");
-} else {
   ui.back.style.display = currentStep === 0 ? "none" : "block";
   ui.next.classList.toggle("hidden", currentStep === steps.length - 1);
   ui.submit.classList.toggle("hidden", currentStep !== steps.length - 1);
-}
-
 
   setTimeout(() => step.onLoad?.(), 100);
 
-  // Restore all input values properly
   const inputs = ui.body.querySelectorAll("input, select, textarea");
   inputs.forEach(input => {
     const val = wizardData[input.name || input.id];
     if (val !== undefined) {
-      if (input.type === "checkbox") {
-        input.checked = val;
-      } else if (input.type === "radio") {
-        input.checked = input.value === val;
-      } else {
-        input.value = val;
-      }
+      if (input.type === "checkbox") input.checked = val;
+      else if (input.type === "radio") input.checked = input.value === val;
+      else input.value = val;
     }
   });
+}
+
+function resetWizard() {
+  Object.keys(wizardData).forEach(k => delete wizardData[k]);
+  document.getElementById("mainForm")?.reset();
+  currentStep = 0;
+  loadStep();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 ui.next.onclick = () => {
@@ -395,5 +440,4 @@ ui.back.onclick = () => {
   loadStep();
 };
 
-// Initial load
 loadStep();

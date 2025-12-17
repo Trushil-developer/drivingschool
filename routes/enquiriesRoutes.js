@@ -3,15 +3,25 @@ import { dbPool, requireAdmin } from "../server.js";
 
 const router = express.Router();
 
-// =============================
-// GET ALL ENQUIRIES (Admin only)
-// =============================
+/* =============================
+   GET ALL ENQUIRIES (Admin)
+============================= */
 router.get("/", requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
-      SELECT e.id, e.full_name, e.email, e.phone,
-             e.has_licence, e.message, e.created_at,
-             b.branch_name, c.course_name
+      SELECT 
+        e.id,
+        e.full_name,
+        e.email,
+        e.phone,
+        e.has_licence,
+        e.hear_about,
+        e.training_slots,
+        e.preferred_car,
+        e.message,
+        e.created_at,
+        b.branch_name,
+        c.course_name
       FROM enquiries e
       LEFT JOIN branches b ON e.branch_id = b.id
       LEFT JOIN courses c ON e.course_id = c.id
@@ -25,24 +35,39 @@ router.get("/", requireAdmin, async (req, res, next) => {
   }
 });
 
-// =============================
-// GET SINGLE ENQUIRY BY ID (Admin only)
-// =============================
+/* =============================
+   GET SINGLE ENQUIRY (Admin)
+============================= */
 router.get("/:id", requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(
-      `SELECT e.id, e.full_name, e.email, e.phone,
-              e.has_licence, e.message, e.created_at,
-              b.branch_name, c.course_name
-       FROM enquiries e
-       LEFT JOIN branches b ON e.branch_id = b.id
-       LEFT JOIN courses c ON e.course_id = c.id
-       WHERE e.id = ?`,
+      `
+      SELECT 
+        e.id,
+        e.full_name,
+        e.email,
+        e.phone,
+        e.has_licence,
+        e.hear_about,
+        e.training_slots,
+        e.preferred_car,
+        e.message,
+        e.created_at,
+        b.branch_name,
+        c.course_name
+      FROM enquiries e
+      LEFT JOIN branches b ON e.branch_id = b.id
+      LEFT JOIN courses c ON e.course_id = c.id
+      WHERE e.id = ?
+      `,
       [req.params.id]
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ success: false, message: "Enquiry not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Enquiry not found"
+      });
     }
 
     res.json({ success: true, enquiry: rows[0] });
@@ -52,9 +77,9 @@ router.get("/:id", requireAdmin, async (req, res, next) => {
   }
 });
 
-// =============================
-// CREATE NEW ENQUIRY
-// =============================
+/* =============================
+   CREATE NEW ENQUIRY
+============================= */
 router.post("/", async (req, res, next) => {
   try {
     const {
@@ -64,18 +89,35 @@ router.post("/", async (req, res, next) => {
       branch_id,
       course_id,
       has_licence,
-      message,
+      hear_about,
+      training_slots,
+      preferred_car,
+      message
     } = req.body;
 
     // Basic validation
     if (!full_name || !email || !phone) {
-      return res.status(400).json({ success: false, message: "Name, email, and phone are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Name, email, and phone are required"
+      });
     }
 
     const [result] = await dbPool.query(
-      `INSERT INTO enquiries 
-      (full_name, email, phone, branch_id, course_id, has_licence, message)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `
+      INSERT INTO enquiries (
+        full_name,
+        email,
+        phone,
+        branch_id,
+        course_id,
+        has_licence,
+        hear_about,
+        training_slots,
+        preferred_car,
+        message
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
       [
         full_name,
         email,
@@ -83,20 +125,27 @@ router.post("/", async (req, res, next) => {
         branch_id || null,
         course_id || null,
         has_licence || "No",
-        message || null,
+        hear_about || null,
+        training_slots || null,
+        preferred_car || null,
+        message || null
       ]
     );
 
-    res.json({ success: true, message: "Enquiry submitted successfully", id: result.insertId });
+    res.json({
+      success: true,
+      message: "Enquiry submitted successfully",
+      id: result.insertId
+    });
   } catch (err) {
     console.error("ENQUIRY CREATE ERROR:", err);
     next(err);
   }
 });
 
-// =============================
-// UPDATE ENQUIRY (Admin only)
-// =============================
+/* =============================
+   UPDATE ENQUIRY (Admin)
+============================= */
 router.put("/:id", requireAdmin, async (req, res, next) => {
   try {
     const {
@@ -106,19 +155,27 @@ router.put("/:id", requireAdmin, async (req, res, next) => {
       branch_id,
       course_id,
       has_licence,
-      message,
+      hear_about,
+      training_slots,
+      preferred_car,
+      message
     } = req.body;
 
     const [result] = await dbPool.query(
-      `UPDATE enquiries SET
-        full_name = ?, 
-        email = ?, 
-        phone = ?, 
-        branch_id = ?, 
-        course_id = ?, 
-        has_licence = ?, 
+      `
+      UPDATE enquiries SET
+        full_name = ?,
+        email = ?,
+        phone = ?,
+        branch_id = ?,
+        course_id = ?,
+        has_licence = ?,
+        hear_about = ?,
+        training_slots = ?,
+        preferred_car = ?,
         message = ?
-       WHERE id = ?`,
+      WHERE id = ?
+      `,
       [
         full_name,
         email,
@@ -126,34 +183,52 @@ router.put("/:id", requireAdmin, async (req, res, next) => {
         branch_id || null,
         course_id || null,
         has_licence || "No",
+        hear_about || null,
+        training_slots || null,
+        preferred_car || null,
         message || null,
-        req.params.id,
+        req.params.id
       ]
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Enquiry not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Enquiry not found"
+      });
     }
 
-    res.json({ success: true, message: "Enquiry updated successfully" });
+    res.json({
+      success: true,
+      message: "Enquiry updated successfully"
+    });
   } catch (err) {
     console.error("ENQUIRY UPDATE ERROR:", err);
     next(err);
   }
 });
 
-// =============================
-// DELETE ENQUIRY (Admin only)
-// =============================
+/* =============================
+   DELETE ENQUIRY (Admin)
+============================= */
 router.delete("/:id", requireAdmin, async (req, res, next) => {
   try {
-    const [result] = await dbPool.query(`DELETE FROM enquiries WHERE id = ?`, [req.params.id]);
+    const [result] = await dbPool.query(
+      `DELETE FROM enquiries WHERE id = ?`,
+      [req.params.id]
+    );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Enquiry not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Enquiry not found"
+      });
     }
 
-    res.json({ success: true, message: "Enquiry deleted successfully" });
+    res.json({
+      success: true,
+      message: "Enquiry deleted successfully"
+    });
   } catch (err) {
     console.error("ENQUIRY DELETE ERROR:", err);
     next(err);

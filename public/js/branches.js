@@ -12,6 +12,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             throw new Error(data.error || "Failed to load branches");
         }
 
+        window.branchList = data.branches; 
+
         container.innerHTML = "";
 
         data.branches.forEach(branch => {

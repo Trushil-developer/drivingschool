@@ -666,6 +666,49 @@ SET @sql := IF(@col_exists=0,
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- heard_from
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
+      AND column_name='heard_from'
+);
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE enquiries ADD COLUMN heard_from VARCHAR(50);',
+    'SELECT "heard_from exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+
+-- slots
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
+      AND column_name='slots'
+);
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE enquiries ADD COLUMN slots INT;',
+    'SELECT "slots exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+
+-- preferred_car
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
+      AND column_name='preferred_car'
+);
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE enquiries ADD COLUMN preferred_car VARCHAR(100);',
+    'SELECT "preferred_car exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- COURSES TABLE
