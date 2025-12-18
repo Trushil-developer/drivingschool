@@ -20,7 +20,7 @@ router.post('/', requireAdmin, async (req, res, next) => {
   const { 
     car_name, branch, car_registration_no, insurance_policy_no, insurance_company, 
     insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date,
-    inactive 
+    price_15_days, price_21_days, inactive 
   } = req.body;
 
   if (!car_name) return res.json({ success: false, error: 'Car name is required' });
@@ -29,13 +29,22 @@ router.post('/', requireAdmin, async (req, res, next) => {
     const [result] = await dbPool.query(`
       INSERT INTO cars 
       (car_name, branch, car_registration_no, insurance_policy_no, insurance_company,
-       insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date, inactive)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date,
+       price_15_days, price_21_days, inactive)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      car_name, branch || null, car_registration_no || null, insurance_policy_no || null,
-      insurance_company || null, toMySQLDate(insurance_issue_date),
-      toMySQLDate(insurance_expiry_date), toMySQLDate(puc_issue_date), toMySQLDate(puc_expiry_date),
-      inactive ? 1 : 0 
+      car_name,
+      branch || null,
+      car_registration_no || null,
+      insurance_policy_no || null,
+      insurance_company || null,
+      toMySQLDate(insurance_issue_date),
+      toMySQLDate(insurance_expiry_date),
+      toMySQLDate(puc_issue_date),
+      toMySQLDate(puc_expiry_date),
+      price_15_days ?? 0,
+      price_21_days ?? 0,
+      inactive ? 1 : 0
     ]);
 
     res.json({ success: true, car_id: result.insertId });
@@ -51,7 +60,7 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
   const { 
     car_name, branch, car_registration_no, insurance_policy_no, insurance_company, 
     insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date,
-    inactive 
+    price_15_days, price_21_days, inactive 
   } = req.body;
 
   if (!car_name) return res.json({ success: false, error: 'Car name is required' });
@@ -59,13 +68,33 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
   try {
     await dbPool.query(`
       UPDATE cars SET
-        car_name=?, branch=?, car_registration_no=?, insurance_policy_no=?, insurance_company=?,
-        insurance_issue_date=?, insurance_expiry_date=?, puc_issue_date=?, puc_expiry_date=?, inactive=?
+        car_name=?,
+        branch=?,
+        car_registration_no=?,
+        insurance_policy_no=?,
+        insurance_company=?,
+        insurance_issue_date=?,
+        insurance_expiry_date=?,
+        puc_issue_date=?,
+        puc_expiry_date=?,
+        price_15_days=?,
+        price_21_days=?,
+        inactive=?
       WHERE id=?
     `, [
-      car_name, branch || null, car_registration_no || null, insurance_policy_no || null,
-      insurance_company || null, toMySQLDate(insurance_issue_date), toMySQLDate(insurance_expiry_date),
-      toMySQLDate(puc_issue_date), toMySQLDate(puc_expiry_date), inactive ? 1 : 0, id
+      car_name,
+      branch || null,
+      car_registration_no || null,
+      insurance_policy_no || null,
+      insurance_company || null,
+      toMySQLDate(insurance_issue_date),
+      toMySQLDate(insurance_expiry_date),
+      toMySQLDate(puc_issue_date),
+      toMySQLDate(puc_expiry_date),
+      price_15_days ?? 0,
+      price_21_days ?? 0,
+      inactive ? 1 : 0,
+      id
     ]);
 
     res.json({ success: true });

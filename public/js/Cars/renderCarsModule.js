@@ -25,6 +25,8 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
                             <th>Car Name</th>
                             <th>Branch</th>
                             <th>Registration No</th>
+                            <th>15 Days Price</th>
+                            <th>21 Days Price</th>
                             <th>Active</th>
                             <th>Actions</th>
                         </tr>
@@ -38,6 +40,8 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
                                 </td>
                                 <td>${c.branch || '-'}</td>
                                 <td>${c.car_registration_no || '-'}</td>
+                                <td>₹ ${c.price_15_days ?? '0.00'}</td>
+                                <td>₹ ${c.price_21_days ?? '0.00'}</td>
                                 <td>
                                     <input type="checkbox" class="car-active-switch" data-id="${c.id}" ${c.inactive ? '' : 'checked'}>
                                 </td>
@@ -53,12 +57,17 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
                                         data-insurance_expiry_date="${c.insurance_expiry_date || ''}"
                                         data-puc_issue_date="${c.puc_issue_date || ''}"
                                         data-puc_expiry_date="${c.puc_expiry_date || ''}"
+                                        data-price_15_days="${c.price_15_days ?? 0}"
+                                        data-price_21_days="${c.price_21_days ?? 0}"
                                     >Edit</button>
                                     <button class="btn delete" data-id="${c.id}">Delete</button>
                                 </td>
                             </tr>
+
                             <tr class="car-details hidden" id="details-${c.id}">
-                                <td colspan="6">
+                                <td colspan="8">
+                                    <strong>15 Days Price:</strong> ₹ ${c.price_15_days ?? '0.00'} <br>
+                                    <strong>21 Days Price:</strong> ₹ ${c.price_21_days ?? '0.00'} <br>
                                     <strong>Insurance Policy:</strong> ${c.insurance_policy_no || '-'} <br>
                                     <strong>Insurance Company:</strong> ${c.insurance_company || '-'} <br>
                                     <strong>Insurance Issue:</strong> ${c.insurance_issue_date ? formatDate(c.insurance_issue_date) : '-'} <br>
@@ -88,7 +97,9 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
                         insurance_issue_date: btn.dataset.insurance_issue_date,
                         insurance_expiry_date: btn.dataset.insurance_expiry_date,
                         puc_issue_date: btn.dataset.puc_issue_date,
-                        puc_expiry_date: btn.dataset.puc_expiry_date
+                        puc_expiry_date: btn.dataset.puc_expiry_date,
+                        price_15_days: btn.dataset.price_15_days,
+                        price_21_days: btn.dataset.price_21_days
                     };
 
                     const openModal = window.openCarEditModal(id, carData, tabRenderers, currentTab);

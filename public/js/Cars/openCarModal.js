@@ -69,6 +69,12 @@ window.openCarAddModal = function (tabRenderers, currentTab) {
                     <label>PUC Expiry Date</label>
                     <input id="puc_expiry_date" type="date">
 
+                    <label>15 Days Price</label>
+                    <input id="price_15_days" type="number" step="0.01" min="0" value="0">
+
+                    <label>21 Days Price</label>
+                    <input id="price_21_days" type="number" step="0.01" min="0" value="0">
+
                     <button id="saveCar" class="btn primary">Save Car</button>
                 </div>
             `;
@@ -93,7 +99,9 @@ window.openCarAddModal = function (tabRenderers, currentTab) {
                     insurance_issue_date: document.getElementById("insurance_issue_date").value,
                     insurance_expiry_date: document.getElementById("insurance_expiry_date").value,
                     puc_issue_date: document.getElementById("puc_issue_date").value,
-                    puc_expiry_date: document.getElementById("puc_expiry_date").value
+                    puc_expiry_date: document.getElementById("puc_expiry_date").value,
+                    price_15_days: parseFloat(document.getElementById("price_15_days").value) || 0,
+                    price_21_days: parseFloat(document.getElementById("price_21_days").value) || 0
                 };
 
                 if (!payload.car_name) return alert("Car name required");
@@ -161,6 +169,14 @@ window.openCarEditModal = function (id, data, tabRenderers, currentTab) {
                     <label>PUC Expiry Date</label>
                     <input id="puc_expiry_date" type="date" value="${formatDate(data.puc_expiry_date)}">
 
+                    <label>15 Days Price</label>
+                    <input id="price_15_days" type="number" step="0.01" min="0"
+                        value="${data.price_15_days ?? 0}">
+
+                    <label>21 Days Price</label>
+                    <input id="price_21_days" type="number" step="0.01" min="0"
+                        value="${data.price_21_days ?? 0}">
+
                     <button id="saveCar" class="btn primary">Save Changes</button>
                 </div>
             `;
@@ -185,7 +201,9 @@ window.openCarEditModal = function (id, data, tabRenderers, currentTab) {
                     insurance_issue_date: document.getElementById("insurance_issue_date").value,
                     insurance_expiry_date: document.getElementById("insurance_expiry_date").value,
                     puc_issue_date: document.getElementById("puc_issue_date").value,
-                    puc_expiry_date: document.getElementById("puc_expiry_date").value
+                    puc_expiry_date: document.getElementById("puc_expiry_date").value,
+                    price_15_days: parseFloat(document.getElementById("price_15_days").value) || 0,
+                    price_21_days: parseFloat(document.getElementById("price_21_days").value) || 0
                 };
 
                 try {
