@@ -183,15 +183,31 @@ const steps = [
       document.getElementById("wizardTraining").addEventListener("click", () => {
         document.getElementById("carSection").classList.remove("hidden");
         waitForCars();
-      });
 
-      document.addEventListener("click", e => {
-        if (e.target.closest("#wizardCars .option")) {
-          document.getElementById("priceSection").classList.remove("hidden");
-          wizardData.price = 5000;
-          document.getElementById("finalPrice").textContent = "5000";
+        if (wizardData.preferred_car) {
+          const price = calculatePrice();
+          if (price) {
+            wizardData.price = price;
+            document.getElementById("finalPrice").textContent = price;
+            document.getElementById("priceSection").classList.remove("hidden");
+          }
         }
       });
+
+      document.getElementById("wizardCars").addEventListener("click", e => {
+        if (!e.target.closest(".option")) return;
+
+        const price = calculatePrice();
+        if (!price) {
+          alert("Price not available for selected car & training plan.");
+          return;
+        }
+
+        wizardData.price = price;
+        document.getElementById("finalPrice").textContent = price;
+        document.getElementById("priceSection").classList.remove("hidden");
+      });
+
 
       document.getElementById("bookNowBtn")?.addEventListener("click", () => {
         wizardData.intent = "book";
@@ -346,9 +362,21 @@ function mirrorSelect(selectId, targetId) {
       select.value = opt.value;
       target.querySelectorAll(".option").forEach(o => o.classList.remove("active"));
       card.classList.add("active");
+
       const key = select.id === "carSelect" ? "preferred_car" : (select.name || select.id);
       wizardData[key] = opt.value;
+
+      // 🔥 recalc price if possible
+      if (select.id === "carSelect") {
+        const price = calculatePrice();
+        if (price) {
+          wizardData.price = price;
+          document.getElementById("finalPrice").textContent = price;
+          document.getElementById("priceSection")?.classList.remove("hidden");
+        }
+      }
     };
+
     target.appendChild(card);
   });
 }
@@ -439,5 +467,27 @@ ui.back.onclick = () => {
   currentStep--;
   loadStep();
 };
+
+
+function calculatePrice() {
+  const slots = Number(wizardData.training_slots);
+  const carSelect = document.getElementById("carSelect");
+  if (!slots || !carSelect) return null;
+
+  const selectedOption = carSelect.options[carSelect.selectedIndex];
+  if (!selectedOption) return null;
+
+  let price = 0;
+
+  if (slots === 15) {
+    price = Number(selectedOption.dataset.price15 || 0);
+  } 
+  else if (slots === 21) {
+    price = Number(selectedOption.dataset.price21 || 0);
+  }
+
+  return price > 0 ? price : null;
+}
+
 
 loadStep();

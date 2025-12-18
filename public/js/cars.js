@@ -23,6 +23,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 const opt = document.createElement("option");
                 opt.value = car.car_name;
                 opt.textContent = car.car_name;
+                opt.dataset.price15 = car.price_15_days || 0;
+                opt.dataset.price21 = car.price_21_days || 0;
+
                 carSelect.appendChild(opt);
             });
         } catch (err) {
