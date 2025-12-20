@@ -6,199 +6,192 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Driving Course Registration</title>
 
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
     <link rel="stylesheet" href="css/layout.css">
     <link rel="stylesheet" href="css/register.css">
 </head>
 
 <body>
 
+    <!-- HEADER INCLUDE -->
     <div data-include="includes/header.html"></div>
 
-    <main class="branch-page">
-        <form id="registerForm">
+    <!-- FORM WRAPPER -->
+    <main class="form-wrapper-container">
+        <div class="form-wrapper">
 
-            <!-- ===== GLOBAL HEADER (Except Branch) ===== -->
-            <div id="globalHeader" hidden class="section-header">
-                <h2 id="sectionTitle" class="branch-title"></h2>
+            <form id="registerForm">
 
-                <div class="inline-price-card">
-                    <p>Total Price: <span id="totalPrice">₹0.0</span></p>
-                </div>
-            </div>
-
-            <!-- ===== BRANCH SECTION ===== -->
-            <section id="branchSection">
-                <h2 class="branch-title">Select Your Nearest Branch</h2>
-                <div id="branchCheckboxGroup" class="branch-grid"></div>
-            </section>
-
-            <!-- ===== CAR SECTION ===== -->
-            <section id="carsSection" hidden>
-                <div id="carsGrid" class="branch-grid"></div>
-
-                <div class="nav-buttons">
-                    <button type="button" id="backToBranches" class="back-btn">
-                        ← Back to Branch
-                    </button>
-                    <button type="button" id="goToDate" class="next-btn">
-                        Next: Date →
-                    </button>
-                </div>
-            </section>
-
-            <!-- ===== DATE SECTION ===== -->
-            <section id="dateSection" hidden>
-
-                <div class="date-picker-container">
-                    <label>Start Date</label>
-                    <input type="date" id="startDate" class="date-input">
+                <!-- STEP INDICATOR -->
+                <div class="step-indicator">
+                    <div class="step active" data-step="1">Branch</div>
+                    <div class="step" data-step="2">Car</div>
+                    <div class="step" data-step="3">Date</div>
+                    <div class="step" data-step="4">Licence</div>
+                    <div class="step" data-step="5">Add-on</div>
+                    <div class="step" data-step="6">Personal</div>
                 </div>
 
-                <div class="duration-picker-container">
-                    <label>Session Duration</label>
-                    <select id="durationSelect" class="duration-select">
-                        <option value="">-- Select Duration --</option>
-                        <option value="30">30 Minutes</option>
-                        <option value="60">60 Minutes</option>
-                        <option value="90">90 Minutes</option>
-                        <option value="120">120 Minutes</option>
-                    </select>
-                </div>
+                <!-- TOTAL PRICE DISPLAY -->
+                <!-- <div class="total-price" >₹0</div> -->
 
-                <div id="timeSlotContainer" class="time-slot-container" hidden>
-                    <label>Select Time Slot</label>
-                    <div id="timeSlotsGrid" class="time-slots-grid"></div>
-                </div>
+                <!-- ===== BRANCH SECTION ===== -->
+                <section class="form-step active" id="branchSection">
+                    <h2>Select Your Nearest Branch</h2>
+                    <div id="branchCheckboxGroup" class="card-grid"></div>
+                </section>
 
-                <div class="nav-buttons">
-                    <button type="button" id="backToCars" class="back-btn">
-                        ← Back to Car
-                    </button>
-                    <button type="button" id="goToLicence" class="next-btn" hidden>
-                        Next: Licence →
-                    </button>
-                </div>
-            </section>
+                <!-- ===== CAR SECTION ===== -->
+                <section class="form-step" id="carsSection">
+                    <div class="section-header">
+                        <h2>Select Your Car</h2>
+                        <div class="total-price">₹0</div>
+                    </div>
+                    <div id="carsGrid" class="card-grid"></div>
+                    <div class="nav-buttons">
+                        <button type="button" id="backToBranch" class="back-btn">← Back</button>
+                        <button type="button" id="goToDate" class="next-btn">Next →</button>
+                    </div>
+                </section>
 
-            <!-- ===== LICENCE SECTION ===== -->
-            <section id="licenceSection" hidden>
+                <!-- ===== DATE SECTION ===== -->
+                <section class="form-step" id="dateSection">
+                    <div class="section-header">
+                        <h2>Schedule Your Session</h2>
+                        <div class="total-price">₹0</div>
+                    </div>
+                    <div class="input-group">
+                        <label>Start Date</label>
+                        <input type="date" id="startDate" class="form-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Duration</label>
+                        <select id="durationSelect" class="form-input">
+                            <option value="">-- Select Duration --</option>
+                            <option value="30">30 Minutes</option>
+                            <option value="60">60 Minutes</option>
+                            <option value="90">90 Minutes</option>
+                            <option value="120">120 Minutes</option>
+                        </select>
+                    </div>
+                    <div id="timeSlotContainer" class="time-slot-container" hidden>
+                        <label>Select Time Slot</label>
+                        <div id="timeSlotsGrid" class="time-slots-grid"></div>
+                    </div>
+                    <div class="nav-buttons">
+                        <button type="button" id="backToCars" class="back-btn">← Back</button>
+                        <button type="button" id="goToLicence" class="next-btn">Next →</button>
+                    </div>
+                </section>
 
-                <h2 class="branch-title">
-                    Do you have a Learner's / Driver's Licence?
-                </h2>
-
-                <div class="licence-option-group">
-                    <button type="button" class="licence-btn" data-value="yes">Yes</button>
-                    <button type="button" class="licence-btn" data-value="no">No</button>
-                </div>
-
-                <div id="licenceDetails" hidden class="licence-row">
-                    <input type="text" id="dlNumber" class="form-input" placeholder="DL Number">
-                    <input type="date" id="dlFrom" class="form-input">
-                    <input type="date" id="dlTo" class="form-input">
-                </div>
-
-                <div class="nav-buttons">
-                    <button type="button" id="backToDate" class="back-btn">
-                        ← Back to Date
-                    </button>
-                    <button type="button" id="goToSummary" class="next-btn" hidden>
-                        Next: Personal →
-                    </button>
-                </div>
-            </section>
-
-
-            <!-- ===== ADD-ON SECTION ===== -->
-            <section id="addonSection" hidden>
-                <div class="addon-group">
-
-                    <div class="addon-item">
-                        <p>AC Facility</p>
-                        <div class="addon-options">
-                            <button type="button" class="addon-btn" data-addon="ac" data-value="yes">Yes</button>
-                            <button type="button" class="addon-btn" data-addon="ac" data-value="no">No</button>
+                <!-- ===== LICENCE SECTION ===== -->
+                <section class="form-step" id="licenceSection">
+                    <div class="section-header">
+                        <h2>Do you have a Learner's / Driver's Licence?</h2>
+                        <div class="total-price">₹0</div>
+                    </div>
+                    <div class="button-group">
+                        <button type="button" class="licence-btn" data-value="yes">Yes</button>
+                        <button type="button" class="licence-btn" data-value="no">No</button>
+                    </div>
+                    <div id="licenceDetails" class="licence-row" hidden>
+                        <div class="input-group licence-inputs">
+                            <div class="input-item">
+                                <label for="dlNumber">DL Number</label>
+                                <input type="text" id="dlNumber" class="form-input" placeholder="Enter DL Number">
+                            </div>
+                            <div class="input-item">
+                                <label for="dlFrom">Valid From</label>
+                                <input type="date" id="dlFrom" class="form-input">
+                            </div>
+                            <div class="input-item">
+                                <label for="dlTo">Valid To</label>
+                                <input type="date" id="dlTo" class="form-input">
+                            </div>
                         </div>
                     </div>
 
-                    <div class="addon-item">
-                        <p>Pick-up & Drop Facility</p>
-                        <div class="addon-options">
-                            <button type="button" class="addon-btn" data-addon="pickup" data-value="yes">Yes</button>
-                            <button type="button" class="addon-btn" data-addon="pickup" data-value="no">No</button>
+                    <div class="nav-buttons">
+                        <button type="button" id="backToDate" class="back-btn">← Back</button>
+                        <button type="button" id="goToAddon" class="next-btn">Next →</button>
+                    </div>
+                </section>
+
+                <!-- ===== ADD-ON SECTION ===== -->
+                <section class="form-step" id="addonSection">
+                    <div class="section-header">
+                        <h2>Add-on Services</h2>
+                        <div class="total-price">₹0</div>
+                    </div>
+                    <div class="addon-group">
+                        <div class="addon-item">
+                            <span>AC Facility</span>
+                            <div class="button-group">
+                                <button type="button" class="addon-btn" data-addon="ac" data-value="yes">Yes</button>
+                                <button type="button" class="addon-btn" data-addon="ac" data-value="no">No</button>
+                            </div>
+                        </div>
+                        <div class="addon-item">
+                            <span>Pick-up & Drop Facility</span>
+                            <div class="button-group">
+                                <button type="button" class="addon-btn" data-addon="pickup"
+                                    data-value="yes">Yes</button>
+                                <button type="button" class="addon-btn" data-addon="pickup" data-value="no">No</button>
+                            </div>
                         </div>
                     </div>
+                    <div class="nav-buttons">
+                        <button type="button" id="backToLicenceFromAddon" class="back-btn">← Back</button>
+                        <button type="button" id="goToPersonal" class="next-btn">Next →</button>
+                    </div>
+                </section>
 
-                </div>
-
-                <div class="nav-buttons">
-                    <button type="button" id="backToLicenceFromAddon" class="back-btn">
-                        ← Back to Licence
-                    </button>
-                    <button type="button" id="goToPersonal" class="next-btn">
-                        Next: Personal →
-                    </button>
-                </div>
-            </section>
-
-            <!-- ===== PERSONAL SECTION ===== -->
-            <section id="personalSection" hidden>
-
-                <div class="row">
-                    <input type="text" class="form-input" placeholder="Full Name">
-                    <input type="tel" class="form-input" placeholder="Mobile">
-                    <input type="email" class="form-input" placeholder="Email">
-                </div>
-
-                <div class="row">
-                    <input type="text" class="form-input" placeholder="Address">
-                    <input type="text" class="form-input" placeholder="PIN Code">
-                </div>
-
-                <div class="row">
-                    <div class="form-field">
-                        <label class="field-label" for="sex">Sex</label>
+                <!-- ===== PERSONAL SECTION ===== -->
+                <section class="form-step" id="personalSection">
+                    <div class="section-header">
+                        <h2>Personal Information</h2>
+                        <div class="total-price">₹0</div>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="fullName" class="form-input" placeholder="Full Name">
+                        <input type="tel" id="mobile" class="form-input" placeholder="Mobile">
+                        <input type="email" id="email" class="form-input" placeholder="Email">
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="address" class="form-input" placeholder="Address">
+                        <input type="text" id="pinCode" class="form-input" placeholder="PIN Code">
+                    </div>
+                    <div class="input-group">
                         <select id="sex" class="form-input">
-                            <option value="">Select</option>
+                            <option value="">Select Sex</option>
                             <option value="male">Male</option>
                             <option value="female">Female</option>
                             <option value="other">Other</option>
                         </select>
-                    </div>
-
-                    <div class="form-field">
-                        <label class="field-label" for="birthDate">Birth Date</label>
                         <input type="date" id="birthDate" class="form-input">
                     </div>
-                </div>
-
-                <div class="row">
-                    <div class="form-field">
-                        <label class="field-label" for="occupation">Occupation</label>
-                        <input type="text" id="occupation" class="form-input" placeholder="Enter your occupation">
+                    <div class="input-group">
+                        <input type="text" id="occupation" class="form-input" placeholder="Occupation">
+                        <input type="text" id="reference" class="form-input" placeholder="Reference (if any)">
                     </div>
-
-                    <div class="form-field">
-                        <label class="field-label" for="reference">Reference</label>
-                        <input type="text" id="reference" class="form-input" placeholder="Enter reference (if any)">
+                    <div class="nav-buttons">
+                        <button type="button" id="backToAddon" class="back-btn">← Back</button>
+                        <button type="submit" id="submitBooking" class="submit-btn">Submit →</button>
                     </div>
-                </div>
+                </section>
 
-                <div class="nav-buttons">
-                    <button type="button" id="backToLicence" class="back-btn">
-                        ← Back to Licence
-                    </button>
-                    <button type="button" id="submitBooking" class="next-btn">
-                        Submit →
-                    </button>
-                </div>
-            </section>
+            </form>
 
-        </form>
+        </div>
     </main>
 
+    <!-- FOOTER INCLUDE -->
     <div data-include="includes/footer.html"></div>
 
+    <!-- JS -->
     <script src="js/includeHTML.js"></script>
     <script src="js/Register/register.js"></script>
 
