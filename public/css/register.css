@@ -1,364 +1,346 @@
-/* ------------------------------------------------
-   GLOBAL STYLES
--------------------------------------------------- */
-body {
-    font-family: 'Arial', sans-serif;
-    background: #f3f3f3;
-    margin: 0;
-    padding: 0;
-    color: #333;
+:root {
+    --primary: #1a73e8;
+    --bg-light: #f5f7fb;
+    --text-dark: #1f2937;
+    --border-light: #e5e7eb;
+    --shadow-soft: 0 8px 20px rgba(0, 0, 0, 0.08);
+    --radius-lg: 16px;
 }
 
-/* Inputs */
-input,
-select,
-textarea {
-    width: 100%;
-    padding: 8px 10px;
-    border-radius: 6px;
-    border: 1px solid #999;
-    font-size: 14px;
-    box-sizing: border-box;
-    outline: none;
-    transition: 0.2s ease-in-out;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-    border-color: #1a73e8;
-    box-shadow: 0 0 4px rgba(26, 115, 232, 0.4);
-}
-
-textarea {
-    resize: vertical;
-}
-
-/* Required Field */
-.required::after {
-    content: " *";
-    color: red;
-    font-weight: bold;
-}
-
-/* Uppercase Input */
-input[type="text"] {
-    text-transform: uppercase;
-}
-
-
-.header-container img {
-    max-width: 85px;
-}
-
-.header-container h1 {
-    font-size: 26px;
-    margin: 0;
-    font-weight: bold;
-}
-
-/* ------------------------------------------------
-   MAIN FORM LAYOUT
--------------------------------------------------- */
-main {
-    padding: 30px 15px;
+/* =============================
+   PAGE
+============================= */
+.branch-page {
+    min-height: 80%;
     display: flex;
+    align-items: center;
     justify-content: center;
+    padding: 3rem 1.5rem;
+    background: radial-gradient(circle at top, #eef4ff, #ffffff 60%);
 }
 
-/* FORM CARD */
-.form-card {
-    width: 210mm;
-    max-width: 100%;
-    background: #fff;
-    padding: 25px 30px;
-    border-radius: 10px;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.12);
-}
-
-/* Section Titles */
-.section-title {
-    font-size: 20px;
-    margin: 20px 0 10px;
-    font-weight: bold;
-    color: #1565c0;
-    border-bottom: 2px solid #ddd;
-    padding-bottom: 5px;
-}
-
-/* Form Groups */
-.form-group {
-    margin-bottom: 5px;
-}
-
-.form-group label {
-    font-weight: bold;
-    margin-right: 10px;
-    line-height: 2.0;
-}
-
-/* Form Rows */
-.form-row {
+/* =============================
+   FORM LAYOUT
+============================= */
+#registerForm {
+    width: 100%;
+    max-width: 1200px;
     display: flex;
-    gap: 15px;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* =============================
+   GLOBAL SECTION HEADER
+============================= */
+.section-header {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2.5rem;
     flex-wrap: wrap;
 }
 
-/* Checkbox / Radio / Inline Groups */
-.inline-options,
-.inline-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.inline-options label,
-.inline-row label {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    white-space: nowrap;
-}
-
-/* Make Branch / Training Days / C.O.V. inline */
-.inline-options {
-    flex-wrap: nowrap;
-    /* Keep in one line */
-    flex: 1;
-    flex-shrink: 0;
-}
-
-/* Notes checkbox in single line */
-.accept-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    white-space: nowrap;
-}
-
-/* Fix checkbox size */
-input[type="checkbox"],
-input[type="radio"] {
-    width: auto;
+/* =============================
+   TITLES
+============================= */
+.branch-title {
     margin: 0;
+    color: var(--primary);
+    font-weight: 800;
+    font-size: 1.9rem;
 }
 
-/* ------------------------------------------------
-   NOTES BOX
--------------------------------------------------- */
-.notes-box {
-    background: #fcfcfc;
-    border: 1px solid #ccc;
-    padding: 12px;
-    border-radius: 8px;
+/* =============================
+   PRICE CARD
+============================= */
+.inline-price-card {
+    background: var(--primary);
+    color: white;
+    font-size: 1.15rem;
+    font-weight: 700;
+    padding: 0.6rem 1.2rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+    white-space: nowrap;
 }
 
-.notes-box p {
-    margin: 4px 0;
-    font-size: 15px;
-}
-
-/* ------------------------------------------------
-   BUTTON
--------------------------------------------------- */
-button {
-    width: 100%;
-    padding: 14px;
-    font-size: 17px;
-    margin-top: 20px;
-    border: none;
-    background: #1a73e8;
-    color: #fff;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: 0.3s ease;
-}
-
-button:hover {
-    background: #0d47a1;
-}
-
-/* ------------------------------------------------
-   FOOTER
--------------------------------------------------- */
-footer {
-    background: #1565c0;
-    color: #fff;
-    text-align: center;
-    padding: 1rem;
-    margin-top: auto;
-}
-
-/* ------------------------------------------------
-   MODAL
--------------------------------------------------- */
-#appModal {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    display: none;
-    align-items: center;
+/* =============================
+   GRID
+============================= */
+.branch-grid {
+    display: flex;
+    gap: 2.5rem;
     justify-content: center;
-    z-index: 999;
+    width: 100%;
+    max-width: 1200px;
 }
 
-#appModal.active {
-    display: flex;
-}
-
-.modal-box {
+/* =============================
+   CARDS
+============================= */
+.branch-card {
+    flex: 1;
+    max-width: 320px;
+    padding: 2rem;
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--border-light);
     background: #fff;
-    padding: 25px;
-    width: 90%;
-    max-width: 450px;
-    border-radius: 10px;
-    box-shadow: 0 4px 40px rgba(0, 0, 0, 0.3);
-    position: relative;
+    color: var(--text-dark);
+    cursor: pointer;
+    box-shadow: var(--shadow-soft);
+    transition: all 0.3s ease;
 }
 
-.modal-close {
-    position: absolute;
-    right: 15px;
-    top: 10px;
-    font-size: 22px;
+.branch-card:hover {
+    transform: translateY(-6px);
+    border-color: var(--primary);
+}
+
+.branch-card.active {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+    background: #f9fbff;
+}
+
+/* =============================
+   FORM FIELD
+============================= */
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-bottom: 1.8rem;
+}
+
+.field-label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+/* =============================
+   INPUTS
+============================= */
+.form-input,
+.date-input,
+.duration-select {
+    padding: 0.9rem 1rem;
+    font-size: 1rem;
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--border-light);
+    outline: none;
+    width: 100%;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background: #fff;
+}
+
+.form-input:focus,
+.date-input:focus,
+.duration-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+}
+
+/* =============================
+   DATE + TIME
+============================= */
+.date-picker-container,
+.duration-picker-container {
+    width: 100%;
+    max-width: 420px;
+    margin-bottom: 1.8rem;
+}
+
+.time-slot-container {
+    margin-top: 2rem;
+    width: 100%;
+    max-width: 600px;
+}
+
+.time-slots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.time-slot {
+    padding: 0.75rem 0;
+    text-align: center;
+    border-radius: 999px;
+    border: 2px solid var(--border-light);
+    font-weight: 700;
+    cursor: pointer;
+    background: #fff;
+    transition: all 0.25s ease;
+}
+
+.time-slot:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.time-slot.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+    box-shadow: 0 6px 15px rgba(26, 115, 232, 0.25);
+}
+
+/* =============================
+   LICENCE SECTION
+============================= */
+.licence-option-group {
+    display: flex;
+    gap: 2rem;
+    margin: 2rem 0;
+}
+
+.licence-btn {
+    padding: 1rem 3rem;
+    border-radius: 999px;
+    border: 2px solid var(--border-light);
+    background: #fff;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.licence-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.licence-row {
+    display: none;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 1.2rem;
+    margin-top: 2rem;
+}
+
+.licence-row.show {
+    display: grid;
+}
+
+.addon-group {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.addon-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.addon-options {
+    display: flex;
+    gap: 1rem;
+}
+
+.addon-btn {
+    padding: 0.7rem 2rem;
+    border-radius: 999px;
+    border: 2px solid var(--border-light);
+    background: #fff;
+    font-weight: 700;
     cursor: pointer;
 }
 
-.cta-row {
+.addon-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+/* =============================
+   PERSONAL INFO
+============================= */
+#personalSection {
+    width: 100%;
+}
+
+#personalSection .row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.8rem;
+    margin-bottom: 1.8rem;
+}
+
+/* =============================
+   NAV BUTTONS
+============================= */
+.nav-buttons {
+    width: 100%;
+    max-width: 600px;
     display: flex;
-    gap: 15px;
-    margin-top: 20px;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2.5rem;
 }
 
-.cta-primary {
-    background: #ff9800;
-    color: #fff;
-    font-size: 18px;
-    font-weight: bold;
-    padding: 16px;
-    border-radius: 8px;
-    flex: 1;
-    box-shadow: 0 6px 18px rgba(255, 152, 0, 0.5);
-    animation: pulse 1.6s infinite;
+.back-btn,
+.next-btn {
+    padding: 0.85rem 1.8rem;
+    border-radius: 999px;
+    border: none;
+    background: var(--primary);
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
 }
 
-.cta-primary:hover {
-    background: #f57c00;
+.back-btn:hover,
+.next-btn:hover {
+    opacity: 0.9;
 }
 
-.cta-secondary {
-    background: #1a73e8;
-    color: #fff;
-    padding: 16px;
-    border-radius: 8px;
-    flex: 1;
+/* =============================
+   ERROR
+============================= */
+.error-text {
+    color: #e53935;
+    font-weight: 600;
 }
 
-.price-box {
-    font-size: 26px;
-    padding: 18px;
-    background: #fff3e0;
-    border-radius: 10px;
-    color: #e65100;
-    text-align: center;
-    margin-bottom: 15px;
-}
+/* =============================
+   MOBILE
+============================= */
+@media (max-width: 768px) {
 
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.03);
-    }
-
-    100% {
-        transform: scale(1);
-    }
-}
-
-/* ------------------------------------------------
-   RESPONSIVE DESIGN
--------------------------------------------------- */
-@media (max-width: 600px) {
-
-    .form-row {
+    .section-header {
         flex-direction: column;
-        gap: 8px;
-    }
-
-    .inline-row {
-        flex-direction: column;
+        gap: 1rem;
         align-items: flex-start;
     }
 
-    .inline-options {
-        flex-direction: row;
-        /* Keep horizontal */
-        flex-wrap: wrap;
-        gap: 6px;
-    }
-
-    .accept-row {
-        flex-direction: row;
-        flex-wrap: wrap;
-    }
-
-    .header-container {
+    .branch-grid {
         flex-direction: column;
+        align-items: center;
     }
 
-    .header-container img {
-        max-width: 70px;
+    .branch-card {
+        width: 100%;
+        max-width: 100%;
     }
 
-    .header-container h1 {
-        font-size: 20px;
+    .licence-row {
+        grid-template-columns: 1fr;
     }
 
-    .inline-options label {
-        margin-bottom: 0;
-        /* prevent breaking */
-    }
-}
-
-/* ------------------------------------------------
-   PRINT STYLES
--------------------------------------------------- */
-@media print {
-
-    body {
-        margin: 0;
-        padding: 0;
+    .nav-buttons {
+        flex-direction: column;
+        gap: 1rem;
     }
 
-    header,
-    footer,
-    button {
-        display: none !important;
-    }
-
-    .form-card {
-        width: 210mm;
-        height: auto;
-        padding: 0 5mm;
-        box-shadow: none;
-        border-radius: 0;
-        page-break-inside: avoid;
-    }
-
-    input,
-    select,
-    textarea {
-        font-size: 12px;
-        border: 1px solid #000;
-    }
-
-    .notes-box {
-        padding: 6px;
-        font-size: 12px;
-        line-height: 1.1;
-        break-inside: avoid;
+    .nav-buttons button {
+        width: 100%;
     }
 }
