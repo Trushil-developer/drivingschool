@@ -64,6 +64,7 @@ const backToCarsBtn = document.getElementById("backToCars");
 const backToDateBtn = document.getElementById("backToDate");
 const backToLicenceBtn = document.getElementById("backToLicence");
 const backToLicenceFromAddonBtn = document.getElementById("backToLicenceFromAddon");
+const backToAddonBtn = document.getElementById("backToAddon");
 
 /* =====================================================
    INIT
@@ -202,6 +203,7 @@ function attachNavigationEvents() {
     backToDateBtn && (backToDateBtn.onclick = () => showSection("date"));
     backToLicenceBtn && (backToLicenceBtn.onclick = () => showSection("licence"));
     backToLicenceFromAddonBtn && (backToLicenceFromAddonBtn.onclick = () => showSection("licence"));
+    backToAddonBtn && (backToAddonBtn.onclick = () => showSection("addon"));
 
     durationSelect.onchange = () => {
         if (!durationSelect.value) return;
