@@ -31,8 +31,9 @@
                     <div class="step" data-step="2">Car</div>
                     <div class="step" data-step="3">Date</div>
                     <div class="step" data-step="4">Licence</div>
-                    <div class="step" data-step="5">Add-on</div>
-                    <div class="step" data-step="6">Personal</div>
+                    <div class="step" data-step="5">Instructor</div>
+                    <div class="step" data-step="6">Add-on</div>
+                    <div class="step" data-step="7">Personal</div>
                 </div>
 
                 <div class="mobile-progress">
@@ -176,6 +177,49 @@
                         <button type="button" id="goToAddon" class="next-btn">Next →</button>
                     </div>
 
+                </section>
+
+
+                <!-- ===== INSTRUCTOR SECTION ===== -->
+                <section class="form-step" id="instructorSection">
+                    <div class="section-header">
+                        <h2>Instructor Preference</h2>
+                        <div class="total-price">₹0</div>
+                    </div>
+
+                    <div class="licence-card">
+
+                        <p class="licence-question">
+                            Do you know your instructor?
+                        </p>
+
+                        <div class="licence-choice">
+                            <button type="button" class="instructor-btn" data-value="yes">
+                                👨‍🏫 Yes
+                            </button>
+                            <button type="button" class="instructor-btn" data-value="no">
+                                ❌ No
+                            </button>
+                        </div>
+
+                        <!-- Instructor dropdown -->
+                        <div id="instructorSelectWrap" hidden>
+                            <select id="instructorSelect" class="form-input">
+                                <option value="">Select Instructor</option>
+                            </select>
+                        </div>
+
+                        <!-- No instructor info -->
+                        <div id="noInstructorInfo" class="licence-info" hidden>
+                            Do not worry, we will assign you an instructor.
+                        </div>
+
+                    </div>
+
+                    <div class="nav-buttons">
+                        <button type="button" id="backToLicence" class="back-btn">← Back</button>
+                        <button type="button" id="goToAddonFromInstructor" class="next-btn">Next →</button>
+                    </div>
                 </section>
 
                 <!-- ===== ADD-ON SECTION ===== -->

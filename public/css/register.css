@@ -697,6 +697,42 @@ footer {
     color: #fff;
 }
 
+/* INSTRUCTOR SECTION */
+.instructor-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    border: 2px solid var(--border-light);
+    background: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+}
+
+.instructor-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.instructor-choice {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+    .instructor-choice {
+        grid-template-columns: 1fr;
+    }
+}
 
 
 /* MOBILE */

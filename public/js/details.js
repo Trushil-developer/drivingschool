@@ -118,9 +118,13 @@ import {
             for (const key in booking) {
                 if (['id','attendance_status','present_days','hold_status','hold_from','resume_from','extended_days','created_at','certificate_url'].includes(key)) continue;
 
-                let value = booking[key] || '';
+                let value = booking[key];
+
+                if (value === null || value === undefined) value = '';
                 if (key.includes('date') || key === 'starting_from') value = formatDate(value);
-                if (['cov_lmv','cov_mc'].includes(key)) value = value ? 'Yes' : 'No';
+                if (['cov_lmv','cov_mc','ac_facility','pickup_drop'].includes(key)) {
+                    value = Number(value) === 1 ? 'Yes' : 'No';
+                }
 
                 const label = key.replace(/_/g, " ");
                 detailsTable.insertAdjacentHTML("beforeend", `
@@ -267,7 +271,7 @@ import {
                     continue;
                 }
 
-                if (['cov_lmv','cov_mc','hold_status'].includes(key)) {
+                if (['cov_lmv','cov_mc','ac_facility','pickup_drop','hold_status'].includes(key)) {
                     const checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
                     checkbox.checked = (val === 'Yes');

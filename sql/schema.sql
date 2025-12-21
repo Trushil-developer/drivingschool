@@ -598,6 +598,64 @@ SET @sql := IF(@col_exists=0,
     'ALTER TABLE bookings ADD COLUMN certificate_url VARCHAR(255);',
     'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ac_facility
+SET @col_exists := (
+    SELECT COUNT(*) 
+    FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool'
+      AND table_name='bookings'
+      AND column_name='ac_facility'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE bookings ADD COLUMN ac_facility TINYINT(1) DEFAULT 0;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- pickup_drop
+SET @col_exists := (
+    SELECT COUNT(*) 
+    FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool'
+      AND table_name='bookings'
+      AND column_name='pickup_drop'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE bookings ADD COLUMN pickup_drop TINYINT(1) DEFAULT 0;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- has_licence
+SET @col_exists := (
+    SELECT COUNT(*) 
+    FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool'
+      AND table_name='bookings'
+      AND column_name='has_licence'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE bookings ADD COLUMN has_licence ENUM("Yes","No") DEFAULT "No";',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- ATTENDANCE TABLE
 -- =====================================

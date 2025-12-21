@@ -1,3 +1,18 @@
+(function enforceTrainingDaysGuard() {
+    const params = new URLSearchParams(window.location.search);
+
+    const trainingDays =
+        history.state?.training_days ||
+        window.training_days ||
+        sessionStorage.getItem("training_days") ||
+        localStorage.getItem("training_days") ||
+        params.get("training_days");
+
+    if (!trainingDays) {
+        window.location.replace("index.html");
+    }
+})();
+
 document.addEventListener("DOMContentLoaded", init);
 
 /* =====================================================
@@ -15,6 +30,7 @@ let state = {
     timeSlot: null,
     hasLicence: null,
     licenceData: { dlNo: "", from: "", to: "" },
+    instructor: { knows: null, name: ""},
     personalData: {
         fullName: "",
         mobile: "",
@@ -53,11 +69,17 @@ const addonButtons = document.querySelectorAll(".addon-btn");
 
 const personalSection = document.getElementById("personalSection");
 const submitBookingBtn = document.getElementById("submitBooking");
+const instructorSection = document.getElementById("instructorSection");
+const instructorButtons = document.querySelectorAll(".instructor-btn");
+const instructorSelect = document.getElementById("instructorSelect");
+const instructorSelectWrap = document.getElementById("instructorSelectWrap");
+const noInstructorInfo = document.getElementById("noInstructorInfo");
 
 /* NAVIGATION BUTTONS */
 const goToDateBtn = document.getElementById("goToDate");
 const goToLicenceBtn = document.getElementById("goToLicence");
 const goToPersonalBtn = document.getElementById("goToPersonal");
+const goToAddonFromInstructorBtn = document.getElementById("goToAddonFromInstructor");
 
 const backToBranchesBtn = document.getElementById("backToBranch");
 const backToCarsBtn = document.getElementById("backToCars");
@@ -80,13 +102,14 @@ function init() {
     attachAddonEvents();
     attachLicenceEvents();
     attachPersonalSubmit();
+    attachInstructorEvents();
 }
 
 /* =====================================================
    SECTION CONTROL
 ===================================================== */
 function showSection(section) {
-    const allSections = [branchSection, carsSection, dateSection, licenceSection, addonSection, personalSection];
+    const allSections = [branchSection, carsSection, dateSection, licenceSection, instructorSection, addonSection, personalSection];
     allSections.forEach(s => {
         s.hidden = true;
         s.classList.remove("active");
@@ -98,6 +121,7 @@ function showSection(section) {
         case "cars": target = carsSection; break;
         case "date": target = dateSection; break;
         case "licence": target = licenceSection; break;
+        case "instructor": target = instructorSection; break;
         case "addon": target = addonSection; break;
         case "personal": target = personalSection; break;
     }
@@ -109,9 +133,9 @@ function showSection(section) {
 
     // Update step indicator
     document.querySelectorAll(".step-indicator .step").forEach((el) => el.classList.remove("active"));
-    const stepMap = { branch: 0, cars: 1, date: 2, licence: 3, addon: 4, personal: 5 };
+    const stepMap = { branch: 0, cars: 1, date: 2, licence: 3,  instructor: 4, addon: 5, personal: 6 };
     const currentStep = stepMap[section] + 1;
-    const totalSteps = 6;
+    const totalSteps = 7;
 
     /* Desktop indicator */
     const stepEl = document.querySelector(`.step-indicator .step:nth-child(${currentStep})`);
@@ -220,7 +244,7 @@ function attachNavigationEvents() {
     backToCarsBtn && (backToCarsBtn.onclick = () => showSection("cars"));
     backToDateBtn && (backToDateBtn.onclick = () => showSection("date"));
     backToLicenceBtn && (backToLicenceBtn.onclick = () => showSection("licence"));
-    backToLicenceFromAddonBtn && (backToLicenceFromAddonBtn.onclick = () => showSection("licence"));
+    backToLicenceFromAddonBtn && (backToLicenceFromAddonBtn.onclick = () => showSection("instructor"));
     backToAddonBtn && (backToAddonBtn.onclick = () => showSection("addon"));
 
     durationSelect.onchange = () => {
@@ -327,9 +351,47 @@ function attachLicenceEvents() {
             state.licenceData = { dlNo, from: dlFrom, to: dlTo };
         }
 
-        showSection("addon");
+        showSection("instructor");
     });
 }
+
+/* =====================================================
+   INSTUCTORS EVENTS
+===================================================== */
+
+function attachInstructorEvents() {
+
+    instructorButtons.forEach(btn => {
+        btn.onclick = () => {
+            instructorButtons.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+
+            state.instructor.knows = btn.dataset.value;
+
+            if (state.instructor.knows === "yes") {
+                instructorSelectWrap.hidden = false;
+                noInstructorInfo.hidden = true;
+                loadInstructors();
+            } else {
+                instructorSelectWrap.hidden = true;
+                noInstructorInfo.hidden = false;
+                state.instructor.name = "";
+            }
+        };
+    });
+
+    goToAddonFromInstructorBtn.onclick = () => {
+        if (state.instructor.knows === "yes" && !state.instructor.name) {
+            return alert("Please select instructor");
+        }
+        showSection("addon");
+    };
+
+    instructorSelect.onchange = () => {
+        state.instructor.name = instructorSelect.value;
+    };
+}
+
 
 /* =====================================================
    ADD-ON EVENTS
@@ -352,40 +414,134 @@ function attachAddonEvents() {
 /* =====================================================
    PERSONAL SUBMIT
 ===================================================== */
+let isSubmitting = false;
+
 function attachPersonalSubmit() {
-    submitBookingBtn.onclick = () => {
-        const inputs = personalSection.querySelectorAll("input, select");
-        let valid = true;
+    submitBookingBtn.onclick = async (e) => {
+        e.preventDefault();
+        if (isSubmitting) return;
 
-        inputs.forEach(input => {
-            const val = input.value.trim();
-            if (!val && input.required !== false) {
-                valid = false;
-                input.style.borderColor = "red";
-            } else {
-                input.style.borderColor = "";
-                if (input.id) state.personalData[input.id] = val;
-            }
-        });
+        /* =============================
+           COLLECT PERSONAL DATA
+        ============================== */
+        const get = (id) => document.getElementById(id)?.value.trim() || "";
 
-        if (!valid) return alert("Please fill all personal information");
-
-        const bookingData = {
-            branch: state.branch,
-            car: state.car,
-            totalPrice: state.totalPrice,
-            date: startDateInput.value,
-            duration: state.duration,
-            timeSlot: state.timeSlot,
-            hasLicence: state.hasLicence,
-            licenceData: state.licenceData,
-            addons: state.addons,
-            personalData: state.personalData
+        state.personalData = {
+            fullName: get("fullName").toUpperCase(),
+            mobile: get("mobile"),
+            email: get("email"),
+            address: get("address").toUpperCase(),
+            pinCode: get("pinCode"),
+            sex: get("sex"),
+            birthDate: get("birthDate"),
+            occupation: get("occupation").toUpperCase(),
+            reference: get("reference").toUpperCase()
         };
 
-        console.log("Booking Data:", bookingData);
-        alert("Booking submitted successfully!");
-        // TODO: send bookingData to backend
+        /* =============================
+           AGE VALIDATION (16+)
+        ============================== */
+        const isAtLeastYearsOld = (dateStr, years) => {
+            const birth = new Date(dateStr);
+            const today = new Date();
+            birth.setFullYear(birth.getFullYear() + years);
+            return birth <= today;
+        };
+
+        if (!state.personalData.birthDate || !isAtLeastYearsOld(state.personalData.birthDate, 16)) {
+            return alert("You must be at least 16 years old.");
+        }
+
+        /* =============================
+           FORMAT TIME (HH:mm:ss)
+        ============================== */
+        let allotted_time = "";
+        if (state.timeSlot) {
+            const [time, modifier] = state.timeSlot.split(" ");
+            let [hours, minutes] = time.split(":").map(Number);
+            if (modifier === "PM" && hours !== 12) hours += 12;
+            if (modifier === "AM" && hours === 12) hours = 0;
+            allotted_time = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+        }
+
+        /* =============================
+           BUILD BACKEND PAYLOAD
+           (OLD API COMPATIBLE)
+        ============================== */
+        const body = {
+            branch: state.branch,
+            training_days: getTrainingDaysFromProps(),
+            car_name: state.car,
+
+            ac_facility: state.addons.ac ? 1 : 0,
+            pickup_drop: state.addons.pickup ? 1 : 0,
+            has_licence: state.hasLicence === "yes" ? "yes" : "no",
+
+            customer_name: state.personalData.fullName,
+            address: state.personalData.address,
+            pincode: state.personalData.pinCode,
+            mobile_no: state.personalData.mobile,
+            whatsapp_no: state.personalData.mobile,
+
+            sex: state.personalData.sex,
+            birth_date: state.personalData.birthDate,
+            email: state.personalData.email,
+            occupation: state.personalData.occupation,
+            ref: state.personalData.reference || "",
+
+            dl_no: state.hasLicence === "yes" ? state.licenceData.dlNo : "",
+            dl_from: state.hasLicence === "yes" ? state.licenceData.from : "",
+            dl_to: state.hasLicence === "yes" ? state.licenceData.to : "",
+
+            instructor_name: state.instructor.name || null,
+
+            cov_lmv: false,
+            cov_mc: false,
+
+            starting_from: state.date,
+            allotted_time,
+            duration_minutes: state.duration,
+
+            total_fees: state.totalPrice,
+            advance: 0
+        };
+
+        /* =============================
+           FINAL REQUIRED CHECKS
+        ============================== */
+        if (!body.branch) return alert("Please select branch.");
+        if (!body.car_name) return alert("Please select car.");
+        if (!body.starting_from) return alert("Please select start date.");
+        if (!body.allotted_time) return alert("Please select time slot.");
+        if (!body.duration_minutes) return alert("Please select duration.");
+
+        /* =============================
+           SUBMIT
+        ============================== */
+        isSubmitting = true;
+        submitBookingBtn.disabled = true;
+
+        try {
+            const res = await fetch("/api/bookings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || "Submission failed");
+            }
+
+            console.log("Booking submitted:", body);
+            alert("Booking submitted successfully!");
+        } catch (err) {
+            console.error(err);
+            alert("Server error. Please try again later.");
+        } finally {
+            isSubmitting = false;
+            submitBookingBtn.disabled = false;
+        }
     };
 }
 
@@ -413,5 +569,47 @@ function updateTotalPrice() {
     });
 }
 
+function getTrainingDaysFromProps() {
+    if (history.state?.training_days) {
+        return String(history.state.training_days);
+    }
 
+    if (window.training_days) {
+        return String(window.training_days);
+    }
+
+    const sessionValue = sessionStorage.getItem("training_days");
+    if (sessionValue) return sessionValue;
+
+    const localValue = localStorage.getItem("training_days");
+    if (localValue) return localValue;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("training_days")) {
+        return params.get("training_days");
+    }
+
+    return "15";
+}
+
+async function loadInstructors() {
+    try {
+        const res = await fetch("/api/instructors");
+        const data = await res.json();
+
+        const filtered = data.instructors.filter(i => i.branch === state.branch && i.is_active);
+
+        if (filtered.length === 0) {
+            instructorSelect.innerHTML = `<option value="">No instructors available for this branch</option>`;
+            return;
+        }
+
+        instructorSelect.innerHTML = `
+            <option value="">Select Instructor</option>
+            ${filtered.map(i => `<option value="${i.instructor_name}">${i.instructor_name}</option>`).join("")}
+        `;
+    } catch {
+        instructorSelect.innerHTML = `<option value="">Unable to load instructors</option>`;
+    }
+}
 

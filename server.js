@@ -80,7 +80,7 @@ app.use(
 export function computeAttendanceStatus(booking) {
   const hold = Number(booking.hold_status) === 1;
   const presentDays = Number(booking.present_days) || 0;
-  const trainingDays = booking.training_days ? Number(booking.training_days) || 15 : 15;
+  const trainingDays = Number(booking.training_days);
   const extended = Number(booking.extended_days || 0);
 
   const startDate = booking.starting_from ? new Date(booking.starting_from) : null;
@@ -154,16 +154,24 @@ app.post('/api/logout', (req, res) => {
 // ---------- BOOKINGS CRUD ----------
 app.post('/api/bookings', async (req, res, next) => {
   const data = req.body;
+  if (!data.training_days) {
+  return res.status(400).json({
+    success: false,
+    error: "Training days missing"
+  });
+}
   try {
     const sql = `
       INSERT INTO bookings (
         branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
         sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
         occupation, ref, allotted_time, duration_minutes, starting_from,
-        total_fees, advance, car_name, instructor_name, present_days, hold_status, attendance_status,
+        total_fees, advance, car_name, instructor_name,
+        ac_facility, pickup_drop, has_licence,
+        present_days, hold_status, attendance_status,
         certificate_url
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const initialPresentDays = 0;
@@ -171,7 +179,7 @@ app.post('/api/bookings', async (req, res, next) => {
 
     const preliminaryBooking = {
       starting_from: data.starting_from || null,
-      training_days: data.training_days || '15',
+      training_days: data.training_days,
       present_days: initialPresentDays,
       hold_status: initialHoldStatus
     };
@@ -203,6 +211,10 @@ app.post('/api/bookings', async (req, res, next) => {
       data.advance || 0,
       data.car_name || '',
       data.instructor_name || '',
+      data.ac_facility ? 1 : 0,
+      data.pickup_drop ? 1 : 0,
+      data.has_licence === 'yes' ? 'Yes' : 'No',
+  
       initialPresentDays,
       initialHoldStatus,
       attendanceStatus,
@@ -224,7 +236,9 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
         id, branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
         sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
         occupation, ref, allotted_time, duration_minutes, starting_from, total_fees, advance,
-        car_name, instructor_name, present_days, hold_status, attendance_status, certificate_url,
+        car_name, instructor_name,
+        ac_facility, pickup_drop, has_licence,
+        present_days, hold_status, attendance_status, certificate_url,
         created_at
       FROM bookings
       ORDER BY id DESC
@@ -281,8 +295,8 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
         branch=?, training_days=?, customer_name=?, address=?, pincode=?, mobile_no=?, whatsapp_no=?,
         sex=?, birth_date=?, cov_lmv=?, cov_mc=?, dl_no=?, dl_from=?, dl_to=?, email=?,
         occupation=?, ref=?, allotted_time=?, duration_minutes=?, starting_from=?,
-        total_fees=?, advance=?, car_name=?, instructor_name=?, hold_status=?, hold_from=?, resume_from=?, extended_days=?
-      WHERE id=?
+        total_fees=?, advance=?, car_name=?, instructor_name=?,ac_facility=?, pickup_drop=?, has_licence=?, hold_status=?, hold_from=?, resume_from=?, extended_days=?
+        WHERE id=?
     `;
 
     const values = [
@@ -304,18 +318,24 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
       data.occupation || '',
       data.ref || '',
       data.allotted_time || null,
-      data.duration_minutes || 30, 
+      data.duration_minutes || 30,
       toMySQLDate(data.starting_from),
       data.total_fees || 0,
       data.advance || 0,
       data.car_name || '',
       data.instructor_name || '',
+
+      data.ac_facility ? 1 : 0,
+      data.pickup_drop ? 1 : 0,
+      data.has_licence === 'yes' ? 'Yes' : 'No',
+
       newHoldStatus,
       hold_from ? toMySQLDate(hold_from) : null,
       resume_from ? toMySQLDate(resume_from) : null,
       extended_days,
       id
     ];
+
 
     await dbPool.query(sql, values);
     await recomputeAndStoreAttendanceStatus(id);
