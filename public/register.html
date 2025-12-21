@@ -35,13 +35,23 @@
                     <div class="step" data-step="6">Personal</div>
                 </div>
 
+                <div class="mobile-progress">
+                    <div class="mobile-step-text">Step 1 of 6</div>
+                    <div class="mobile-progress-bar">
+                        <div class="mobile-progress-fill"></div>
+                    </div>
+                </div>
+
                 <!-- TOTAL PRICE DISPLAY -->
                 <!-- <div class="total-price" >₹0</div> -->
 
                 <!-- ===== BRANCH SECTION ===== -->
                 <section class="form-step active" id="branchSection">
                     <h2>Select Your Nearest Branch</h2>
-                    <div id="branchCheckboxGroup" class="card-grid"></div>
+
+                    <div class="branch-list" id="branchCheckboxGroup">
+                        <!-- Branches injected via JS -->
+                    </div>
                 </section>
 
                 <!-- ===== CAR SECTION ===== -->
@@ -50,7 +60,11 @@
                         <h2>Select Your Car</h2>
                         <div class="total-price">₹0</div>
                     </div>
-                    <div id="carsGrid" class="card-grid"></div>
+
+                    <div class="car-grid" id="carsGrid">
+                        <!-- Cars injected via JS -->
+                    </div>
+
                     <div class="nav-buttons">
                         <button type="button" id="backToBranch" class="back-btn">← Back</button>
                         <button type="button" id="goToDate" class="next-btn">Next →</button>
@@ -63,24 +77,43 @@
                         <h2>Schedule Your Session</h2>
                         <div class="total-price">₹0</div>
                     </div>
-                    <div class="input-group">
-                        <label>Start Date</label>
-                        <input type="date" id="startDate" class="form-input">
+
+                    <div class="schedule-card">
+
+                        <!-- DATE -->
+                        <div class="schedule-block">
+                            <label class="schedule-label">Preffered Start Date</label>
+                            <input type="date" id="startDate" class="form-input schedule-input">
+                        </div>
+
+                        <!-- DURATION -->
+                        <div class="schedule-block">
+                            <label class="schedule-label">Total session Duration per day</label>
+                            <div class="duration-chips">
+                                <button type="button" class="duration-chip" data-value="30">30 min</button>
+                                <button type="button" class="duration-chip" data-value="60">60 min</button>
+                                <button type="button" class="duration-chip" data-value="90">90 min</button>
+                                <button type="button" class="duration-chip" data-value="120">120 min</button>
+                            </div>
+
+                            <!-- Hidden select for JS compatibility -->
+                            <select id="durationSelect" hidden>
+                                <option value="">-- Select Duration --</option>
+                                <option value="30">30</option>
+                                <option value="60">60</option>
+                                <option value="90">90</option>
+                                <option value="120">120</option>
+                            </select>
+                        </div>
+
+                        <!-- TIME SLOTS -->
+                        <div id="timeSlotContainer" class="schedule-block" hidden>
+                            <label class="schedule-label">Available Time Slots</label>
+                            <div id="timeSlotsGrid" class="time-slots-grid"></div>
+                        </div>
+
                     </div>
-                    <div class="input-group">
-                        <label>Duration</label>
-                        <select id="durationSelect" class="form-input">
-                            <option value="">-- Select Duration --</option>
-                            <option value="30">30 Minutes</option>
-                            <option value="60">60 Minutes</option>
-                            <option value="90">90 Minutes</option>
-                            <option value="120">120 Minutes</option>
-                        </select>
-                    </div>
-                    <div id="timeSlotContainer" class="time-slot-container" hidden>
-                        <label>Select Time Slot</label>
-                        <div id="timeSlotsGrid" class="time-slots-grid"></div>
-                    </div>
+
                     <div class="nav-buttons">
                         <button type="button" id="backToCars" class="back-btn">← Back</button>
                         <button type="button" id="goToLicence" class="next-btn">Next →</button>
@@ -90,34 +123,59 @@
                 <!-- ===== LICENCE SECTION ===== -->
                 <section class="form-step" id="licenceSection">
                     <div class="section-header">
-                        <h2>Do you have a Learner's / Driver's Licence?</h2>
+                        <h2>Licence Information</h2>
                         <div class="total-price">₹0</div>
                     </div>
-                    <div class="button-group">
-                        <button type="button" class="licence-btn" data-value="yes">Yes</button>
-                        <button type="button" class="licence-btn" data-value="no">No</button>
-                    </div>
-                    <div id="licenceDetails" class="licence-row" hidden>
-                        <div class="input-group licence-inputs">
-                            <div class="input-item">
-                                <label for="dlNumber">DL Number</label>
-                                <input type="text" id="dlNumber" class="form-input" placeholder="Enter DL Number">
-                            </div>
-                            <div class="input-item">
-                                <label for="dlFrom">Valid From</label>
+
+                    <div class="licence-card">
+
+                        <!-- QUESTION -->
+                        <p class="licence-question">
+                            Do you have a Learner's or Driver's Licence?
+                        </p>
+
+                        <!-- YES / NO OPTIONS -->
+                        <div class="licence-choice">
+                            <button type="button" class="licence-btn" data-value="yes">
+                                <span class="licence-icon">🪪</span>
+                                <span>Yes, I have one</span>
+                            </button>
+
+                            <button type="button" class="licence-btn" data-value="no">
+                                <span class="licence-icon">🚘</span>
+                                <span>No, I am learning</span>
+                            </button>
+                        </div>
+
+                        <!-- LICENCE DETAILS -->
+                        <div id="licenceDetails" class="licence-details" hidden>
+
+                            <div class="input-group">
+                                <input type="text" id="dlNumber" class="form-input" placeholder="DL Number">
                                 <input type="date" id="dlFrom" class="form-input">
-                            </div>
-                            <div class="input-item">
-                                <label for="dlTo">Valid To</label>
                                 <input type="date" id="dlTo" class="form-input">
                             </div>
+
+                            <p class="licence-note">
+                                Your licence information is used only for verification.
+                            </p>
+
                         </div>
+
+                        <!-- NO LICENCE INFO -->
+                        <div id="noLicenceInfo" class="licence-info" hidden>
+                            <p>
+                                No worries! You can still continue your driving course without a licence.
+                            </p>
+                        </div>
+
                     </div>
 
                     <div class="nav-buttons">
                         <button type="button" id="backToDate" class="back-btn">← Back</button>
                         <button type="button" id="goToAddon" class="next-btn">Next →</button>
                     </div>
+
                 </section>
 
                 <!-- ===== ADD-ON SECTION ===== -->
@@ -126,23 +184,49 @@
                         <h2>Add-on Services</h2>
                         <div class="total-price">₹0</div>
                     </div>
-                    <div class="addon-group">
-                        <div class="addon-item">
-                            <span>AC Facility</span>
-                            <div class="button-group">
-                                <button type="button" class="addon-btn" data-addon="ac" data-value="yes">Yes</button>
-                                <button type="button" class="addon-btn" data-addon="ac" data-value="no">No</button>
+                    <div class="addon-list">
+
+                        <div class="addon-card">
+                            <div class="addon-info">
+                                <span class="addon-icon">❄️</span>
+                                <div>
+                                    <h4>AC Facility</h4>
+                                    <p>Comfortable air-conditioned driving</p>
+                                </div>
+                            </div>
+
+                            <div class="addon-action">
+                                <span class="addon-price">+ ₹1000</span>
+                                <div class="button-group">
+                                    <button type="button" class="addon-btn" data-addon="ac"
+                                        data-value="yes">Yes</button>
+                                    <button type="button" class="addon-btn" data-addon="ac" data-value="no">No</button>
+                                </div>
                             </div>
                         </div>
-                        <div class="addon-item">
-                            <span>Pick-up & Drop Facility</span>
-                            <div class="button-group">
-                                <button type="button" class="addon-btn" data-addon="pickup"
-                                    data-value="yes">Yes</button>
-                                <button type="button" class="addon-btn" data-addon="pickup" data-value="no">No</button>
+
+                        <div class="addon-card">
+                            <div class="addon-info">
+                                <span class="addon-icon">🚗</span>
+                                <div>
+                                    <h4>Pick-up & Drop</h4>
+                                    <p>Doorstep pick-up and drop service</p>
+                                </div>
+                            </div>
+
+                            <div class="addon-action">
+                                <span class="addon-price">+ ₹1000</span>
+                                <div class="button-group">
+                                    <button type="button" class="addon-btn" data-addon="pickup"
+                                        data-value="yes">Yes</button>
+                                    <button type="button" class="addon-btn" data-addon="pickup"
+                                        data-value="no">No</button>
+                                </div>
                             </div>
                         </div>
+
                     </div>
+
                     <div class="nav-buttons">
                         <button type="button" id="backToLicenceFromAddon" class="back-btn">← Back</button>
                         <button type="button" id="goToPersonal" class="next-btn">Next →</button>
@@ -155,31 +239,61 @@
                         <h2>Personal Information</h2>
                         <div class="total-price">₹0</div>
                     </div>
-                    <div class="input-group">
-                        <input type="text" id="fullName" class="form-input" placeholder="Full Name">
-                        <input type="tel" id="mobile" class="form-input" placeholder="Mobile">
-                        <input type="email" id="email" class="form-input" placeholder="Email">
+
+                    <div class="personal-card">
+
+                        <!-- BASIC INFO -->
+                        <div class="personal-group">
+                            <h4 class="personal-title">Basic Details</h4>
+                            <div class="input-group">
+                                <input type="text" id="fullName" class="form-input" placeholder="Full Name">
+                                <input type="tel" id="mobile" class="form-input" placeholder="Mobile Number">
+                                <input type="email" id="email" class="form-input" placeholder="Email Address">
+                            </div>
+                        </div>
+
+                        <!-- ADDRESS -->
+                        <div class="personal-group">
+                            <h4 class="personal-title">Address</h4>
+                            <div class="input-group">
+                                <input type="text" id="address" class="form-input" placeholder="Full Address">
+                                <input type="text" id="pinCode" class="form-input" placeholder="PIN Code">
+                            </div>
+                        </div>
+
+                        <!-- OTHER INFO -->
+                        <div class="personal-group">
+                            <h4 class="personal-title">Other Information</h4>
+                            <div class="input-group">
+                                <select id="sex" class="form-input">
+                                    <option value="">Select Gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Other</option>
+                                </select>
+                                <div class="dob-field">
+                                    <label for="birthDate" class="dob-label">Date of Birth</label>
+                                    <input type="date" id="birthDate" class="form-input">
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <input type="text" id="occupation" class="form-input" placeholder="Occupation">
+                                <input type="text" id="reference" class="form-input" placeholder="Reference (optional)">
+                            </div>
+                        </div>
+
+                        <!-- TRUST NOTE -->
+                        <div class="personal-note">
+                            🔒 Your information is safe and used only for course registration.
+                        </div>
+
                     </div>
-                    <div class="input-group">
-                        <input type="text" id="address" class="form-input" placeholder="Address">
-                        <input type="text" id="pinCode" class="form-input" placeholder="PIN Code">
-                    </div>
-                    <div class="input-group">
-                        <select id="sex" class="form-input">
-                            <option value="">Select Sex</option>
-                            <option value="male">Male</option>
-                            <option value="female">Female</option>
-                            <option value="other">Other</option>
-                        </select>
-                        <input type="date" id="birthDate" class="form-input">
-                    </div>
-                    <div class="input-group">
-                        <input type="text" id="occupation" class="form-input" placeholder="Occupation">
-                        <input type="text" id="reference" class="form-input" placeholder="Reference (if any)">
-                    </div>
+
                     <div class="nav-buttons">
                         <button type="button" id="backToAddon" class="back-btn">← Back</button>
-                        <button type="submit" id="submitBooking" class="submit-btn">Submit →</button>
+                        <button type="submit" id="submitBooking" class="submit-btn">
+                            Confirm & Submit →
+                        </button>
                     </div>
                 </section>
 

@@ -110,8 +110,21 @@ function showSection(section) {
     // Update step indicator
     document.querySelectorAll(".step-indicator .step").forEach((el) => el.classList.remove("active"));
     const stepMap = { branch: 0, cars: 1, date: 2, licence: 3, addon: 4, personal: 5 };
-    const stepEl = document.querySelector(`.step-indicator .step:nth-child(${stepMap[section]+1})`);
-    if(stepEl) stepEl.classList.add("active");
+    const currentStep = stepMap[section] + 1;
+    const totalSteps = 6;
+
+    /* Desktop indicator */
+    const stepEl = document.querySelector(`.step-indicator .step:nth-child(${currentStep})`);
+    if (stepEl) stepEl.classList.add("active");
+
+    /* Mobile progress */
+    const stepText = document.querySelector(".mobile-step-text");
+    const progressFill = document.querySelector(".mobile-progress-fill");
+
+    if (stepText && progressFill) {
+        stepText.textContent = `Step ${currentStep} of ${totalSteps}`;
+        progressFill.style.width = `${(currentStep / totalSteps) * 100}%`;
+    }
 }
 
 /* =====================================================
@@ -130,9 +143,11 @@ async function loadBranches() {
 
         branchGrid.innerHTML = data.branches.map(b => `
             <div class="branch-card" data-branch="${b.branch_name}">
-                <h3>${b.branch_name}</h3>
+                <div class="branch-name">${b.branch_name}</div>
+                <div class="branch-action">Select</div>
             </div>
         `).join("");
+
 
         document.querySelectorAll(".branch-card").forEach(card => {
             card.onclick = async () => {
@@ -166,9 +181,12 @@ async function loadCars() {
         }
 
         carsGrid.innerHTML = cars.map(car => `
-            <div class="branch-card car-card" data-car="${car.car_name}" data-price="${car.price_15_days}">
-                <h3>${car.car_name}</h3>
-                <p>Price: ₹${car.price_15_days}</p>
+            <div class="car-card" data-car="${car.car_name}" data-price="${car.price_15_days}">
+                <div class="car-card-body">
+                    <div class="car-name">${car.car_name}</div>
+                    <div class="car-price">₹${car.price_15_days}</div>
+                    <div class="car-price-note">15 days package</div>
+                </div>
             </div>
         `).join("");
 
@@ -211,6 +229,16 @@ function attachNavigationEvents() {
         generateTimeSlots();
         timeSlotContainer.hidden = false;
     };
+    document.querySelectorAll(".duration-chip").forEach(chip => {
+        chip.addEventListener("click", () => {
+            document.querySelectorAll(".duration-chip").forEach(c => c.classList.remove("active"));
+            chip.classList.add("active");
+
+            durationSelect.value = chip.dataset.value;
+            durationSelect.dispatchEvent(new Event("change"));
+        });
+    });
+
 
     goToLicenceBtn && (goToLicenceBtn.onclick = () => {
         if (!startDateInput.value || !state.duration || !state.timeSlot) {
@@ -268,15 +296,21 @@ function attachLicenceEvents() {
 
             state.hasLicence = btn.dataset.value;
 
+            const noLicenceInfo = document.getElementById("noLicenceInfo");
+            
             if (state.hasLicence === "yes") {
-                licenceDetails.hidden = false;
+                licenceDetails.hidden = false;   
+                noLicenceInfo.hidden = true;
             } else {
-                licenceDetails.hidden = true;
+                licenceDetails.hidden = true;  
+                noLicenceInfo.hidden = false;
+
                 state.licenceData = { dlNo: "", from: "", to: "" };
                 document.getElementById("dlNumber").value = "";
                 document.getElementById("dlFrom").value = "";
                 document.getElementById("dlTo").value = "";
             }
+
 
             goToAddonBtn.disabled = false;
         });
