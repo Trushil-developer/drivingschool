@@ -972,6 +972,35 @@ SET @sql := IF(
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- hear_about
+SET @col_exists := (
+    SELECT COUNT(*) 
+    FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' 
+      AND table_name='enquiries' 
+      AND column_name='hear_about'
+);
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE enquiries ADD COLUMN hear_about VARCHAR(50);',
+    'SELECT "hear_about exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- training_slots
+SET @col_exists := (
+    SELECT COUNT(*) 
+    FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE table_schema='drivingschool' 
+      AND table_name='enquiries' 
+      AND column_name='training_slots'
+);
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE enquiries ADD COLUMN training_slots INT;',
+    'SELECT "training_slots exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- slots
 SET @col_exists := (
