@@ -782,6 +782,12 @@ footer {
     opacity: 0.9;
 }
 
+.time-slot.disabled {
+    background-color: #eee;
+    color: #999;
+    cursor: not-allowed;
+}
+
 /* MOBILE */
 @media (max-width: 768px) {
     .instructor-choice {

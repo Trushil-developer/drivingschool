@@ -656,6 +656,66 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- allotted_time2
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='bookings'
+      AND column_name='allotted_time2'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE bookings ADD COLUMN allotted_time2 TIME;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+
+-- allotted_time3
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='bookings'
+      AND column_name='allotted_time3'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE bookings ADD COLUMN allotted_time3 TIME;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+
+-- allotted_time4
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='bookings'
+      AND column_name='allotted_time4'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE bookings ADD COLUMN allotted_time4 TIME;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+
 -- =====================================
 -- ATTENDANCE TABLE
 -- =====================================

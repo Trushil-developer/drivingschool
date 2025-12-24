@@ -34,6 +34,7 @@ let state = {
     date: null,
     duration: null,
     timeSlot: null,
+    selectedSlots: [],    
     hasLicence: null,
     licenceData: { dlNo: "", from: "", to: "" },
     instructor: { knows: null, name: ""},
@@ -94,6 +95,9 @@ const backToDateBtn = document.getElementById("backToDate");
 const backToLicenceBtn = document.getElementById("backToLicence");
 const backToLicenceFromAddonBtn = document.getElementById("backToLicenceFromAddon");
 const backToAddonBtn = document.getElementById("backToAddon");
+
+const SELECTED_TRAINING_DAYS = Number(getTrainingDaysFromProps());
+
 
 /* =====================================================
    INIT FUNCTION
@@ -222,15 +226,24 @@ async function loadCars() {
             return;
         }
 
-        carsGrid.innerHTML = cars.map(car => `
-            <div class="car-card" data-car="${car.car_name}" data-price="${car.price_15_days}">
-                <div class="car-card-body">
-                    <div class="car-name">${car.car_name}</div>
-                    <div class="car-price">₹${car.price_15_days}</div>
-                    <div class="car-price-note">15 days package</div>
+        carsGrid.innerHTML = cars.map(car => {
+            const price = getPriceByDays(car, SELECTED_TRAINING_DAYS);
+
+            return `
+                <div class="car-card"
+                    data-car="${car.car_name}"
+                    data-price="${price}">
+                    <div class="car-card-body">
+                        <div class="car-name">${car.car_name}</div>
+                        <div class="car-price">₹${price}</div>
+                        <div class="car-price-note">
+                            ${SELECTED_TRAINING_DAYS} days package
+                        </div>
+                    </div>
                 </div>
-            </div>
-        `).join("");
+            `;
+        }).join("");
+
 
         document.querySelectorAll(".car-card").forEach(card => {
             card.onclick = () => {
@@ -252,6 +265,15 @@ async function loadCars() {
 /* =====================================================
    NAVIGATION EVENTS
 ===================================================== */
+
+function getPriceByDays(car, days) {
+    switch (Number(days)) {
+        case 15: return car.price_15_days;
+        case 21: return car.price_21_days;
+        default: return car.price_15_days;
+    }
+}
+
 function attachNavigationEvents() {
     goToDateBtn && (goToDateBtn.onclick = () => {
         if (!validateCarSection()) return;
@@ -265,12 +287,26 @@ function attachNavigationEvents() {
     backToLicenceFromAddonBtn && (backToLicenceFromAddonBtn.onclick = () => showSection("instructor"));
     backToAddonBtn && (backToAddonBtn.onclick = () => showSection("addon"));
 
-    durationSelect.onchange = () => {
+    durationSelect.onchange = async () => {
         if (!durationSelect.value) return;
+
         state.duration = Number(durationSelect.value);
-        generateTimeSlots();
-        timeSlotContainer.hidden = false;
+        resetSlots(); 
+
+        if (startDateInput.value) {
+            timeSlotContainer.hidden = false;
+            await generateTimeSlots();
+        } else {
+            timeSlotContainer.hidden = true;
+        }
     };
+
+    startDateInput.addEventListener("change", async () => {
+        if (!state.branch || !state.car || !startDateInput.value || !state.duration) return;
+        resetSlots();
+        timeSlotContainer.hidden = false;
+        await generateTimeSlots();
+    });
 
     document.querySelectorAll(".duration-chip").forEach(chip => {
         chip.addEventListener("click", () => {
@@ -282,7 +318,7 @@ function attachNavigationEvents() {
         });
     });
 
-    goToAddonFromInstructorBtn && (goToLicenceBtn.onclick = () => {
+    goToLicenceBtn && (goToLicenceBtn.onclick = () => {
         if (!validateDateSection()) return;
         state.date = startDateInput.value;
         showSection("licence");
@@ -294,12 +330,28 @@ function attachNavigationEvents() {
     });
 }
 
+
 /* =====================================================
    TIME SLOTS
 ===================================================== */
-function generateTimeSlots() {
-    timeSlotsGrid.innerHTML = "";
+function requiredSlotCount() {
+    return Math.ceil(state.duration / 30);
+}
+
+function resetSlots() {
+    state.selectedSlots = [];
     state.timeSlot = null;
+    goToLicenceBtn.hidden = true;
+    document.querySelectorAll(".time-slot").forEach(s => s.classList.remove("active"));
+}
+
+async function generateTimeSlots() {
+    timeSlotsGrid.innerHTML = "";
+
+    // Get booked slots for current selection
+    const bookedSlots = await fetchBookedSlots(state.branch, state.car, startDateInput.value);
+    console.log("Booked slots for", state.branch, state.car, startDateInput.value, ":", bookedSlots);
+
 
     for (let h = 6; h < 22; h++) {
         for (let m of [0, 30]) {
@@ -308,23 +360,95 @@ function generateTimeSlots() {
             slot.className = "time-slot";
             slot.textContent = time;
 
-            slot.onclick = () => {
-                document.querySelectorAll(".time-slot").forEach(s => s.classList.remove("active"));
-                slot.classList.add("active");
-                state.timeSlot = time;
-                goToLicenceBtn && (goToLicenceBtn.hidden = false);
-            };
+            // Disable if already booked
+            if (bookedSlots.includes(to24HourFormat(time))) {
+                slot.classList.add("disabled");
+            } else {
+                slot.onclick = () => handleSlotClick(slot, time);
+            }
 
             timeSlotsGrid.appendChild(slot);
         }
     }
 }
 
+function to24HourFormat(time12) {
+    let [time, mod] = time12.split(" ");
+    let [h, m] = time.split(":").map(Number);
+    if (mod === "PM" && h !== 12) h += 12;
+    if (mod === "AM" && h === 12) h = 0;
+    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:00`; // add ":00"
+}
+
+
+
+function handleSlotClick(slot, time) {
+    // Prevent selecting slots before selecting a date
+    if (!startDateInput.value) {
+        alert("Please select a start date first.");
+        return;
+    }
+
+    if (slot.classList.contains("disabled")) return; // Already booked
+
+    const required = requiredSlotCount();
+
+    // Unselect
+    if (slot.classList.contains("active")) {
+        slot.classList.remove("active");
+        state.selectedSlots = state.selectedSlots.filter(t => t !== time);
+        goToLicenceBtn.hidden = true;
+        return;
+    }
+
+    // Limit selection
+    if (state.selectedSlots.length >= required) {
+        alert(`Select only ${required} slots for ${state.duration} minutes`);
+        return;
+    }
+
+    slot.classList.add("active");
+    state.selectedSlots.push(time);
+
+    if (state.selectedSlots.length === required) {
+        state.timeSlot = getEarliestSlot(state.selectedSlots);
+        goToLicenceBtn.hidden = false;
+    }
+}
+
+
+
+/* =====================================================
+   HELPERS
+===================================================== */
 function formatTime(h, m) {
     const period = h >= 12 ? "PM" : "AM";
     const hour = h % 12 || 12;
     return `${hour}:${m.toString().padStart(2, "0")} ${period}`;
 }
+
+function getEarliestSlot(slots) {
+    const mins = slots.map(toMinutes);
+    const min = Math.min(...mins);
+    return fromMinutes(min);
+}
+
+function toMinutes(time12) {
+    let [time, mod] = time12.split(" ");
+    let [h, m] = time.split(":").map(Number);
+    if (mod === "PM" && h !== 12) h += 12;
+    if (mod === "AM" && h === 12) h = 0;
+    return h * 60 + m;
+}
+
+function fromMinutes(mins) {
+    let h = Math.floor(mins / 60);
+    let m = mins % 60;
+    const mod = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${h}:${String(m).padStart(2, "0")} ${mod}`;
+}
+
 
 /* =====================================================
    LICENCE EVENTS
@@ -472,7 +596,7 @@ function attachPersonalSubmit() {
             sex: get("sex"),
             birthDate: get("birthDate"),
             occupation: get("occupation").toUpperCase(),
-            reference: get("reference").toUpperCase()
+            reference: document.getElementById("reference").value || ""
         };
 
         // Validate phone
@@ -546,7 +670,13 @@ function attachPersonalSubmit() {
             starting_from: state.date,
             allotted_time,
             duration_minutes: state.duration,
-
+            selected_slots: state.selectedSlots.map(t => {
+                let [time, mod] = t.split(" ");
+                let [h, m] = time.split(":").map(Number);
+                if (mod === "PM" && h !== 12) h += 12;
+                if (mod === "AM" && h === 12) h = 0;
+                return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:00`;
+            }),
             total_fees: state.totalPrice,
             advance: 0
         };
@@ -555,8 +685,6 @@ function attachPersonalSubmit() {
         if (!body.branch) return alert("Please select branch.");
         if (!body.car_name) return alert("Please select car.");
         if (!body.starting_from) return alert("Please select start date.");
-        if (!body.allotted_time) return alert("Please select time slot.");
-        if (!body.duration_minutes) return alert("Please select duration.");
 
         // Submit
         isSubmitting = true;
@@ -660,17 +788,20 @@ function validateCarSection() {
     return true;
 }
 
+/* =====================================================
+   DATE VALIDATION
+===================================================== */
 function validateDateSection() {
     if (!startDateInput.value) {
-        alert("Please select a start date.");
+        alert("Select start date");
         return false;
     }
     if (!state.duration) {
-        alert("Please select a duration.");
+        alert("Select duration");
         return false;
     }
-    if (!state.timeSlot) {
-        alert("Please select a time slot.");
+    if (state.selectedSlots.length !== requiredSlotCount()) {
+        alert(`Please select ${requiredSlotCount()} time slots`);
         return false;
     }
     return true;
@@ -710,3 +841,36 @@ function validateAddonSection() {
     return true;
 }
 
+
+async function fetchBookedSlots(branch, car, date) {
+    const res = await fetch("/api/bookings");
+    const data = await res.json();
+
+    if (!data.success) return [];
+
+    // Filter by branch, car and date
+    const bookings = data.bookings.filter(b => {
+        if (!b.starting_from) return false;
+        const start = new Date(b.starting_from);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 29);
+
+        const selectedTime = new Date(date).getTime();
+
+        const status = (b.attendance_status || "").toLowerCase();
+        if (!["active","pending"].includes(status)) return false;
+
+        return b.branch === branch && b.car_name === car &&
+               selectedTime >= start.getTime() && selectedTime <= end.getTime();
+    });
+
+    // Collect booked timeslots
+    const slots = [];
+    bookings.forEach(b => {
+        ["allotted_time", "allotted_time2", "allotted_time3", "allotted_time4"].forEach(key => {
+            if (b[key]) slots.push(b[key]);
+        });
+    });
+
+    return slots;
+}

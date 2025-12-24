@@ -121,6 +121,31 @@ export function toMySQLDate(value) {
   return d.toISOString().split('T')[0];
 }
 
+// =====================
+// SLOT NORMALIZER (MAX 4)
+// =====================
+function normalizeSlots(selectedSlots = []) {
+  const slots = Array.isArray(selectedSlots) ? selectedSlots.slice(0, 4) : [];
+
+  const normalizeTime = (t) => {
+    if (!t) return null;
+    // Ensure HH:MM:SS exactly
+    const match = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(t);
+    if (!match) return null;
+    const hh = match[1];
+    const mm = match[2];
+    const ss = match[3] || "00";
+    return `${hh}:${mm}:${ss}`;
+  };
+
+  return {
+    allotted_time: normalizeTime(slots[0]),
+    allotted_time2: normalizeTime(slots[1]),
+    allotted_time3: normalizeTime(slots[2]),
+    allotted_time4: normalizeTime(slots[3]),
+  };
+}
+
 
 // ---------- AUTH ----------
 app.post('/api/login', async (req, res, next) => {
@@ -154,6 +179,8 @@ app.post('/api/logout', (req, res) => {
 // ---------- BOOKINGS CRUD ----------
 app.post('/api/bookings', async (req, res, next) => {
   const data = req.body;
+  const slotTimes = normalizeSlots(data.selected_slots || []);
+
   if (!data.training_days) {
   return res.status(400).json({
     success: false,
@@ -165,13 +192,15 @@ app.post('/api/bookings', async (req, res, next) => {
       INSERT INTO bookings (
         branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
         sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
-        occupation, ref, allotted_time, duration_minutes, starting_from,
+        occupation, ref,
+        allotted_time, allotted_time2, allotted_time3, allotted_time4,
+        duration_minutes, starting_from,
         total_fees, advance, car_name, instructor_name,
         ac_facility, pickup_drop, has_licence,
         present_days, hold_status, attendance_status,
         certificate_url
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const initialPresentDays = 0;
@@ -204,8 +233,11 @@ app.post('/api/bookings', async (req, res, next) => {
       data.email || '',
       data.occupation || '',
       data.ref || '',
-      data.allotted_time || null,
-      data.duration_minutes || 30, 
+      slotTimes.allotted_time,
+      slotTimes.allotted_time2,
+      slotTimes.allotted_time3,
+      slotTimes.allotted_time4,
+      data.duration_minutes || (slotTimes.allotted_time2 ? 60 : 30),
       toMySQLDate(data.starting_from),
       data.total_fees || 0,
       data.advance || 0,
@@ -235,7 +267,7 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
       SELECT 
         id, branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
         sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
-        occupation, ref, allotted_time, duration_minutes, starting_from, total_fees, advance,
+        occupation, ref, allotted_time, allotted_time2, allotted_time3, allotted_time4, duration_minutes, starting_from, total_fees, advance,
         car_name, instructor_name,
         ac_facility, pickup_drop, has_licence,
         present_days, hold_status, attendance_status, certificate_url,
@@ -265,6 +297,7 @@ app.get('/api/bookings/:id', requireAdmin, async (req, res, next) => {
 app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   const id = req.params.id;
   const data = req.body;
+  const slotTimes = normalizeSlots(data.selected_slots || []);
 
   try {
     const [rows] = await dbPool.query('SELECT hold_status, hold_from, extended_days FROM bookings WHERE id = ? LIMIT 1', [id]);
@@ -294,7 +327,9 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
       UPDATE bookings SET
         branch=?, training_days=?, customer_name=?, address=?, pincode=?, mobile_no=?, whatsapp_no=?,
         sex=?, birth_date=?, cov_lmv=?, cov_mc=?, dl_no=?, dl_from=?, dl_to=?, email=?,
-        occupation=?, ref=?, allotted_time=?, duration_minutes=?, starting_from=?,
+        occupation=?, ref=?,
+        allotted_time=?, allotted_time2=?, allotted_time3=?, allotted_time4=?,
+        duration_minutes=?, starting_from=?,
         total_fees=?, advance=?, car_name=?, instructor_name=?,ac_facility=?, pickup_drop=?, has_licence=?, hold_status=?, hold_from=?, resume_from=?, extended_days=?
         WHERE id=?
     `;
@@ -317,7 +352,10 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
       data.email || '',
       data.occupation || '',
       data.ref || '',
-      data.allotted_time || null,
+      slotTimes.allotted_time,
+      slotTimes.allotted_time2,
+      slotTimes.allotted_time3,
+      slotTimes.allotted_time4,
       data.duration_minutes || 30,
       toMySQLDate(data.starting_from),
       data.total_fees || 0,

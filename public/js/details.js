@@ -25,7 +25,6 @@ import {
         "birth_date",
         "email",
         "occupation",
-        "allotted_time",
         "starting_from",
         "total_fees",
         "advance",
@@ -116,7 +115,21 @@ import {
 
             // ------------------- Other Booking Fields -------------------
             for (const key in booking) {
-                if (['id','attendance_status','present_days','hold_status','hold_from','resume_from','extended_days','created_at','certificate_url'].includes(key)) continue;
+                if ([
+                    'id',
+                    'attendance_status',
+                    'present_days',
+                    'hold_status',
+                    'hold_from',
+                    'resume_from',
+                    'extended_days',
+                    'created_at',
+                    'certificate_url',
+                    'allotted_time',
+                    'allotted_time2',
+                    'allotted_time3',
+                    'allotted_time4'
+                ].includes(key)) continue;
 
                 let value = booking[key];
 
@@ -126,7 +139,13 @@ import {
                     value = Number(value) === 1 ? 'Yes' : 'No';
                 }
 
-                const label = key.replace(/_/g, " ");
+                let label = key.replace(/_/g, " ");
+
+                if (key.startsWith('allotted_time')) {
+                    const index = key.replace('allotted_time', '') || '1';
+                    label = `Session Slot ${index}`;
+                }
+
                 detailsTable.insertAdjacentHTML("beforeend", `
                     <tr>
                         <th>${label}</th>
@@ -134,6 +153,25 @@ import {
                     </tr>
                 `);
             }
+
+            // ------------------- Session Slots (grouped) -------------------
+            const slotKeys = [
+                'allotted_time',
+                'allotted_time2',
+                'allotted_time3',
+                'allotted_time4'
+            ];
+
+            slotKeys.forEach((slotKey, index) => {
+                const value = booking[slotKey] || '';
+                detailsTable.insertAdjacentHTML("beforeend", `
+                    <tr>
+                        <th>Session Slot ${index + 1}</th>
+                        <td data-key="${slotKey}">${value}</td>
+                    </tr>
+                `);
+            });
+
 
             booking._attendanceRecords = existingAttendance;
 
@@ -287,13 +325,14 @@ import {
                     continue;
                 }
 
-                if (key === 'allotted_time') {
+                if (key.startsWith('allotted_time')) {
                     const timeInput = document.createElement('input');
                     timeInput.type = 'time';
-                    timeInput.value = val;
+                    timeInput.value = val || '';
                     td.appendChild(timeInput);
                     continue;
                 }
+
 
                 if (key === 'duration_minutes') {
                     const select = document.createElement('select');
@@ -348,10 +387,26 @@ import {
 
             updatedData[key] = value;
 
-            if (REQUIRED_FIELDS.includes(key) && (value === '' || value === null || value === undefined)) {
+            if (REQUIRED_FIELDS.includes(key) && (value === '' || value === null)) {
                 missingFields.push(key);
             }
         });
+
+        const slots = [];
+
+        ['allotted_time', 'allotted_time2', 'allotted_time3', 'allotted_time4'].forEach(k => {
+            if (updatedData[k]) {
+                slots.push(updatedData[k]);
+                delete updatedData[k];
+            }
+        });
+
+        if (slots.length === 0) {
+            alert("At least one session slot is required");
+            return;
+        }
+
+        updatedData.selected_slots = slots;
 
         if (missingFields.length > 0) {
             alert(`Please fill all required fields: ${missingFields.join(', ')}`);

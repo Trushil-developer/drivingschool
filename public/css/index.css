@@ -1,83 +1,246 @@
-main {
-    flex: 1;
+body {
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+    background: #f4f6f9;
+    color: #333;
+}
+
+/* HERO */
+.hero-section {
+    text-align: center;
+    padding: 4rem 1rem 3rem;
+    color: #0f5ec7;
+}
+
+.hero-section h1 {
+    font-size: 2.6rem;
+    margin-bottom: 1rem;
+}
+
+.hero-section p {
+    max-width: 720px;
+    margin: auto;
+    font-size: 1.1rem;
+    opacity: 0.95;
+    color: #333;
+}
+
+/* PACKAGES */
+.packages-section {
+    padding: 3rem 1rem 4rem;
+}
+
+.packages-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    max-width: 1100px;
+    margin: auto;
+}
+
+.package-card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 2.2rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    position: relative;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.package-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.12);
+}
+
+.package-card.highlight {
+    border: 2px solid #1a73e8;
+}
+
+.package-card h2 {
+    color: #1a73e8;
     text-align: center;
-    padding: 4rem 1rem;
+    margin-bottom: 0.6rem;
 }
 
-main h2 {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-    color: #1565c0;
-}
-
-main p {
-    font-size: 1.1rem;
-    max-width: 650px;
-    margin: 0 auto 2rem;
-}
-
-.button-group {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.btn {
-    display: inline-block;
-    background-color: #1a73e8;
-    color: #fff;
-    padding: 0.75rem 2rem;
-    font-size: 1rem;
-    border-radius: 5px;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    font-weight: 600;
-}
-
-.btn:hover {
-    background-color: #0d47a1;
-}
-
-.btn.enquiry {
-    background-color: #43a047;
-
-}
-
-.btn.enquiry:hover {
-    background-color: #2e7d32;
-}
-
-
-.training-days {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    justify-content: center;
+.package-desc {
+    text-align: center;
+    font-size: 0.95rem;
+    color: #666;
     margin-bottom: 1.5rem;
 }
 
-.training-day-btn {
-    padding: 0.6rem 1.4rem;
+/* BADGES */
+.badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #43a047;
+    color: #fff;
+    padding: 0.35rem 0.9rem;
+    font-size: 0.75rem;
     border-radius: 20px;
-    border: 2px solid #1a73e8;
-    background: #fff;
-    color: #1a73e8;
+    font-weight: 600;
+}
+
+.badge.premium {
+    background: #1a73e8;
+}
+
+/* FEATURES */
+.features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2rem 0;
+}
+
+.features li {
+    padding-left: 1.8rem;
+    margin-bottom: 0.75rem;
+    position: relative;
+    font-size: 0.95rem;
+}
+
+.features li::before {
+    content: "✔";
+    position: absolute;
+    left: 0;
+    color: #43a047;
+    font-weight: bold;
+}
+
+/* BUTTON */
+.btn-book {
+    margin-top: auto;
+    background: #1a73e8;
+    color: #fff;
+    border: none;
+    padding: 0.95rem;
+    border-radius: 30px;
+    font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background 0.3s ease, transform 0.2s ease;
 }
 
-.training-day-btn:hover {
-    background: #1a73e8;
-    color: #fff;
+.btn-book:hover {
+    background: #0f5ec7;
+    transform: scale(1.03);
 }
 
-.training-day-btn.active {
-    background: #1a73e8;
+/* PAPER FOLLOW US */
+.follow-paper-section {
+    padding: 4rem 1rem;
+}
+
+.paper-wrapper {
+    max-width: 900px;
+    margin: auto;
+    text-align: center;
+}
+
+.paper-wrapper h2 {
+    font-size: 2.2rem;
+    color: #1a73e8;
+    margin-bottom: 0.5rem;
+}
+
+.paper-wrapper p {
+    color: #555;
+    font-size: 1.05rem;
+    margin-bottom: 3rem;
+}
+
+/* CARDS */
+.paper-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.8rem;
+}
+
+.paper-card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 1.6rem 1.8rem;
+    display: flex;
+    align-items: center;
+    gap: 1.3rem;
+    text-decoration: none;
+    color: #333;
+    position: relative;
+    box-shadow:
+        0 8px 18px rgba(0, 0, 0, 0.08),
+        0 2px 6px rgba(0, 0, 0, 0.05);
+    transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+
+/* Paper lift effect */
+.paper-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.6);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+}
+
+.paper-card:hover {
+    transform: translateY(-12px) rotate(-0.4deg);
+    box-shadow:
+        0 18px 35px rgba(0, 0, 0, 0.15),
+        0 6px 12px rgba(0, 0, 0, 0.08);
+}
+
+.paper-card:hover::after {
+    opacity: 1;
+}
+
+/* ICON */
+.icon-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
     color: #fff;
+    flex-shrink: 0;
+}
+
+/* TEXT */
+.card-text h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.card-text span {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* ARROW */
+.arrow {
+    margin-left: auto;
+    font-size: 1.4rem;
+    color: #bbb;
+    transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.paper-card:hover .arrow {
+    transform: translateX(6px);
+    color: #333;
+}
+
+/* PLATFORM COLORS */
+.paper-card.instagram .icon-wrap {
+    background: linear-gradient(135deg, #f58529, #dd2a7b, #8134af);
+}
+
+.paper-card.facebook .icon-wrap {
+    background: #1877f2;
 }

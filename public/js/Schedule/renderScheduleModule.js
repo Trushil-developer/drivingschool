@@ -129,23 +129,57 @@ window.renderScheduleModule = function(tableWrap) {
                         const totalDays = Number(b.training_days) || 15;
                         const customerWithDays = `${b.customer_name || ''} (${b.present_days}/${totalDays})`;
 
-                        const duration = Number(b.duration_minutes) || 30;
-                        const slotCount = Math.ceil(duration / 30);
+                        // Collect actual 30-min slots from DB
+                        const slots = [
+                            b.allotted_time,
+                            b.allotted_time2,
+                            b.allotted_time3,
+                            b.allotted_time4
+                        ].filter(Boolean);
 
-                        if(!bookedSlots[car]) bookedSlots[car] = {};
-                        let [hhStr, mmStr] = b.allotted_time.split(':');
-                        let startMinutes = Number(hhStr)*60 + Number(mmStr);
+                        if (slots.length === 0) return;
 
-                        for(let i=0;i<slotCount;i++){
-                            const slotH = String(Math.floor(startMinutes/60)).padStart(2,'0');
-                            const slotM = String(startMinutes%60).padStart(2,'0');
+                       slots.sort();
 
-                            bookedSlots[car][`${slotH}:${slotM}`] = i === 0 
-                                ? { customer: customerWithDays, rowspan: slotCount, instructor_name: b.instructor_name || "N/A" } 
-                                : { skip: true };
+                        if (!bookedSlots[car]) bookedSlots[car] = {};
 
-                            startMinutes += 30;
+                        // Convert slots to minutes
+                        const slotMinutes = slots.map(s => {
+                            const [h, m] = s.split(':').map(Number);
+                            return h * 60 + m;
+                        });
+
+                        // Group continuous 30-min slots
+                        let groups = [];
+                        let currentGroup = [slotMinutes[0]];
+
+                        for (let i = 1; i < slotMinutes.length; i++) {
+                            if (slotMinutes[i] === slotMinutes[i - 1] + 30) {
+                                currentGroup.push(slotMinutes[i]);
+                            } else {
+                                groups.push(currentGroup);
+                                currentGroup = [slotMinutes[i]];
+                            }
                         }
+                        groups.push(currentGroup);
+
+                        // Render each group
+                        groups.forEach(group => {
+                            group.forEach((min, idx) => {
+                                const hh = String(Math.floor(min / 60)).padStart(2, '0');
+                                const mm = String(min % 60).padStart(2, '0');
+                                const key = `${hh}:${mm}`;
+
+                                bookedSlots[car][key] = idx === 0
+                                    ? {
+                                        customer: customerWithDays,
+                                        rowspan: group.length,
+                                        instructor_name: b.instructor_name || "N/A"
+                                    }
+                                    : { skip: true };
+                            });
+                        });
+
                     });
 
                     // Count active/available slots

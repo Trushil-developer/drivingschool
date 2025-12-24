@@ -77,6 +77,7 @@ header {
     position: relative;
 }
 
+/* Underline animation for normal links */
 .header-nav a::after {
     content: "";
     position: absolute;
@@ -86,10 +87,6 @@ header {
     height: 2px;
     background-color: #ff9800;
     transition: width 0.3s ease;
-}
-
-.header-nav a:hover::after {
-    width: 100%;
 }
 
 .header-nav a:hover::after {
@@ -113,10 +110,31 @@ header {
     transform: translateY(-1px);
 }
 
+/* ---------- Enquiry Button ---------- */
+.enquiry-btn {
+    background: #43a047;
+    color: #fff !important;
+    padding: 0.55rem 1.2rem;
+    border-radius: 25px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.3s ease, transform 0.2s ease;
+    margin-left: 0.5rem;
+}
+
+.enquiry-btn:hover {
+    background: #388e3c;
+    transform: scale(1.05);
+}
+
+/* Remove underline animation from buttons */
+.header-nav a.enquiry-btn::after,
+.header-nav a.login-btn::after {
+    display: none;
+}
+
 /* Specific desktop login button */
 .header-nav .login-btn.desktop-login {
-    padding: 0.55rem 1.4rem;
-    height: auto;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -153,12 +171,12 @@ header {
     transform: rotate(-45deg) translate(5px, -5px);
 }
 
-/* Mobile menu */
+/* ==================== MOBILE MENU ==================== */
 @media (max-width: 768px) {
+
     .header-container {
         flex-wrap: wrap;
-        justify-content: center;
-        text-align: center;
+        justify-content: space-between;
     }
 
     .header-nav {
@@ -168,32 +186,30 @@ header {
         right: 0;
         background-color: #1565c0;
         flex-direction: column;
-        gap: 0;
         overflow: hidden;
         max-height: 0;
         transition: max-height 0.3s ease;
         z-index: 1000;
-        text-align: center;
         width: 100%;
+        text-align: center;
     }
 
     .header-nav.open {
         max-height: 500px;
-        /* Enough height for all links */
     }
 
     .header-nav a {
         padding: 1rem 0;
         border-top: 1px solid rgba(255, 255, 255, 0.2);
         display: block;
-        color: #fff;
+        width: 100%;
     }
 
-    /* Login button full width on mobile */
+    .header-nav .enquiry-btn,
     .header-nav .login-btn {
-        margin: 0;
         width: 100%;
         border-radius: 0;
+        margin: 0;
     }
 
     .hamburger {
@@ -208,22 +224,19 @@ header {
     }
 }
 
-/* ==================== BRANCHES / CERTIFICATES SECTION ==================== */
+/* ==================== BRANCHES SECTION ==================== */
 .branches-section {
     padding: 70px 20px;
     text-align: center;
 }
 
-.branches-section h1 {
-    font-size: 2rem;
+.branches-section h1,
+.branches-section h2 {
     color: #1565c0;
-    margin-bottom: 15px;
 }
 
 .branches-section h2 {
     font-size: 2.3rem;
-    color: #1565c0;
-    margin-bottom: 10px;
 }
 
 .section-subtitle {
@@ -233,7 +246,6 @@ header {
     margin: 0 auto 45px;
 }
 
-/* ---------- Cards Grid ---------- */
 .branches-container {
     max-width: 1200px;
     margin: auto;
@@ -242,7 +254,6 @@ header {
     gap: 35px;
 }
 
-/* ---------- Individual Card ---------- */
 .branch-card {
     background: #ffffff;
     padding: 28px;
@@ -266,28 +277,21 @@ header {
     padding-bottom: 8px;
 }
 
-/* ---------- Card Info Text ---------- */
 .branch-info p {
     margin: 10px 0;
     font-size: 0.96rem;
-    color: #444;
-}
-
-.branch-info strong {
-    color: #000;
 }
 
 .email-link {
     color: #1565c0;
-    text-decoration: none;
     font-weight: 600;
+    text-decoration: none;
 }
 
 .email-link:hover {
     text-decoration: underline;
 }
 
-/* ---------- Map ---------- */
 .map iframe {
     margin-top: 18px;
     border-radius: 14px;
@@ -311,19 +315,17 @@ footer {
     .header-left h1 {
         font-size: 1.5rem;
     }
-
-    .branches-section h2 {
-        font-size: 2rem;
-    }
 }
 
 @media (max-width: 480px) {
+
     header {
         padding: 1rem;
     }
 
     .header-left {
         flex-direction: column;
+        text-align: center;
     }
 
     .header-left img {
@@ -332,18 +334,7 @@ footer {
 
     .header-left h1 {
         font-size: 1.35rem;
-        text-align: center;
         white-space: normal;
-    }
-
-    .header-nav {
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .login-btn {
-        width: 100%;
-        text-align: center;
     }
 
     .branches-section {

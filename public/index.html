@@ -11,7 +11,10 @@
         window.dataLayer = window.dataLayer || [];
         function gtag() { dataLayer.push(arguments); }
         gtag('js', new Date());
-        gtag('config', 'G-HRGDQJKW55');
+        gtag('config', 'G-HRGDQJKW55', {
+            page_title: 'Dwarkesh Motor Driving School Ahmedabad',
+            page_path: '/index.html'
+        });
     </script>
 
     <!-- ==================== SEO ==================== -->
@@ -21,6 +24,7 @@
     <meta name="keywords"
         content="driving school Ahmedabad, car driving training, two-wheeler driving school, certified driving school, driving lessons Ahmedabad">
     <link rel="canonical" href="https://dwarkeshmotordrivingschool.com/index.html">
+    <meta name="robots" content="index, follow">
 
     <!-- Open Graph / Social Media -->
     <meta property="og:title" content="Dwarkesh Motor Driving School Ahmedabad | Learn Car & Two-Wheeler Driving">
@@ -118,8 +122,27 @@
                         "longitude": 72.4722334
                     }
                 }
-            ]
+            ],
+            "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": "https://dwarkeshmotordrivingschool.com/index.html"
+            }
         }
+    </script>
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://dwarkeshmotordrivingschool.com/"
+        }
+      ]
+    }
     </script>
 </head>
 
@@ -129,19 +152,106 @@
 
     <!-- ==================== MAIN CONTENT ==================== -->
     <main>
-        <h2>Welcome to Your Driving Journey</h2>
-        <p>Learn to drive safely and confidently with our experienced instructors. Our training programs are designed to
-            help you get licensed efficiently while ensuring practical, hands-on experience.</p>
 
-        <div id="trainingDaysGroup" class="training-days"></div>
-        <div class="button-group">
-            <a href="register.html" class="btn">Register With Us</a>
-            <a href="enquiry.html" class="btn enquiry">Enquiry</a>
-        </div>
+        <section class="hero-section">
+            <h1>Professional Driving Courses in Ahmedabad</h1>
+            <p>
+                Learn safe, confident, and responsible driving with Dwarkesh Motor Driving School.
+                Choose a course that matches your experience and start your journey today.
+            </p>
+        </section>
+
+        <section class="packages-section">
+            <div class="packages-grid">
+
+                <!-- Beginner Course -->
+                <article class="package-card">
+                    <span class="badge">Best for Beginners</span>
+                    <h2>Beginner Driving Course</h2>
+                    <p class="package-desc">
+                        Perfect for first-time learners. Start from basics and gain full road confidence
+                        under expert supervision.
+                    </p>
+
+                    <ul class="features">
+                        <li>21 Practical Sessions</li>
+                        <li>30 Minutes per Session</li>
+                        <li>7–8 km Daily Practice</li>
+                        <li>Basic Driving Skills</li>
+                        <li>Traffic Rules & Safety</li>
+                        <li>No Experience Required</li>
+                        <li>Learner / Driver Licence Accepted</li>
+                    </ul>
+
+                    <button class="btn-book" onclick="bookNow(21)">
+                        Enroll Now
+                    </button>
+                </article>
+
+                <!-- Advance Course -->
+                <article class="package-card highlight">
+                    <span class="badge premium">Most Popular</span>
+                    <h2>Advance Driving Course</h2>
+                    <p class="package-desc">
+                        Ideal for learners who know basics and want mastery in city traffic
+                        and real-world driving.
+                    </p>
+
+                    <ul class="features">
+                        <li>15 Practical Sessions</li>
+                        <li>30 Minutes per Session</li>
+                        <li>7–8 km Daily Practice</li>
+                        <li>Advanced Traffic Driving</li>
+                        <li>Road Safety Training</li>
+                        <li>Basic Experience Required</li>
+                        <li>Learner / Driver Licence Accepted</li>
+                    </ul>
+
+                    <button class="btn-book" onclick="bookNow(15)">
+                        Start Learning Today
+                    </button>
+                </article>
+
+            </div>
+        </section>
     </main>
 
     <!-- ==================== BRANCH CARDS & FOOTER ==================== -->
     <div data-include="includes/branchesCards.html"></div>
+
+    <!-- ==================== FOLLOW US ==================== -->
+
+    <section class="follow-paper-section" aria-label="Follow Dwarkesh Motor Driving School on Social Media">
+        <div class="paper-wrapper">
+            <h2>Follow Us</h2>
+            <p>Driving tips, real student journeys & special offers on Instagram and Facebook</p>
+
+            <div class="paper-cards">
+                <a href="https://www.instagram.com/dwarkesh_motor_driving_school/" target="_blank" rel="noopener"
+                    class="paper-card instagram" aria-label="Follow us on Instagram">
+                    <div class="icon-wrap">
+                        <i class="fab fa-instagram"></i>
+                    </div>
+                    <div class="card-text">
+                        <h3>Instagram</h3>
+                        <span>See daily driving tips</span>
+                    </div>
+                </a>
+
+                <a href="https://www.facebook.com/profile.php?id=61584609136796" target="_blank" rel="noopener"
+                    class="paper-card facebook" aria-label="Follow us on Facebook">
+                    <div class="icon-wrap">
+                        <i class="fab fa-facebook-f"></i>
+                    </div>
+                    <div class="card-text">
+                        <h3>Facebook</h3>
+                        <span>Updates & student stories</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
     <div data-include="includes/footer.html"></div>
 
     <script src="js/index.js" defer></script>
