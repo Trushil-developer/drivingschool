@@ -197,7 +197,11 @@ async function loadBranches() {
 
         document.querySelectorAll(".branch-card").forEach(card => {
             card.onclick = async () => {
+                // NEW: reset downstream data
+                resetDateAndSlots();
+
                 state.branch = card.dataset.branch;
+
                 document.querySelectorAll(".branch-card").forEach(c => c.classList.remove("active"));
                 card.classList.add("active");
 
@@ -247,15 +251,20 @@ async function loadCars() {
 
         document.querySelectorAll(".car-card").forEach(card => {
             card.onclick = () => {
+                // ✅ RESET EVERYTHING THAT DEPENDS ON CAR
+                resetDateAndSlots();
+
                 state.car = card.dataset.car;
                 state.carPrice = Number(card.dataset.price);
                 updateTotalPrice();
 
                 document.querySelectorAll(".car-card").forEach(c => c.classList.remove("active"));
                 card.classList.add("active");
+
                 goToDateBtn.hidden = false;
             };
         });
+
     } catch (err) {
         console.error(err);
         carsGrid.innerHTML = "<p>Unable to load cars. Please try again later.</p>";
@@ -334,6 +343,30 @@ function attachNavigationEvents() {
 /* =====================================================
    TIME SLOTS
 ===================================================== */
+
+function resetDateAndSlots() {
+    // Reset state
+    state.date = null;
+    state.duration = null;
+    state.selectedSlots = [];
+    state.timeSlot = null;
+
+    // Reset inputs
+    startDateInput.value = "";
+    durationSelect.value = "";
+
+    // Reset UI
+    timeSlotContainer.hidden = true;
+    timeSlotsGrid.innerHTML = "";
+    goToLicenceBtn.hidden = true;
+
+    // Reset duration chips
+    document.querySelectorAll(".duration-chip").forEach(c =>
+        c.classList.remove("active")
+    );
+}
+
+
 function requiredSlotCount() {
     return Math.ceil(state.duration / 30);
 }

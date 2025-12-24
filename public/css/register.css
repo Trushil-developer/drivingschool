@@ -788,6 +788,21 @@ footer {
     cursor: not-allowed;
 }
 
+/* RED WARNING NOTE */
+.licence-warning {
+    background: #fef2f2;
+    /* light red background */
+    border: 2px solid #fecaca;
+    /* soft red border */
+    color: #b91c1c;
+    /* dark red text */
+    font-size: 0.9rem;
+}
+
+.licence-warning strong {
+    color: #991b1b;
+}
+
 /* MOBILE */
 @media (max-width: 768px) {
     .instructor-choice {
