@@ -873,162 +873,164 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- =====================================
 -- ENQUIRIES TABLE
 -- =====================================
-
 CREATE TABLE IF NOT EXISTS enquiries (
     id INT AUTO_INCREMENT PRIMARY KEY
 );
 
 -- full_name
 SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='full_name'
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
+      AND column_name='full_name'
 );
-SET @sql := IF(@col_exists=0,
+SET @sql := IF(@col_exists = 0,
                'ALTER TABLE enquiries ADD COLUMN full_name VARCHAR(150) NOT NULL;',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- email
 SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='email'
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
+      AND column_name='email'
 );
-SET @sql := IF(@col_exists=0,
+SET @sql := IF(@col_exists = 0,
                'ALTER TABLE enquiries ADD COLUMN email VARCHAR(150) NOT NULL;',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- phone
 SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='phone'
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
+      AND column_name='phone'
 );
-SET @sql := IF(@col_exists=0,
+SET @sql := IF(@col_exists = 0,
                'ALTER TABLE enquiries ADD COLUMN phone VARCHAR(50) NOT NULL;',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- branch_id
 SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='branch_id'
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
+      AND column_name='branch_id'
 );
-SET @sql := IF(@col_exists=0,
+SET @sql := IF(@col_exists = 0,
                'ALTER TABLE enquiries ADD COLUMN branch_id INT;',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- course_id
 SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='course_id'
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
+      AND column_name='course_id'
 );
-SET @sql := IF(@col_exists=0,
+SET @sql := IF(@col_exists = 0,
                'ALTER TABLE enquiries ADD COLUMN course_id INT;',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- has_licence
 SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='has_licence'
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
+      AND column_name='has_licence'
 );
-SET @sql := IF(@col_exists=0,
+SET @sql := IF(@col_exists = 0,
                'ALTER TABLE enquiries ADD COLUMN has_licence ENUM("Yes","No") NOT NULL DEFAULT "No";',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- message
 SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='message'
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
+      AND column_name='message'
 );
-SET @sql := IF(@col_exists=0,
+SET @sql := IF(@col_exists = 0,
                'ALTER TABLE enquiries ADD COLUMN message TEXT;',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- created_at
 SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='created_at'
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
+      AND column_name='created_at'
 );
-SET @sql := IF(@col_exists=0,
+SET @sql := IF(@col_exists = 0,
                'ALTER TABLE enquiries ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- heard_from
 SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
     WHERE table_schema='drivingschool'
       AND table_name='enquiries'
       AND column_name='heard_from'
 );
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE enquiries ADD COLUMN heard_from VARCHAR(50);',
-    'SELECT "heard_from exists";'
-);
+SET @sql := IF(@col_exists = 0,
+               'ALTER TABLE enquiries ADD COLUMN heard_from VARCHAR(50);',
+               'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- hear_about
 SET @col_exists := (
-    SELECT COUNT(*) 
-    FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' 
-      AND table_name='enquiries' 
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
       AND column_name='hear_about'
 );
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE enquiries ADD COLUMN hear_about VARCHAR(50);',
-    'SELECT "hear_about exists";'
-);
+SET @sql := IF(@col_exists = 0,
+               'ALTER TABLE enquiries ADD COLUMN hear_about VARCHAR(50);',
+               'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- training_slots
 SET @col_exists := (
-    SELECT COUNT(*) 
-    FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' 
-      AND table_name='enquiries' 
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
       AND column_name='training_slots'
 );
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE enquiries ADD COLUMN training_slots INT;',
-    'SELECT "training_slots exists";'
-);
+SET @sql := IF(@col_exists = 0,
+               'ALTER TABLE enquiries ADD COLUMN training_slots INT;',
+               'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- slots
 SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
     WHERE table_schema='drivingschool'
       AND table_name='enquiries'
       AND column_name='slots'
 );
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE enquiries ADD COLUMN slots INT;',
-    'SELECT "slots exists";'
-);
+SET @sql := IF(@col_exists = 0,
+               'ALTER TABLE enquiries ADD COLUMN slots INT;',
+               'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
 
 -- preferred_car
 SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
     WHERE table_schema='drivingschool'
       AND table_name='enquiries'
       AND column_name='preferred_car'
 );
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE enquiries ADD COLUMN preferred_car VARCHAR(100);',
-    'SELECT "preferred_car exists";'
-);
+SET @sql := IF(@col_exists = 0,
+               'ALTER TABLE enquiries ADD COLUMN preferred_car VARCHAR(100);',
+               'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
