@@ -100,23 +100,3 @@ function injectReviewSchema(place) {
 }
 
 
-function initMaps() {
-    document.querySelector(".nav.next").onclick = () => {
-        currentIndex++;
-        updateCarousel();
-    };
-
-    document.querySelector(".nav.prev").onclick = () => {
-        currentIndex = Math.max(0, currentIndex - 1);
-        updateCarousel();
-    };
-
-    document.getElementById("branchSelect").onchange = e => {
-        loadReviews(BRANCHES[e.target.value]);
-    };
-
-    loadReviews(BRANCHES.vandematram);
-}
-
-window.initMaps = initMaps;
-
