@@ -101,7 +101,6 @@ function injectReviewSchema(place) {
 
 
 function initMaps() {
-    // UI events (DOM is already ready by now)
     document.querySelector(".nav.next").onclick = () => {
         currentIndex++;
         updateCarousel();
@@ -116,5 +115,8 @@ function initMaps() {
         loadReviews(BRANCHES[e.target.value]);
     };
 
-    loadReviews(BRANCHES.southbopal);
+    loadReviews(BRANCHES.vandematram);
 }
+
+window.initMaps = initMaps;
+
