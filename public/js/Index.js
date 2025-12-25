@@ -14,7 +14,7 @@ function bookNow(trainingDays) {
 
     window.location.href = `register.html?${params.toString()}`;
 }
-
+// Configuration
 const BRANCHES = {
     vandematram: "ChIJT_SeKRiDXjkR9ujjQDt4rMs",
     southbopal: "ChIJT8LlIX-bXjkRkb4LalKy0mE",
@@ -23,8 +23,11 @@ const BRANCHES = {
 
 let currentIndex = 0;
 
+// NEW: Use the modern importLibrary to ensure Place is available
 async function loadReviews(placeId) {
-    const place = new google.maps.places.Place({
+    const { Place } = await google.maps.importLibrary("places");
+    
+    const place = new Place({
         id: placeId,
         requestedLanguage: "en"
     });
@@ -59,6 +62,7 @@ async function loadReviews(placeId) {
 function updateCarousel() {
     const track = document.querySelector(".reviews-track");
     const cards = document.querySelectorAll(".review-card");
+    if(!track || cards.length === 0) return;
 
     const maxIndex = Math.max(0, cards.length - 3); 
     currentIndex = Math.min(currentIndex, maxIndex);
@@ -99,8 +103,26 @@ function injectReviewSchema(place) {
     document.head.appendChild(script);
 }
 
+// Function to handle the Book Now clicks
+function bookNow(trainingDays) {
+    if (!trainingDays) return;
 
-function initMaps() {
+    if (typeof gtag === "function") {
+        gtag("event", "book_now_click", {
+            event_category: "engagement",
+            event_label: `${trainingDays}_days_course`
+        });
+    }
+
+    const params = new URLSearchParams({
+        training_days: trainingDays
+    });
+
+    window.location.href = `register.html?${params.toString()}`;
+}
+
+// The init function called by the Google Maps loader
+async function initMaps() {
     document.querySelector(".nav.next").onclick = () => {
         currentIndex++;
         updateCarousel();
@@ -111,11 +133,16 @@ function initMaps() {
         updateCarousel();
     };
 
-    document.getElementById("branchSelect").onchange = e => {
-        loadReviews(BRANCHES[e.target.value]);
-    };
+    const branchSelect = document.getElementById("branchSelect");
+    if (branchSelect) {
+        branchSelect.onchange = e => {
+            loadReviews(BRANCHES[e.target.value]);
+        };
+    }
 
+    // Load initial reviews
     loadReviews(BRANCHES.vandematram);
 }
 
+// Make it globally accessible for the callback
 window.initMaps = initMaps;
