@@ -251,7 +251,6 @@ async function loadCars() {
 
         document.querySelectorAll(".car-card").forEach(card => {
             card.onclick = () => {
-                // ✅ RESET EVERYTHING THAT DEPENDS ON CAR
                 resetDateAndSlots();
 
                 state.car = card.dataset.car;
@@ -260,6 +259,11 @@ async function loadCars() {
 
                 document.querySelectorAll(".car-card").forEach(c => c.classList.remove("active"));
                 card.classList.add("active");
+
+                const timeSlotLabel = document.getElementById("timeSlotLabel");
+                if(timeSlotLabel) {
+                    timeSlotLabel.textContent = `Available Time Slots for ${state.car}`;
+                }
 
                 goToDateBtn.hidden = false;
             };
