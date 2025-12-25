@@ -279,11 +279,21 @@ body {
 }
 
 .reviews-track {
-    display: flex;
+    display: flex !important;
+    /* Ensure it stays a row */
     gap: 1.2rem;
     transition: transform 0.4s ease;
-    min-height: 200px;
-    align-items: stretch;
+    min-height: 250px;
+    width: max-content;
+    /* Critical: allow it to expand wider than the screen */
+}
+
+.loader {
+    padding: 20px;
+    font-weight: bold;
+    color: #1a73e8;
+    width: 100%;
+    text-align: center;
 }
 
 .review-card {

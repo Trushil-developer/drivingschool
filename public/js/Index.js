@@ -9,38 +9,53 @@ let currentIndex = 0;
 
 // 2. Main Logic: Load Reviews from Google
 async function loadReviews(placeId) {
+    console.log("🔍 Fetching reviews for Place ID:", placeId);
+    const reviewsDiv = document.getElementById("reviews");
+    
+    // 1. Show a loader while waiting
+    reviewsDiv.innerHTML = `<div class="loader">Loading Google Reviews...</div>`;
+
     try {
         const { Place } = await google.maps.importLibrary("places");
-        
+        console.log("✅ Places Library Loaded");
+
         const place = new Place({
             id: placeId,
             requestedLanguage: "en"
         });
 
+        console.log("⏳ Fetching Fields from Google...");
         await place.fetchFields({
-            fields: ["displayName", "rating", "reviews"]
+            fields: ["displayName", "rating", "reviews", "formattedAddress"]
         });
 
-        const reviewsDiv = document.getElementById("reviews");
-        reviewsDiv.innerHTML = ""; // Clear loader/previous reviews
+        console.log("📦 Full Data Received:", place);
+
+        reviewsDiv.innerHTML = ""; // Clear loader
         currentIndex = 0;
 
         if (!place.reviews || place.reviews.length === 0) {
+            console.warn("⚠️ No reviews found for this Place ID.");
             reviewsDiv.innerHTML = "<p>No reviews available for this location yet.</p>";
             return;
         }
 
-        place.reviews.slice(0, 8).forEach(r => {
-            // Safety check for review text
+        console.log(`⭐ Found ${place.reviews.length} reviews.`);
+
+        place.reviews.slice(0, 8).forEach((r, index) => {
+            // Log individual review structure to see if text/name is missing
+            console.log(`Review #${index}:`, r);
+
             const reviewText = r.text ? (typeof r.text === 'object' ? r.text.text : r.text) : "No comment provided.";
             const authorName = r.authorAttribution?.displayName || "A Student";
+            const rating = r.rating || 5;
 
             reviewsDiv.insertAdjacentHTML(
                 "beforeend",
                 `
                 <div class="review-card">
                     <strong>${authorName}</strong>
-                    <div class="stars">⭐ ${r.rating}</div>
+                    <div class="stars">⭐ ${rating}</div>
                     <p>${reviewText}</p>
                 </div>
                 `
@@ -49,12 +64,13 @@ async function loadReviews(placeId) {
 
         updateCarousel();
         injectReviewSchema(place);
+        console.log("✨ Carousel Updated and Rendered");
+
     } catch (error) {
-        console.error("Reviews failed to load:", error);
-        document.getElementById("reviews").innerHTML = "<p>Google Reviews are currently unavailable.</p>";
+        console.error("❌ CRITICAL ERROR:", error);
+        reviewsDiv.innerHTML = `<p>Error loading reviews. Check console for details.</p>`;
     }
 }
-
 // 3. UI Logic: Carousel movement
 function updateCarousel() {
     const track = document.querySelector(".reviews-track");
