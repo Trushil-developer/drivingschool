@@ -219,6 +219,23 @@
     <!-- ==================== BRANCH CARDS & FOOTER ==================== -->
     <div data-include="includes/branchesCards.html"></div>
 
+    <section class="google-reviews">
+        <h2>What Our Students Say</h2>
+
+        <select id="branchSelect">
+            <option value="vandematram">Vandematram Branch</option>
+            <option value="southbopal">South Bopal Branch</option>
+            <option value="malabar">Malabar Branch</option>
+        </select>
+
+        <div class="reviews-carousel">
+            <button class="nav prev">‹</button>
+            <div class="reviews-track" id="reviews"></div>
+            <button class="nav next">›</button>
+        </div>
+    </section>
+
+
     <!-- ==================== FOLLOW US ==================== -->
 
     <section class="follow-paper-section" aria-label="Follow Dwarkesh Motor Driving School on Social Media">
@@ -254,6 +271,9 @@
 
     <div data-include="includes/footer.html"></div>
 
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDeoVTpTLdEPkGbhIclplyfMPEM6jeCYf8&libraries=places"
+        async defer>
+        </script>
     <script src="js/index.js" defer></script>
     <script src="js/includeHTML.js" defer></script>
     <script src="js/common.js" defer></script>

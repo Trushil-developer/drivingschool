@@ -244,3 +244,82 @@ body {
 .paper-card.facebook .icon-wrap {
     background: #1877f2;
 }
+
+.review-card {
+    background: #fff;
+    padding: 15px;
+    margin: 10px 0;
+    border-left: 4px solid #fbbc05;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+
+.google-reviews {
+    max-width: 1100px;
+    margin: 4rem auto;
+    padding: 1rem;
+    text-align: center;
+}
+
+.google-reviews h2 {
+    color: #1a73e8;
+    margin-bottom: 1rem;
+}
+
+#branchSelect {
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    margin-bottom: 1.5rem;
+}
+
+.reviews-carousel {
+    position: relative;
+    overflow: hidden;
+}
+
+.reviews-track {
+    display: flex;
+    gap: 1.2rem;
+    transition: transform 0.4s ease;
+}
+
+.review-card {
+    min-width: 300px;
+    background: #fff;
+    padding: 1.2rem;
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+    text-align: left;
+}
+
+.review-card strong {
+    display: block;
+    margin-bottom: 0.3rem;
+}
+
+.review-card .stars {
+    color: #fbbc05;
+    font-size: 0.9rem;
+}
+
+.nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #1a73e8;
+    color: #fff;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.nav.prev {
+    left: -10px;
+}
+
+.nav.next {
+    right: -10px;
+}
