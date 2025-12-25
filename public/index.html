@@ -5,19 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HRGDQJKW55"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag() { dataLayer.push(arguments); }
-        gtag('js', new Date());
-        gtag('config', 'G-HRGDQJKW55', {
-            page_title: 'Dwarkesh Motor Driving School Ahmedabad',
-            page_path: '/index.html'
-        });
-    </script>
-
-    <!-- ==================== SEO ==================== -->
+    <!-- =========================================================
+         SEO & Meta Tags
+    ========================================================= -->
     <title>Dwarkesh Motor Driving School Ahmedabad | Learn Car & Two-Wheeler Driving</title>
     <meta name="description"
         content="Learn to drive safely and confidently with Dwarkesh Motor Driving School in Ahmedabad. Register today for professional car and two-wheeler driving training from certified instructors.">
@@ -26,7 +16,7 @@
     <link rel="canonical" href="https://dwarkeshmotordrivingschool.com/index.html">
     <meta name="robots" content="index, follow">
 
-    <!-- Open Graph / Social Media -->
+    <!-- Open Graph -->
     <meta property="og:title" content="Dwarkesh Motor Driving School Ahmedabad | Learn Car & Two-Wheeler Driving">
     <meta property="og:description"
         content="Learn to drive safely and confidently with Dwarkesh Motor Driving School in Ahmedabad. Register today for professional car and two-wheeler driving training from certified instructors.">
@@ -34,20 +24,30 @@
     <meta property="og:url" content="https://dwarkeshmotordrivingschool.com/index.html">
     <meta property="og:type" content="website">
 
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Dwarkesh Motor Driving School Ahmedabad">
-    <meta name="twitter:description"
-        content="Learn to drive safely and confidently with Dwarkesh Motor Driving School in Ahmedabad. Register today for professional car and two-wheeler driving training from certified instructors.">
-    <meta name="twitter:image" content="https://dwarkeshmotordrivingschool.com/images/logo.png">
-
-    <!-- Common CSS -->
+    <!-- =========================================================
+         CSS
+    ========================================================= -->
     <link rel="stylesheet" href="css/layout.css">
     <link rel="stylesheet" href="css/index.css">
-
-    <!-- Optional Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-    <!-- ==================== Structured Data ==================== -->
+    <!-- =========================================================
+         Google Analytics
+    ========================================================= -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HRGDQJKW55"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', process.env.GA_TRACKING_ID, {
+            page_title: 'Dwarkesh Motor Driving School Ahmedabad',
+            page_path: '/index.html'
+        });
+    </script>
+
+    <!-- =========================================================
+         Structured Data (JSON-LD)
+    ========================================================= -->
     <script type="application/ld+json">
         {
             "@context": "https://schema.org",
@@ -60,10 +60,7 @@
                 "https://www.facebook.com/profile.php?id=61584609136796",
                 "https://www.instagram.com/dwarkesh_motor_driving_school/"
             ],
-            "branchOf": {
-                "@type": "Organization",
-                "name": "Dwarkesh Motor Driving School"
-            },
+            "branchOf": { "@type": "Organization", "name": "Dwarkesh Motor Driving School" },
             "hasPOS": [
                 {
                     "@type": "Place",
@@ -78,11 +75,7 @@
                     },
                     "telephone": "+91 99241 16122",
                     "email": "info@dwarkeshdrivingschool.com",
-                    "geo": {
-                        "@type": "GeoCoordinates",
-                        "latitude": 23.0944656,
-                        "longitude": 72.5440317
-                    }
+                    "geo": { "@type": "GeoCoordinates", "latitude": 23.0944656, "longitude": 72.5440317 }
                 },
                 {
                     "@type": "Place",
@@ -97,11 +90,7 @@
                     },
                     "telephone": "+91 99241 16122",
                     "email": "info@dwarkeshdrivingschool.com",
-                    "geo": {
-                        "@type": "GeoCoordinates",
-                        "latitude": 23.0163154,
-                        "longitude": 72.2665159
-                    }
+                    "geo": { "@type": "GeoCoordinates", "latitude": 23.0163154, "longitude": 72.2665159 }
                 },
                 {
                     "@type": "Place",
@@ -116,54 +105,44 @@
                     },
                     "telephone": "+91 99241 16122",
                     "email": "info@dwarkeshdrivingschool.com",
-                    "geo": {
-                        "@type": "GeoCoordinates",
-                        "latitude": 23.1284636,
-                        "longitude": 72.4722334
-                    }
+                    "geo": { "@type": "GeoCoordinates", "latitude": 23.1284636, "longitude": 72.4722334 }
                 }
             ],
-            "mainEntityOfPage": {
-                "@type": "WebPage",
-                "@id": "https://dwarkeshmotordrivingschool.com/index.html"
-            }
+            "mainEntityOfPage": { "@type": "WebPage", "@id": "https://dwarkeshmotordrivingschool.com/index.html" }
         }
     </script>
 
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      "itemListElement": [
         {
-          "@type": "ListItem",
-          "position": 1,
-          "name": "Home",
-          "item": "https://dwarkeshmotordrivingschool.com/"
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://dwarkeshmotordrivingschool.com/" }
+            ]
         }
-      ]
-    }
     </script>
 </head>
 
 <body>
-    <!-- ==================== HEADER (COMMON INCLUDE) ==================== -->
+    <!-- =========================================================
+         HEADER
+    ========================================================= -->
     <div data-include="includes/header.html"></div>
 
-    <!-- ==================== MAIN CONTENT ==================== -->
+    <!-- =========================================================
+         MAIN CONTENT
+    ========================================================= -->
     <main>
-
+        <!-- HERO SECTION -->
         <section class="hero-section">
             <h1>Professional Driving Courses in Ahmedabad</h1>
-            <p>
-                Learn safe, confident, and responsible driving with Dwarkesh Motor Driving School.
-                Choose a course that matches your experience and start your journey today.
-            </p>
+            <p>Learn safe, confident, and responsible driving with Dwarkesh Motor Driving School.
+                Choose a course that matches your experience and start your journey today.</p>
         </section>
 
+        <!-- PACKAGES SECTION -->
         <section class="packages-section">
             <div class="packages-grid">
-
                 <!-- Beginner Course -->
                 <article class="package-card highlight">
                     <span class="badge">Best for Beginners</span>
@@ -172,7 +151,6 @@
                         Perfect for first-time learners. Start from basics and gain full road confidence
                         under expert supervision.
                     </p>
-
                     <ul class="features">
                         <li>21 Practical Sessions</li>
                         <li>30 Minutes per Session</li>
@@ -182,10 +160,7 @@
                         <li>No Experience Required</li>
                         <li>Learner / Driver Licence Required</li>
                     </ul>
-
-                    <button class="btn-book" onclick="bookNow(21)">
-                        Book Now
-                    </button>
+                    <button class="btn-book" onclick="bookNow(21)">Book Now</button>
                 </article>
 
                 <!-- Advance Course -->
@@ -196,7 +171,6 @@
                         Ideal for learners who know basics and want mastery in city traffic
                         and real-world driving.
                     </p>
-
                     <ul class="features">
                         <li>15 Practical Sessions</li>
                         <li>30 Minutes per Session</li>
@@ -206,60 +180,78 @@
                         <li>Basic Experience Required</li>
                         <li>Learner / Driver Licence Required</li>
                     </ul>
-
-                    <button class="btn-book" onclick="bookNow(15)">
-                        Book Now
-                    </button>
+                    <button class="btn-book" onclick="bookNow(15)">Book Now</button>
                 </article>
-
             </div>
         </section>
     </main>
 
-    <!-- ==================== BRANCH CARDS & FOOTER ==================== -->
+    <!-- =========================================================
+         BRANCH CARDS & FOOTER
+    ========================================================= -->
     <div data-include="includes/branchesCards.html"></div>
 
+
+    <!-- =========================================================
+         GOOGLE REVIEWS SECTION
+    ========================================================= -->
     <section class="google-reviews">
-        <h2>What Our Students Say</h2>
-
-        <select id="branchSelect">
-            <option value="vandematram">Vandematram Branch</option>
-            <option value="southbopal">South Bopal Branch</option>
-            <option value="malabar">Malabar Branch</option>
-        </select>
-
-        <div class="reviews-carousel">
-            <button class="nav prev">‹</button>
-            <div class="reviews-track" id="reviews"></div>
-            <button class="nav next">›</button>
+        <div class="reviews-container">
+            <div class="reviews-header">
+                <div class="reviews-left">
+                    <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google Reviews">
+                    <div class="reviews-summary">
+                        <h2 class="google-reviews-title">
+                            Google Reviews
+                            <span class="verified-inline">
+                                <i class="fa-solid fa-circle-check"></i> Verified
+                            </span>
+                        </h2>
+                        <div class="rating-line">
+                            <span class="rating-score" id="avgRating">—</span>
+                            <span class="stars" id="ratingStars"></span>
+                            <span class="review-count" id="reviewCount">Loading…</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="reviews-branch-select">
+                    <label for="branchSelect">Branch</label>
+                    <select id="branchSelect">
+                        <option value="vandematram">Vandematram</option>
+                        <option value="southbopal">South Bopal</option>
+                        <option value="malabar">Malabar</option>
+                    </select>
+                </div>
+            </div>
+            <div class="reviews-carousel">
+                <div class="reviews-track" id="reviews"></div>
+            </div>
+            <a id="viewOnGoogle" class="view-google-btn" target="_blank" rel="noopener">
+                View all reviews on Google
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            </a>
         </div>
     </section>
 
-
-    <!-- ==================== FOLLOW US ==================== -->
-
+    <!-- =========================================================
+         FOLLOW US SECTION
+    ========================================================= -->
     <section class="follow-paper-section" aria-label="Follow Dwarkesh Motor Driving School on Social Media">
         <div class="paper-wrapper">
             <h2>Follow Us</h2>
             <p>Driving tips, real student journeys & special offers on Instagram and Facebook</p>
-
             <div class="paper-cards">
                 <a href="https://www.instagram.com/dwarkesh_motor_driving_school/" target="_blank" rel="noopener"
                     class="paper-card instagram" aria-label="Follow us on Instagram">
-                    <div class="icon-wrap">
-                        <i class="fab fa-instagram"></i>
-                    </div>
+                    <div class="icon-wrap"><i class="fab fa-instagram"></i></div>
                     <div class="card-text">
                         <h3>Instagram</h3>
                         <span>See daily driving tips</span>
                     </div>
                 </a>
-
                 <a href="https://www.facebook.com/profile.php?id=61584609136796" target="_blank" rel="noopener"
                     class="paper-card facebook" aria-label="Follow us on Facebook">
-                    <div class="icon-wrap">
-                        <i class="fab fa-facebook-f"></i>
-                    </div>
+                    <div class="icon-wrap"><i class="fab fa-facebook-f"></i></div>
                     <div class="card-text">
                         <h3>Facebook</h3>
                         <span>Updates & student stories</span>
@@ -270,145 +262,138 @@
     </section>
 
     <div data-include="includes/footer.html"></div>
-
-
-
-    <!-- Place this just before </body> -->
+    <!-- =========================================================
+         SCRIPTS
+    ========================================================= -->
     <script>
-        // ================== Configuration & Global State ==================
+        // Branch IDs
         const BRANCHES = {
             vandematram: "ChIJT_SeKRiDXjkR9ujjQDt4rMs",
             southbopal: "ChIJT8LlIX-bXjkRkb4LalKy0mE",
             malabar: "ChIJD3x1OdWDXjkRecjalDEqhM0"
         };
-        let currentIndex = 0;
 
-        // ================== Main Logic: Load Reviews ==================
+        // Review carousel logic
+        let currentIndex = 0;
+        const reviewsPerView = 3;
+        let autoScrollInterval;
+
+        const carousel = document.querySelector(".reviews-carousel");
+        carousel?.addEventListener("mouseenter", stopAutoScroll);
+        carousel?.addEventListener("mouseleave", startAutoScroll);
+
+        function renderStars(rating) {
+            const rounded = Math.round(rating * 2) / 2;
+            let stars = "";
+            for (let i = 1; i <= 5; i++) {
+                stars += i <= rounded ? "★" : "☆";
+            }
+            return stars;
+        }
+
+        function updateCarousel() {
+            const carousel = document.querySelector(".reviews-carousel");
+            const cards = document.querySelectorAll(".review-card");
+            if (!carousel || cards.length === 0) return;
+
+            const cardWidth = cards[0].offsetWidth + 20;
+            const maxIndex = cards.length - reviewsPerView;
+            if (currentIndex > maxIndex) currentIndex = 0;
+
+            carousel.scrollTo({ left: currentIndex * cardWidth, behavior: 'smooth' }); // smooth scroll
+        }
+
+        function startAutoScroll() {
+            clearInterval(autoScrollInterval);
+            const cards = document.querySelectorAll(".review-card");
+            if (cards.length <= reviewsPerView) return;
+
+            autoScrollInterval = setInterval(() => {
+                currentIndex++;
+                updateCarousel();
+            }, 3000);
+        }
+
+        function stopAutoScroll() {
+            clearInterval(autoScrollInterval);
+        }
+
         async function loadReviews(placeId) {
             const reviewsDiv = document.getElementById("reviews");
             reviewsDiv.innerHTML = `<div class="loader">Loading Google Reviews...</div>`;
-            console.log("🔍 Fetching reviews for Place ID:", placeId);
 
             try {
                 const { Place } = await google.maps.importLibrary("places");
-                console.log("✅ Places Library Loaded");
-
                 const place = new Place({ id: placeId, requestedLanguage: "en" });
-                await place.fetchFields({ fields: ["displayName", "rating", "reviews", "formattedAddress"] });
+                await place.fetchFields({ fields: ["displayName", "rating", "userRatingCount", "reviews"] });
 
-                console.log("📦 Full Data Received:", place);
+                document.getElementById("viewOnGoogle").href =
+                    `https://www.google.com/maps/place/?q=place_id:${placeId}`;
+
+                document.getElementById("avgRating").textContent = place.rating ? place.rating.toFixed(1) : "5.0";
+                document.getElementById("ratingStars").textContent = renderStars(place.rating || 5);
+                document.getElementById("reviewCount").textContent = `(${place.userRatingCount || 0} reviews)`;
+
                 reviewsDiv.innerHTML = "";
                 currentIndex = 0;
 
-                if (!place.reviews || place.reviews.length === 0) {
-                    console.warn("⚠️ No reviews found for this Place ID.");
+                if (!place.reviews?.length) {
                     reviewsDiv.innerHTML = "<p>No reviews available for this location yet.</p>";
                     return;
                 }
 
-                place.reviews.slice(0, 8).forEach((r, index) => {
-                    const reviewText = r.text ? (typeof r.text === 'object' ? r.text.text : r.text) : "No comment provided.";
-                    const authorName = r.authorAttribution?.displayName || "A Student";
-                    const rating = r.rating || 5;
+                place.reviews.slice(0, 8).forEach(r => {
+                    const authorName = r.authorAttribution?.displayName || "Google User";
+                    const reviewText = typeof r.text === "object" ? r.text.text : r.text || "No review text provided.";
+                    const initial = authorName.charAt(0).toUpperCase();
+                    const stars = "★".repeat(r.rating || 5) + "☆".repeat(5 - (r.rating || 5));
 
-                    reviewsDiv.insertAdjacentHTML(
-                        "beforeend",
+                    reviewsDiv.insertAdjacentHTML("beforeend",
                         `<div class="review-card">
-                 <strong>${authorName}</strong>
-                 <div class="stars">⭐ ${rating}</div>
-                 <p>${reviewText}</p>
-               </div>`
-                    );
+                            <div class="review-header">
+                                <div class="review-avatar">${initial}</div>
+                                <div>
+                                    <div class="review-name">${authorName}</div>
+                                    <div class="review-stars">${stars}</div>
+                                </div>
+                            </div>
+                            <p>${reviewText}</p>
+                        </div>`);
                 });
 
-                updateCarousel();
-                injectReviewSchema(place);
-                console.log("✨ Carousel Updated and Rendered");
-
-            } catch (error) {
-                console.error("❌ CRITICAL ERROR:", error);
+                startAutoScroll();
+            } catch (err) {
+                console.error("Error loading reviews:", err);
                 reviewsDiv.innerHTML = `<p>Error loading reviews. Check console for details.</p>`;
             }
         }
 
-        // ================== Carousel Logic ==================
-        function updateCarousel() {
-            const track = document.querySelector(".reviews-track");
-            const cards = document.querySelectorAll(".review-card");
-            if (!track || cards.length === 0) return;
-
-            const maxIndex = Math.max(0, cards.length - 3);
-            currentIndex = Math.min(currentIndex, maxIndex);
-            track.style.transform = `translateX(-${currentIndex * 320}px)`;
-        }
-
-        // ================== JSON-LD Schema Injection ==================
-        function injectReviewSchema(place) {
-            document.getElementById("review-schema")?.remove();
-
-            const schema = {
-                "@context": "https://schema.org",
-                "@type": "DrivingSchool",
-                "name": place.displayName,
-                "aggregateRating": {
-                    "@type": "AggregateRating",
-                    "ratingValue": place.rating,
-                    "reviewCount": place.reviews?.length || 0
-                },
-                "review": place.reviews?.slice(0, 5).map(r => ({
-                    "@type": "Review",
-                    "author": { "@type": "Person", "name": r.authorAttribution?.displayName || "Anonymous" },
-                    "reviewRating": { "@type": "Rating", "ratingValue": r.rating },
-                    "reviewBody": r.text?.text || r.text || ""
-                }))
-            };
-
-            const script = document.createElement("script");
-            script.id = "review-schema";
-            script.type = "application/ld+json";
-            script.textContent = JSON.stringify(schema);
-            document.head.appendChild(script);
-        }
-
-        // ================== Booking Button ==================
         function bookNow(trainingDays) {
             if (!trainingDays) return;
-
-            if (typeof gtag === "function") {
-                gtag("event", "book_now_click", {
-                    event_category: "engagement",
-                    event_label: `${trainingDays}_days_course`
-                });
-            }
-
-            const params = new URLSearchParams({ training_days: trainingDays });
-            window.location.href = `register.html?${params.toString()}`;
+            gtag?.("event", "book_now_click", { event_category: "engagement", event_label: `${trainingDays}_days_course` });
+            window.location.href = `register.html?training_days=${trainingDays}`;
         }
 
-        // ================== Initialize Maps & Reviews ==================
         async function initMaps() {
-            // Nav Buttons
-            const nextBtn = document.querySelector(".nav.next");
-            const prevBtn = document.querySelector(".nav.prev");
-            if (nextBtn) nextBtn.onclick = () => { currentIndex++; updateCarousel(); };
-            if (prevBtn) prevBtn.onclick = () => { currentIndex = Math.max(0, currentIndex - 1); updateCarousel(); };
-
-            // Branch Selector
             const branchSelect = document.getElementById("branchSelect");
-            if (branchSelect) branchSelect.onchange = e => loadReviews(BRANCHES[e.target.value]);
-
-            // Initial Load
+            branchSelect?.addEventListener("change", e => loadReviews(BRANCHES[e.target.value]));
             loadReviews(BRANCHES.vandematram);
         }
 
         window.initMaps = initMaps;
     </script>
 
-    <!-- Google Maps JS API (load async with callback to initMaps) -->
     <script async
         src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDeoVTpTLdEPkGbhIclplyfMPEM6jeCYf8&libraries=places&callback=initMaps">
         </script>
 
+    <script>
+        const apiKey = "{{GOOGLE_MAPS_API_KEY}}";
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initMaps`;
+        script.async = true;
+        document.head.appendChild(script);
+    </script>
 
     <script src="js/includeHTML.js" defer></script>
     <script src="js/common.js" defer></script>
