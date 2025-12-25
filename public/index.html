@@ -39,7 +39,7 @@
         window.dataLayer = window.dataLayer || [];
         function gtag() { dataLayer.push(arguments); }
         gtag('js', new Date());
-        gtag('config', process.env.GA_TRACKING_ID, {
+        gtag('config', 'G-HRGDQJKW55', {
             page_title: 'Dwarkesh Motor Driving School Ahmedabad',
             page_path: '/index.html'
         });
@@ -386,15 +386,6 @@
     <script async
         src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDeoVTpTLdEPkGbhIclplyfMPEM6jeCYf8&libraries=places&callback=initMaps">
         </script>
-
-    <script>
-        const apiKey = "{{GOOGLE_MAPS_API_KEY}}";
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initMaps`;
-        script.async = true;
-        document.head.appendChild(script);
-    </script>
-
     <script src="js/includeHTML.js" defer></script>
     <script src="js/common.js" defer></script>
 </body>

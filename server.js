@@ -723,6 +723,9 @@ app.get("/api/public/certificates", async (req, res) => {
   }
 });
 
+app.get('/', (req, res) => {
+    res.render('index', { googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY });
+});
 
 app.use('/api/training-days', trainingDaysRoute);
 app.use('/api/instructors', instructorsRoute);
