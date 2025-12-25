@@ -99,7 +99,9 @@ function injectReviewSchema(place) {
     document.head.appendChild(script);
 }
 
-window.addEventListener("DOMContentLoaded", () => {
+
+function initMaps() {
+    // UI events (DOM is already ready by now)
     document.querySelector(".nav.next").onclick = () => {
         currentIndex++;
         updateCarousel();
@@ -114,5 +116,5 @@ window.addEventListener("DOMContentLoaded", () => {
         loadReviews(BRANCHES[e.target.value]);
     };
 
-    loadReviews(BRANCHES.vandematram);
-});
+    loadReviews(BRANCHES.southbopal);
+}
