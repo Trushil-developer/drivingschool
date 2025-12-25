@@ -1,20 +1,4 @@
-function bookNow(trainingDays) {
-    if (!trainingDays) return;
-
-    if (typeof gtag === "function") {
-        gtag("event", "book_now_click", {
-            event_category: "engagement",
-            event_label: `${trainingDays}_days_course`
-        });
-    }
-
-    const params = new URLSearchParams({
-        training_days: trainingDays
-    });
-
-    window.location.href = `register.html?${params.toString()}`;
-}
-// Configuration
+// 1. Configuration & Global State
 const BRANCHES = {
     vandematram: "ChIJT_SeKRiDXjkR9ujjQDt4rMs",
     southbopal: "ChIJT8LlIX-bXjkRkb4LalKy0mE",
@@ -23,42 +7,55 @@ const BRANCHES = {
 
 let currentIndex = 0;
 
-// NEW: Use the modern importLibrary to ensure Place is available
+// 2. Main Logic: Load Reviews from Google
 async function loadReviews(placeId) {
-    const { Place } = await google.maps.importLibrary("places");
-    
-    const place = new Place({
-        id: placeId,
-        requestedLanguage: "en"
-    });
+    try {
+        const { Place } = await google.maps.importLibrary("places");
+        
+        const place = new Place({
+            id: placeId,
+            requestedLanguage: "en"
+        });
 
-    await place.fetchFields({
-        fields: ["displayName", "rating", "reviews"]
-    });
+        await place.fetchFields({
+            fields: ["displayName", "rating", "reviews"]
+        });
 
-    const reviewsDiv = document.getElementById("reviews");
-    reviewsDiv.innerHTML = "";
-    currentIndex = 0;
+        const reviewsDiv = document.getElementById("reviews");
+        reviewsDiv.innerHTML = ""; // Clear loader/previous reviews
+        currentIndex = 0;
 
-    if (!place.reviews?.length) return;
+        if (!place.reviews || place.reviews.length === 0) {
+            reviewsDiv.innerHTML = "<p>No reviews available for this location yet.</p>";
+            return;
+        }
 
-    place.reviews.slice(0, 8).forEach(r => {
-        reviewsDiv.insertAdjacentHTML(
-            "beforeend",
-            `
-            <div class="review-card">
-                <strong>${r.authorAttribution.displayName}</strong>
-                <div class="stars">⭐ ${r.rating}</div>
-                <p>${r.text.text}</p>
-            </div>
-            `
-        );
-    });
+        place.reviews.slice(0, 8).forEach(r => {
+            // Safety check for review text
+            const reviewText = r.text ? (typeof r.text === 'object' ? r.text.text : r.text) : "No comment provided.";
+            const authorName = r.authorAttribution?.displayName || "A Student";
 
-    updateCarousel();
-    injectReviewSchema(place);
+            reviewsDiv.insertAdjacentHTML(
+                "beforeend",
+                `
+                <div class="review-card">
+                    <strong>${authorName}</strong>
+                    <div class="stars">⭐ ${r.rating}</div>
+                    <p>${reviewText}</p>
+                </div>
+                `
+            );
+        });
+
+        updateCarousel();
+        injectReviewSchema(place);
+    } catch (error) {
+        console.error("Reviews failed to load:", error);
+        document.getElementById("reviews").innerHTML = "<p>Google Reviews are currently unavailable.</p>";
+    }
 }
 
+// 3. UI Logic: Carousel movement
 function updateCarousel() {
     const track = document.querySelector(".reviews-track");
     const cards = document.querySelectorAll(".review-card");
@@ -70,6 +67,7 @@ function updateCarousel() {
     track.style.transform = `translateX(-${currentIndex * 320}px)`;
 }
 
+// 4. SEO: Inject JSON-LD Schema
 function injectReviewSchema(place) {
     document.getElementById("review-schema")?.remove();
 
@@ -80,19 +78,13 @@ function injectReviewSchema(place) {
         "aggregateRating": {
             "@type": "AggregateRating",
             "ratingValue": place.rating,
-            "reviewCount": place.reviews.length
+            "reviewCount": place.reviews?.length || 0
         },
-        "review": place.reviews.slice(0, 5).map(r => ({
+        "review": place.reviews?.slice(0, 5).map(r => ({
             "@type": "Review",
-            "author": {
-                "@type": "Person",
-                "name": r.authorAttribution.displayName
-            },
-            "reviewRating": {
-                "@type": "Rating",
-                "ratingValue": r.rating
-            },
-            "reviewBody": r.text.text
+            "author": { "@type": "Person", "name": r.authorAttribution?.displayName || "Anonymous" },
+            "reviewRating": { "@type": "Rating", "ratingValue": r.rating },
+            "reviewBody": r.text?.text || r.text || ""
         }))
     };
 
@@ -103,7 +95,7 @@ function injectReviewSchema(place) {
     document.head.appendChild(script);
 }
 
-// Function to handle the Book Now clicks
+// 5. Navigation: Booking function
 function bookNow(trainingDays) {
     if (!trainingDays) return;
 
@@ -114,35 +106,27 @@ function bookNow(trainingDays) {
         });
     }
 
-    const params = new URLSearchParams({
-        training_days: trainingDays
-    });
-
+    const params = new URLSearchParams({ training_days: trainingDays });
     window.location.href = `register.html?${params.toString()}`;
 }
 
-// The init function called by the Google Maps loader
+// 6. Entry Point: Called by Google Maps Script
 async function initMaps() {
-    document.querySelector(".nav.next").onclick = () => {
-        currentIndex++;
-        updateCarousel();
-    };
+    // Nav Buttons
+    const nextBtn = document.querySelector(".nav.next");
+    const prevBtn = document.querySelector(".nav.prev");
+    
+    if(nextBtn) nextBtn.onclick = () => { currentIndex++; updateCarousel(); };
+    if(prevBtn) prevBtn.onclick = () => { currentIndex = Math.max(0, currentIndex - 1); updateCarousel(); };
 
-    document.querySelector(".nav.prev").onclick = () => {
-        currentIndex = Math.max(0, currentIndex - 1);
-        updateCarousel();
-    };
-
+    // Branch Switcher
     const branchSelect = document.getElementById("branchSelect");
     if (branchSelect) {
-        branchSelect.onchange = e => {
-            loadReviews(BRANCHES[e.target.value]);
-        };
+        branchSelect.onchange = e => loadReviews(BRANCHES[e.target.value]);
     }
 
-    // Load initial reviews
+    // Initial Load
     loadReviews(BRANCHES.vandematram);
 }
 
-// Make it globally accessible for the callback
 window.initMaps = initMaps;
