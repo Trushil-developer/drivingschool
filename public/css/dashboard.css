@@ -1,0 +1,229 @@
+/* ==============================
+   DASHBOARD ROOT
+================================ */
+.dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 20px;
+    width: 100%;
+}
+
+/* ==============================
+   DASHBOARD FILTERS
+================================ */
+.dashboard-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    background: #ffffff;
+    padding: 14px 16px;
+    border-radius: 12px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-filters input[type="date"],
+.dashboard-filters input[type="month"] {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    font-size: 14px;
+    color: #111827;
+    background: #ffffff;
+}
+
+.dashboard-filters input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.dashboard-filters .or {
+    font-size: 13px;
+    color: #6b7280;
+    padding: 0 6px;
+}
+
+.dashboard-filters .btn.primary {
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: #3b82f6;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.dashboard-filters .btn.primary:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+/* ==============================
+   DASHBOARD CARDS
+================================ */
+.dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.dashboard-cards .card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-cards .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+}
+
+.dashboard-cards .card h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.dashboard-cards .card p {
+    font-size: 28px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+/* ==============================
+   CARD COLOR ACCENTS
+================================ */
+.card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #3b82f6;
+}
+
+.card.active::before {
+    background: #10b981;
+}
+
+.card.completed::before {
+    background: #3b82f6;
+}
+
+.card.hold::before {
+    background: #f59e0b;
+}
+
+.card.expired::before {
+    background: #ef4444;
+}
+
+.card.revenue::before {
+    background: #6366f1;
+}
+
+/* ==============================
+   LOADING CARD
+================================ */
+.card.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    color: #9ca3af;
+    min-height: 90px;
+}
+
+/* ==============================
+   DASHBOARD SECTIONS
+================================ */
+.dashboard-section {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.dashboard-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 16px;
+}
+
+/* ==============================
+   CHART RESPONSIVENESS
+================================ */
+.dashboard-section canvas {
+    width: 100% !important;
+    max-height: 360px;
+}
+
+.dashboard-filters .branch-select {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    font-size: 14px;
+    color: #111827;
+    background: #ffffff;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-filters .branch-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+/* ==============================
+   RESPONSIVE ADJUSTMENTS
+================================ */
+@media (max-width: 1024px) {
+    .dashboard-cards .card p {
+        font-size: 24px;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard {
+        padding: 14px;
+        gap: 18px;
+    }
+
+    .dashboard-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .dashboard-filters .btn.primary {
+        width: 100%;
+    }
+
+    .dashboard-cards {
+        gap: 12px;
+    }
+
+    .dashboard-cards .card p {
+        font-size: 22px;
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-cards {
+        grid-template-columns: 1fr;
+    }
+}

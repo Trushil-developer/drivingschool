@@ -58,26 +58,30 @@ window.CommonReady = (async () => {
     });
 
     // -------- Sidebar navigation --------
+
     const sidebarItems = document.querySelectorAll('.sidebar li');
+
+    const tabMapping = {
+        dashboard: 'admin.html?tab=dashboard',
+        bookings: 'admin.html?tab=bookings',
+        upcoming: 'admin.html?tab=upcoming',
+        instructors: 'admin.html?tab=instructors',
+        branches: 'admin.html?tab=branches',
+        cars: 'admin.html?tab=cars',
+        schedule: 'admin.html?tab=schedule',
+        trainingDays: 'admin.html?tab=trainingDays',
+        enquiries: 'admin.html?tab=enquiries',
+        courses: 'admin.html?tab=courses'
+    };
+
     sidebarItems.forEach(li => {
         li.addEventListener('click', () => {
-            sidebarItems.forEach(i => i.classList.remove('active'));
-            li.classList.add('active');
             const section = li.dataset.section;
-            const tabMapping = {
-                bookings: 'admin.html',
-                upcoming: 'admin.html?tab=upcoming',
-                instructors: 'admin.html?tab=instructors',
-                branches: 'admin.html?tab=branches',
-                cars: 'admin.html?tab=cars',
-                schedule: 'admin.html?tab=schedule',
-                trainingDays: 'admin.html?tab=trainingDays',
-                enquiries: 'admin.html?tab=enquiries',
-                courses: 'admin.html?tab=courses'
-            };
-            if (tabMapping[section]) window.location.href = tabMapping[section];
+            if (!section || !tabMapping[section]) return;
+            window.location.href = tabMapping[section];
         });
     });
+
 
     // -------- API helper --------
     window.api = async function(path, opts = {}) {

@@ -16,6 +16,7 @@ import preferredCoursesRoutes from "./routes/preferredCoursesRoutes.js";
 import enquiriesRoutes from "./routes/enquiriesRoutes.js";
 import carsRoute from './routes/carsRoutes.js';
 import upload from "./public/middleware/upload.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
 import AWS from "aws-sdk";
 
 dotenv.config();
@@ -727,6 +728,7 @@ app.get('/', (req, res) => {
     res.render('index', { googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY });
 });
 
+app.use("/api/dashboard", dashboardRoutes);
 app.use('/api/training-days', trainingDaysRoute);
 app.use('/api/instructors', instructorsRoute);
 app.use('/api/cars', carsRoute);

@@ -1,10 +1,6 @@
 import { downloadCertificate, uploadCertificate } from "./globals/certificates.js";
 import { loadFilterBranches, filterData, attachFilterListeners } from "./globals/filters.js";
-
-window.renderScheduleSectionFactory = null;
-window.registerScheduleModule = function (factory) {
-    window.renderScheduleSectionFactory = factory;
-};
+import { renderDashboardModule } from "./Dashboard/renderDashboardModule.js";
 
 (async () => {
     await window.CommonReady;
@@ -16,7 +12,11 @@ window.registerScheduleModule = function (factory) {
     const addBtn = document.getElementById('addBtn');
 
     const urlParams = new URLSearchParams(window.location.search);
-    let currentTab = urlParams.get('tab') || 'bookings';
+    let currentTab = urlParams.get('tab') || 'dashboard';
+    document.querySelectorAll('.sidebar li').forEach(li => {
+        li.classList.toggle('active', li.dataset.section === currentTab);
+    });
+
     let lastSearch = '';
 
     const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -55,6 +55,19 @@ window.registerScheduleModule = function (factory) {
 
     
     const tabRenderers = {
+        dashboard: async () => {
+            showLoading();
+            try {
+                if (typeof renderDashboardModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Dashboard module not loaded</div>';
+                    return;
+                }
+                const renderer = renderDashboardModule(tableWrap);
+                await renderer();
+            } finally {
+                hideLoading();
+            }
+        },
         bookings: async () => {
             showLoading();
             try {
@@ -327,11 +340,9 @@ window.registerScheduleModule = function (factory) {
 
     attachFilterListeners(tabRenderers, () => currentTab);
 
-    const sidebarItems = document.querySelectorAll('.sidebar li');
 
     async function switchTab(tab) {
         currentTab = tab;
-        sidebarItems.forEach(i => i.classList.toggle('active', i.dataset.section === tab));
 
         const filterBar = document.getElementById('filterBar');
 
@@ -343,7 +354,7 @@ window.registerScheduleModule = function (factory) {
             }
         }
 
-        if (tab === 'schedule' || tab === 'enquiries') {
+        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
         } else if (tab === 'trainingDays' || tab === 'courses') {
@@ -357,19 +368,7 @@ window.registerScheduleModule = function (factory) {
         }
 
         if(tabRenderers[tab]) await tabRenderers[tab]();
-
-        const newUrl = new URL(window.location);
-        newUrl.searchParams.set('tab', tab);
-        window.history.replaceState({}, '', newUrl);
     }
-
-
-    sidebarItems.forEach(i => {
-        i.addEventListener('click', e => {
-            e.preventDefault();
-            switchTab(i.dataset.section || 'bookings');
-        });
-    });
 
     searchInput?.addEventListener('input', e => {
         lastSearch = e.target.value;
@@ -386,7 +385,6 @@ window.registerScheduleModule = function (factory) {
         else window.location.href = "index.html";
     });
 
-    // Click handlers (delete/edit) remain unchanged
     tableWrap.addEventListener('click', async e => {
         const id = e.target.dataset.id;
         if (!id) return;
