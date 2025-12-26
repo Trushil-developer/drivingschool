@@ -98,7 +98,7 @@ async function loadDashboardData(query = "") {
       <div class="card today"><h4>Joined Today</h4><p>${s.todayBookings}</p></div>
       <div class="card slots">
           <h4>Today's Slots</h4>
-          <p>Active: ${activeSlots}<br>Present: ${studentsPresent}</p>
+          <p>Present: ${studentsPresent}</p>
       </div>
       <div class="card revenue">
           <h4>Total Revenue</h4>
