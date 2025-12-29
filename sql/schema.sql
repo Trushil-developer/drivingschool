@@ -1080,3 +1080,147 @@ SET @sql := IF(@col_exists=0,
                'ALTER TABLE courses ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- EMAIL OTPS TABLE
+-- =====================================
+
+CREATE TABLE IF NOT EXISTS email_otps (
+    id INT AUTO_INCREMENT PRIMARY KEY
+);
+
+-- email
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='email_otps'
+      AND column_name='email'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE email_otps ADD COLUMN email VARCHAR(255) NOT NULL;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- otp
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='email_otps'
+      AND column_name='otp'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE email_otps ADD COLUMN otp VARCHAR(6) NOT NULL;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- attempts
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='email_otps'
+      AND column_name='attempts'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE email_otps ADD COLUMN attempts INT DEFAULT 0;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- resend_count
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='email_otps'
+      AND column_name='resend_count'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE email_otps ADD COLUMN resend_count INT DEFAULT 0;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- last_sent_at
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='email_otps'
+      AND column_name='last_sent_at'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE email_otps ADD COLUMN last_sent_at DATETIME DEFAULT CURRENT_TIMESTAMP;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ip_address
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='email_otps'
+      AND column_name='ip_address'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE email_otps ADD COLUMN ip_address VARCHAR(45);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- expires_at
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='email_otps'
+      AND column_name='expires_at'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE email_otps ADD COLUMN expires_at DATETIME NOT NULL;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- verified
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='email_otps'
+      AND column_name='verified'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE email_otps ADD COLUMN verified TINYINT(1) DEFAULT 0;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- created_at
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='email_otps'
+      AND column_name='created_at'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE email_otps ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- INDEXES
+-- =====================================
+
+-- email index
+SET @idx_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE table_schema='drivingschool'
+      AND table_name='email_otps'
+      AND index_name='idx_email'
+);
+SET @sql := IF(@idx_exists=0,
+    'CREATE INDEX idx_email ON email_otps (email);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- email + created_at composite index
+SET @idx_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE table_schema='drivingschool'
+      AND table_name='email_otps'
+      AND index_name='idx_email_created'
+);
+SET @sql := IF(@idx_exists=0,
+    'CREATE INDEX idx_email_created ON email_otps (email, created_at);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

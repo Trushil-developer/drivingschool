@@ -14,6 +14,7 @@ import trainingDaysRoute from './routes/trainingDays.js';
 import instructorsRoute from './routes/instructorsRoutes.js';
 import preferredCoursesRoutes from "./routes/preferredCoursesRoutes.js";
 import enquiriesRoutes from "./routes/enquiriesRoutes.js";
+import otpRoutes from "./routes/otpRoutes.js";
 import carsRoute from './routes/carsRoutes.js';
 import upload from "./public/middleware/upload.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
@@ -734,6 +735,7 @@ app.use('/api/instructors', instructorsRoute);
 app.use('/api/cars', carsRoute);
 app.use("/api/courses", preferredCoursesRoutes);
 app.use("/api/enquiries", enquiriesRoutes);
+app.use("/api/enquiries", otpRoutes);
 
 // ---------- START SERVER ----------
 app.listen(PORT, '0.0.0.0', () => {

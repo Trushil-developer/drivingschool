@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Google tag (gtag.js) -->
+    <!-- Google tag -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-HRGDQJKW55"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
@@ -14,103 +14,216 @@
         gtag('config', 'G-HRGDQJKW55');
     </script>
 
-    <title>Enquiry - Dwarkesh Motor Driving School Ahmedabad | Car & Two-Wheeler Training</title>
+    <title>Enquiry - Dwarkesh Motor Driving School Ahmedabad</title>
     <meta name="description"
-        content="Submit your enquiry to Dwarkesh Motor Driving School in Ahmedabad. Get information about car and two-wheeler driving courses, branches, fees, and enrollment.">
+        content="Submit your enquiry to Dwarkesh Motor Driving School in Ahmedabad. Get information about driving courses, branches, and fees.">
 
     <link rel="stylesheet" href="css/layout.css">
     <link rel="stylesheet" href="css/enquiry.css">
 </head>
 
 <body>
-    <!-- ==================== HEADER ==================== -->
+
+    <!-- ================= HEADER ================= -->
     <header>
         <div data-include="includes/header.html"></div>
     </header>
 
-    <!-- ==================== MAIN ==================== -->
+    <!-- ================= MAIN ================= -->
     <main>
         <section class="enquiry-section">
             <div class="form-container">
-                <h1>Enquiry Form - Dwarkesh Motor Driving School</h1>
-                <p class="form-intro">Have questions? Fill out this form and our team will get back
-                    to you promptly.</p>
+
+                <h1>Enquiry Form</h1>
+                <p class="form-intro">
+                    Exploring our <b>driving courses, packages, or pricing</b>?
+                    Share your details below and we’ll help you choose the right option for your needs.
+                </p>
 
                 <form id="enquiryForm" aria-label="Driving School Enquiry Form">
 
-                    <!-- Full Name -->
-                    <div class="form-group">
-                        <label for="name">Full Name <span aria-hidden="true" style="color:red;">*</span></label>
-                        <input type="text" id="name" name="name" required placeholder="Enter your full name">
+                    <!-- STEP INDICATOR -->
+                    <div class="step-indicator">
+                        <div class="step active">Contact</div>
+                        <div class="step">Preferences</div>
+                        <div class="step">Licence</div>
+                        <div class="step">Submit</div>
                     </div>
 
-                    <!-- Email -->
-                    <div class="form-group">
-                        <label for="email">Email <span aria-hidden="true" style="color:red;">*</span></label>
-                        <input type="email" id="email" name="email" required placeholder="Enter your email">
-                    </div>
+                    <!-- ================= STEP 1 ================= -->
+                    <section class="form-step active">
+                        <h2>Contact Information</h2>
 
-                    <!-- Phone -->
-                    <div class="form-group">
-                        <label for="phone">Phone / WhatsApp <span aria-hidden="true" style="color:red;">*</span></label>
-                        <input type="tel" id="phone" name="phone" required
-                            placeholder="Enter your phone or WhatsApp number">
-                    </div>
-
-                    <!-- Preferred Branch -->
-                    <div class="form-group">
-                        <label for="branch">Preferred Branch</label>
-                        <select id="branch" name="branch" aria-label="Select Preferred Branch">
-                            <option value="">Select Branch</option>
-                            <option value="Vandematram">Vandematram</option>
-                            <option value="South Bopal">South Bopal</option>
-                            <option value="Malabar">Malabar</option>
-                        </select>
-                    </div>
-
-                    <!-- Preferred Service -->
-                    <div class="form-group">
-                        <label for="course">Preferred Service</label>
-                        <select id="course" name="course" aria-label="Select Preferred Service">
-                            <option value="">Select Service</option>
-                            <option value="Car Driving Training">Car Driving Training</option>
-                            <option value="Two-Wheeler Training">Two-Wheeler Training</option>
-                            <option value="License Assistance">License Assistance</option>
-                        </select>
-                    </div>
-
-                    <!-- Learner's / Driver's License -->
-                    <div class="form-group">
-                        <label>Do you have a Learner's / Driver's Licence?</label>
-                        <div class="radio-inline">
-                            <label><input type="radio" name="hasLicence" value="Yes" checked> Yes</label>
-                            <label><input type="radio" name="hasLicence" value="No"> No</label>
+                        <!-- NAME -->
+                        <div class="form-row">
+                            <label for="name">Full Name<span class="required">*</span></label>
+                            <input type="text" id="name" placeholder="Enter your full name" required>
                         </div>
-                    </div>
 
-                    <!-- Message -->
-                    <div class="form-group">
-                        <label for="message">Message / Questions</label>
-                        <textarea id="message" name="message" placeholder="Write your message here..."
-                            rows="4"></textarea>
-                    </div>
+                        <!-- PHONE -->
+                        <div class="form-row">
+                            <label for="phone">Phone / WhatsApp<span class="required">*</span></label>
+                            <input type="tel" id="phone" name="phone" placeholder="Enter phone number" required
+                                pattern="[6-9][0-9]{9}" inputmode="numeric" />
 
-                    <!-- Submit -->
-                    <button type="submit" class="btn-submit">Submit Enquiry</button>
+                        </div>
+
+                        <!-- EMAIL -->
+                        <div class="form-row">
+                            <label for="email">Email Address<span class="required">*</span></label>
+                            <input type="email" id="email" placeholder="Enter email address" required>
+                        </div>
+
+                        <!-- COMMON NOTE -->
+                        <p class="verify-note">
+                            🔐 We’ll send a <b>4-digit verification code</b> to your selected contact method.
+                        </p>
+
+                        <!-- VERIFY METHOD -->
+                        <div class="form-row">
+                            <label>Verification Method<span class="required">*</span></label>
+
+                            <div class="verify-cards">
+                                <button type="button" class="verify-card active" data-method="email">
+                                    <span class="verify-icon">📧</span>
+                                    <span class="verify-title">Email</span>
+                                    <span class="verify-desc">Receive code on your email</span>
+                                </button>
+
+                                <!-- <button type="button" class="verify-card" data-method="mobile">
+                                    <span class="verify-icon">📱</span>
+                                    <span class="verify-title">Mobile</span>
+                                    <span class="verify-desc">SMS / WhatsApp verification</span>
+                                </button> -->
+                            </div>
+                        </div>
+
+                        <!-- SEND OTP -->
+                        <div class="otp-action">
+                            <button type="button" id="sendOtpBtn" class="send-otp-btn">
+                                Send Verification Code
+                            </button>
+                        </div>
+
+                        <!-- OTP CARD -->
+                        <div id="otpSection" class="otp-card" style="display:none;">
+                            <p class="otp-title">🔐 Verify your contact</p>
+                            <p class="otp-sub">
+                                Enter the 4-digit code sent to <b id="otpTargetPreview"></b>
+                            </p>
+
+                            <div class="otp-container">
+                                <input class="otp-input" maxlength="1">
+                                <input class="otp-input" maxlength="1">
+                                <input class="otp-input" maxlength="1">
+                                <input class="otp-input" maxlength="1">
+                            </div>
+
+                            <div class="otp-footer">
+                                <span id="otpTimer">Resend code in 60s</span>
+                                <button type="button" id="resendOtpBtn" disabled>Resend</button>
+                            </div>
+                        </div>
+
+                        <div class="nav-buttons">
+                            <span></span>
+                            <button type="button" class="next-btn">Next →</button>
+                        </div>
+                    </section>
+
+                    <!-- ================= STEP 2 ================= -->
+                    <section class="form-step">
+                        <h2>Your Preferences</h2>
+
+                        <div class="form-row">
+                            <label for="branch">Preferred Branch<span class="required">*</span></label>
+                            <select id="branch" required>
+                                <option value="">Select Branch<span class="required">*</span></option>
+                            </select>
+                        </div>
+
+                        <div class="form-row">
+                            <label for="course">Preferred Service<span class="required">*</span></label>
+                            <select id="course" required>
+                                <option value="">Select Service</option>
+                            </select>
+                        </div>
+
+                        <div class="nav-buttons">
+                            <button type="button" class="back-btn">← Back</button>
+                            <button type="button" class="next-btn">Next →</button>
+                        </div>
+                    </section>
+
+                    <!-- ================= STEP 3 ================= -->
+                    <section class="form-step">
+                        <h2>Licence & Message</h2>
+
+                        <div class="licence-choice">
+                            <button type="button" class="licence-btn active" data-value="Yes">
+                                Yes, I have a licence
+                            </button>
+                            <button type="button" class="licence-btn" data-value="No">
+                                No licence
+                            </button>
+                        </div>
+
+                        <div class="form-row">
+                            <label for="message">Message (optional)</label>
+                            <textarea id="message" placeholder="Any questions or requirements"></textarea>
+                        </div>
+
+                        <div class="nav-buttons">
+                            <button type="button" class="back-btn">← Back</button>
+                            <button type="button" class="next-btn">Next →</button>
+                        </div>
+                    </section>
+
+                    <!-- ================= STEP 4 ================= -->
+                    <section class="form-step">
+                        <h2>Submit Enquiry</h2>
+
+                        <div class="form-row">
+                            <label for="reference">
+                                Where did you hear about us?<span class="required">*</span>
+                            </label>
+                            <select id="reference" required>
+                                <option value="">Select an option</option>
+                                <option value="FRIENDS_FAMILY">Friends / Family</option>
+                                <option value="GOOGLE">Google Search</option>
+                                <option value="INSTAGRAM">Instagram</option>
+                                <option value="FACEBOOK">Facebook</option>
+                                <option value="JUSTDIAL">JustDial</option>
+                                <option value="WALK_IN">Walk-in to branch</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </div>
+
+                        <p class="personal-note">
+                            🔒 Your details are safe. Our team will contact you shortly.
+                        </p>
+
+                        <div class="nav-buttons">
+                            <button type="button" class="back-btn">← Back</button>
+                            <button type="submit" class="submit-btn">Submit Enquiry</button>
+                        </div>
+                    </section>
+
                 </form>
             </div>
         </section>
     </main>
 
-    <!-- ==================== FOOTER ==================== -->
+    <!-- ================= FOOTER ================= -->
     <footer>
         <div data-include="includes/footer.html"></div>
     </footer>
 
-    <!-- ==================== SCRIPTS ==================== -->
+    <!-- ================= SCRIPTS ================= -->
     <script src="js/includeHTML.js" defer></script>
     <script src="js/Enquiry/enquiry.js" defer></script>
     <script src="js/common.js" defer></script>
+
 </body>
 
 </html>

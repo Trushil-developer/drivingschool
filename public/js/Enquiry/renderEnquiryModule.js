@@ -43,8 +43,6 @@ window.renderEnquiryModule = async function (tableWrap) {
                             <th>Licence</th>
                             <th>Heard About</th>
                             <th>Slots</th>
-                            <th>Preferred Car</th>
-                            <th>Message</th>
                             <th>Created At</th>
                             <th>Actions</th>
                         </tr>
@@ -60,8 +58,6 @@ window.renderEnquiryModule = async function (tableWrap) {
                                 <td>${e.course_name || "-"}</td>
                                 <td>${e.has_licence || "-"}</td>
                                 <td>${e.hear_about || "-"}</td>
-                                <td>${e.training_slots ?? "-"}</td>
-                                <td>${e.preferred_car || "-"}</td>
                                 <td>${e.message || "-"}</td>
                                 <td>${e.created_at ? formatDate(e.created_at) : "-"}</td>
                                 <td>

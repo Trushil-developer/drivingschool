@@ -16,8 +16,6 @@ router.get("/", requireAdmin, async (req, res, next) => {
         e.phone,
         e.has_licence,
         e.hear_about,
-        e.training_slots,
-        e.preferred_car,
         e.message,
         e.created_at,
         b.branch_name,
@@ -49,8 +47,6 @@ router.get("/:id", requireAdmin, async (req, res, next) => {
         e.phone,
         e.has_licence,
         e.hear_about,
-        e.training_slots,
-        e.preferred_car,
         e.message,
         e.created_at,
         b.branch_name,
@@ -90,16 +86,20 @@ router.post("/", async (req, res, next) => {
       course_id,
       has_licence,
       hear_about,
-      training_slots,
-      preferred_car,
       message
     } = req.body;
 
-    // Basic validation
-    if (!full_name || !email || !phone) {
+    if (
+      !full_name ||
+      !email ||
+      !phone ||
+      !branch_id ||
+      !course_id ||
+      !hear_about
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Name, email, and phone are required"
+        message: "All required fields must be filled"
       });
     }
 
@@ -113,21 +113,17 @@ router.post("/", async (req, res, next) => {
         course_id,
         has_licence,
         hear_about,
-        training_slots,
-        preferred_car,
         message
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
-        full_name,
-        email,
-        phone,
-        branch_id || null,
-        course_id || null,
+        full_name.trim(),
+        email.toLowerCase().trim(),
+        phone.trim(),
+        branch_id,
+        course_id,
         has_licence || "No",
-        hear_about || null,
-        training_slots || null,
-        preferred_car || null,
+        hear_about,                 
         message || null
       ]
     );
@@ -156,8 +152,6 @@ router.put("/:id", requireAdmin, async (req, res, next) => {
       course_id,
       has_licence,
       hear_about,
-      training_slots,
-      preferred_car,
       message
     } = req.body;
 
@@ -171,8 +165,6 @@ router.put("/:id", requireAdmin, async (req, res, next) => {
         course_id = ?,
         has_licence = ?,
         hear_about = ?,
-        training_slots = ?,
-        preferred_car = ?,
         message = ?
       WHERE id = ?
       `,
@@ -184,8 +176,6 @@ router.put("/:id", requireAdmin, async (req, res, next) => {
         course_id || null,
         has_licence || "No",
         hear_about || null,
-        training_slots || null,
-        preferred_car || null,
         message || null,
         req.params.id
       ]
