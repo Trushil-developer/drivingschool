@@ -241,7 +241,7 @@ async function loadCars() {
                         <div class="car-name">${car.car_name}</div>
                         <div class="car-price">₹${price}</div>
                         <div class="car-price-note">
-                            ${SELECTED_TRAINING_DAYS} days package
+                            ${SELECTED_TRAINING_DAYS} Practical Sessions
                         </div>
                     </div>
                 </div>
