@@ -42,7 +42,7 @@ window.renderEnquiryModule = async function (tableWrap) {
                             <th>Course</th>
                             <th>Licence</th>
                             <th>Heard About</th>
-                            <th>Slots</th>
+                            <th>Message</th>
                             <th>Created At</th>
                             <th>Actions</th>
                         </tr>
