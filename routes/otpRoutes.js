@@ -64,7 +64,6 @@ router.post("/send-email-otp", async (req, res) => {
    VERIFY EMAIL OTP
 ============================= */
 router.post("/verify-email-otp", async (req, res) => {
-  console.log("VERIFY OTP REQUEST:", req.body);
   try {
     const { email, otp } = req.body;
 

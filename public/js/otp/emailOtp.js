@@ -95,8 +95,6 @@ export function initEmailOtp({
 
         const email = emailInput.value.trim();
 
-        console.log("Verifying OTP:", otp, "for email:", email);
-
         if (DEV_MODE) {
             verified = true;
             statusEl.textContent = "Email verified ✅";
@@ -119,14 +117,12 @@ export function initEmailOtp({
                 statusEl.textContent = "Email verified ✅";
                 onVerified(email);
             } else {
-                console.error("OTP failed:", data.message); // log reason
                 statusEl.textContent = `OTP failed ❌: ${data.message || "Unknown reason"}`;
                 otpInputs.forEach(i => (i.value = ""));
                 otpInputs[0].focus();
             }
 
         } catch (err) {
-            console.error(err);
             alert("OTP verification failed");
         }
     }
