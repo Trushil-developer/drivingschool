@@ -7,36 +7,52 @@ export function initEmailOtp({
     DEV_MODE = false
 }) {
     let verified = false;
+    let lockedEmail = null;
 
     const otpBox = document.getElementById("gate-otp-box");
     const otpTimerEl = document.getElementById("otpTimer");
     const resendBtn = document.getElementById("resendOtpBtn");
 
-
+    /* =====================================
+       RESET
+    ===================================== */
     function resetOtp() {
         verified = false;
+        lockedEmail = null;
         statusEl.textContent = "";
+        emailInput.readOnly = false;
+
         otpInputs.forEach(i => (i.value = ""));
-        document.getElementById("gate-otp-box").style.display = "none";
+        otpBox.style.display = "none";
     }
 
-    /* ================= SHOW OTP UI ================= */
+    /* =====================================
+       SHOW OTP UI
+    ===================================== */
     function showOtpBox() {
         otpBox.style.display = "block";
         otpInputs.forEach(i => (i.value = ""));
         otpInputs[0].focus();
-        resendBtn.style.display = "none";
-        otpTimerEl.style.display = "none";
+
+        if (resendBtn) resendBtn.style.display = "none";
+        if (otpTimerEl) otpTimerEl.style.display = "none";
     }
 
-    /* ================= SEND OTP ================= */
-    async function sendOtp() {
+    /* =====================================
+       SEND OTP
+    ===================================== */
+    async function sendOtp(e) {
+        e?.preventDefault();
+
         const email = emailInput.value.trim();
 
         if (!/^\S+@\S+\.\S+$/.test(email)) {
             alert("Enter valid email");
             return;
         }
+
+        lockedEmail = email;
+        emailInput.readOnly = true;
 
         showOtpBox();
 
@@ -46,7 +62,7 @@ export function initEmailOtp({
         }
 
         sendBtn.disabled = true;
-        sendBtn.textContent = "Sending...";
+        sendBtn.textContent = "OTP Sent";
 
         try {
             const res = await fetch("/api/enquiries/send-email-otp", {
@@ -56,27 +72,33 @@ export function initEmailOtp({
             });
 
             const data = await res.json();
-            if (!data.success) throw new Error(data.message);
+            if (!data.success) {
+                throw new Error(data.message || "OTP send failed");
+            }
 
         } catch (err) {
-            alert("Failed to send OTP");
             console.error(err);
+            alert("Failed to send OTP");
+            sendBtn.disabled = false;
+            sendBtn.textContent = "Send Verification Code";
         }
-
-        sendBtn.disabled = false;
-        sendBtn.textContent = "Send Verification Code";
     }
 
-    /* ================= VERIFY OTP ================= */
+    /* =====================================
+       VERIFY OTP
+    ===================================== */
     async function verifyOtp() {
-        const otp = Array.from(otpInputs).map(i => i.value).join("");
-        if (otp.length !== 4 || verified) return;
+        if (verified) return;
 
-        const email = emailInput.value.trim() || "dev@example.com";
+        const otp = Array.from(otpInputs).map(i => i.value).join("");
+        if (otp.length !== 4) return;
+
+        const email = lockedEmail;
+        if (!email) return;
 
         if (DEV_MODE) {
             verified = true;
-            statusEl.textContent = "DEV MODE: Email verified ✅";
+            statusEl.textContent = "Email verified ✅";
             onVerified(email);
             return;
         }
@@ -101,23 +123,43 @@ export function initEmailOtp({
             }
 
         } catch (err) {
-            alert("OTP verification failed");
             console.error(err);
+            alert("OTP verification failed");
         }
     }
 
-    /* ================= EVENTS ================= */
+    /* =====================================
+       EVENTS (IMPORTANT FIXES)
+    ===================================== */
+
+    // Prevent form submit on Send
     sendBtn.addEventListener("click", sendOtp);
 
     otpInputs.forEach((input, index) => {
-        input.addEventListener("input", () => {
+
+        // 🔒 CRITICAL: stop form submit + reload
+        input.addEventListener("keydown", e => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+            }
+        });
+
+        input.addEventListener("input", e => {
+            e.preventDefault();
+
             input.value = input.value.replace(/\D/g, "");
+
             if (input.value && otpInputs[index + 1]) {
                 otpInputs[index + 1].focus();
             }
+
             verifyOtp();
         });
     });
 
     return { resetOtp };
 }
+
+document.addEventListener("submit", e => {
+    e.preventDefault();
+});
