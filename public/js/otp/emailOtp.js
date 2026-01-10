@@ -96,8 +96,6 @@ export function initEmailOtp({
         const email = lockedEmail;
         if (!email) return;
 
-        console.log("Verifying OTP:", otp, "for email:", email);
-
         if (DEV_MODE) {
             verified = true;
             statusEl.textContent = "Email verified ✅";
@@ -109,11 +107,10 @@ export function initEmailOtp({
             const res = await fetch("/api/enquiries/verify-email-otp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, otp })
+                body: JSON.stringify({ email, otp: Number(otp) })
             });
 
             const data = await res.json();
-            console.log("Server response:", data);
 
             if (data.success) {
                 verified = true;
@@ -130,7 +127,6 @@ export function initEmailOtp({
             alert("OTP verification failed");
         }
     }
-
 
     /* =====================================
        EVENTS (IMPORTANT FIXES)
