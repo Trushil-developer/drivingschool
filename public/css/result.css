@@ -1,0 +1,226 @@
+.ll-result {
+    text-align: center;
+    padding: 40px;
+    background: #f8fbff;
+}
+
+.ll-result-header h2 {
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.ll-divider {
+    width: 300px;
+    height: 2px;
+    background: #333;
+    margin: 10px auto 30px;
+}
+
+.ll-result-card {
+    background: #fff;
+    border: 2px solid #ddd;
+    max-width: 600px;
+    margin: auto;
+    padding: 30px;
+}
+
+.ll-status {
+    margin-bottom: 20px;
+}
+
+.status {
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.status.pass {
+    color: green;
+}
+
+.status.fail {
+    color: red;
+}
+
+.hidden {
+    display: none;
+}
+
+.ll-user-info {
+    margin: 15px 0;
+    font-size: 14px;
+}
+
+.ll-score h3 {
+    margin-top: 15px;
+    font-size: 20px;
+}
+
+.ll-footer-message {
+    margin-top: 25px;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.ll-actions {
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.review-section {
+    padding: 30px;
+    max-width: 900px;
+    margin: auto;
+}
+
+.review-list {
+    list-style: none;
+    padding: 0;
+}
+
+.review-item {
+    border: 1px solid #ddd;
+    margin-bottom: 15px;
+    padding: 15px;
+    background: #fff;
+}
+
+.review-item.correct {
+    border-left: 5px solid green;
+}
+
+.review-item.wrong {
+    border-left: 5px solid red;
+}
+
+.review-question {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.review-answer {
+    font-size: 14px;
+}
+
+/* ===== Review Header ===== */
+.review-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 25px;
+}
+
+/* ===== Review Items ===== */
+.review-item {
+    border: 1px solid #ddd;
+    margin-bottom: 15px;
+    background: #fff;
+}
+
+/* Question Row */
+.review-question-row {
+    padding: 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+    background: #f7f7f7;
+    transition: background 0.2s ease;
+}
+
+/* Options Container */
+.review-options {
+    padding: 10px;
+}
+
+/* Option Styles */
+.review-option {
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.review-option.correct {
+    background: #2e7d32;
+}
+
+.review-option.wrong {
+    background: #c62828;
+}
+
+.review-option.neutral {
+    background: #9e9e9e;
+}
+
+.review-option .icon {
+    font-weight: bold;
+}
+
+/* ===== Collapsed correctness indicator ===== */
+.review-item.correct {
+    border-left: 6px solid #2e7d32;
+}
+
+.review-item.wrong {
+    border-left: 6px solid #c62828;
+}
+
+
+.review-question-row:hover {
+    background: #ececec;
+}
+
+/* ===== Back to Result Button ===== */
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 4px;
+    border: 1px solid #bbb;
+    background: #f9f9f9;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+    background: #333;
+    color: #fff;
+    border-color: #333;
+}
+
+.back-btn:active {
+    transform: translateY(1px);
+}
+
+/* ===== Start New Mock Test Button ===== */
+.restart-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 5px;
+    border: none;
+    background: #2e7d32;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.restart-btn:hover {
+    background: #1b5e20;
+}
+
+.restart-btn:active {
+    transform: translateY(1px);
+}

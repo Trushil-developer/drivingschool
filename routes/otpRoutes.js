@@ -112,6 +112,13 @@ router.post("/verify-email-otp", async (req, res) => {
       [rows[0].id]
     );
 
+    await dbPool.query(
+      `INSERT INTO exam_users (email, first_verified_at, last_seen_at)
+      VALUES (?, NOW(), NOW())
+      ON DUPLICATE KEY UPDATE last_seen_at = NOW()`,
+      [email]
+    );
+
     res.json({ success: true });
 
   } catch (err) {

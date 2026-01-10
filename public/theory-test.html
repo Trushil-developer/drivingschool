@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- =========================================================
+         SEO META TAGS
+    ========================================================= -->
+    <title>RTO Learner Licence Theory Test Online | Mock Test & Practice Questions</title>
+
+    <meta name="description"
+        content="Attempt RTO Learner Licence Theory Test online with real exam mock test and practice revision questions. 15 MCQs, timed test, instant result & answer review. Ideal for LL exam preparation in India.">
+
+    <meta name="keywords"
+        content="RTO learner licence test, LL theory test online, RTO mock test, learner licence practice questions, driving licence theory exam, RTO exam preparation">
+
+    <link rel="canonical" href="https://dwarkeshmotordrivingschool.com/theory-test.html">
+
+    <meta name="robots" content="index, follow">
+
+    <!-- =========================================================
+         OPEN GRAPH (SOCIAL SHARING)
+    ========================================================= -->
+    <meta property="og:title" content="RTO Learner Licence Theory Test | Mock Exam & Practice Questions">
+    <meta property="og:description"
+        content="Practice and attempt RTO Learner Licence Theory Test online. Real exam mock test, practice questions, instant result & explanations.">
+    <meta property="og:image" content="https://dwarkeshmotordrivingschool.com/images/logo.png">
+    <meta property="og:url" content="https://dwarkeshmotordrivingschool.com/theory-test.html">
+    <meta property="og:type" content="website">
+
+    <!-- =========================================================
+         CSS
+    ========================================================= -->
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/index.css">
+    <link rel="stylesheet" href="css/theory-test.css">
+    <link rel="stylesheet" href="css/otp-gate.css">
+    <link rel="stylesheet" href="css/result.css">
+
+    <!-- =========================================================
+         STRUCTURED DATA – WEBPAGE
+    ========================================================= -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "RTO Learner Licence Theory Test",
+        "url": "https://dwarkeshmotordrivingschool.com/theory-test.html",
+        "description": "Online RTO Learner Licence theory test with mock exam and practice questions.",
+        "isPartOf": {
+            "@type": "WebSite",
+            "name": "Dwarkesh Motor Driving School",
+            "url": "https://dwarkeshmotordrivingschool.com"
+        }
+    }
+    </script>
+
+    <!-- =========================================================
+         STRUCTURED DATA – EDUCATIONAL SERVICE
+    ========================================================= -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "EducationalOccupationalProgram",
+        "name": "Learner Licence Theory Test Preparation",
+        "description": "Practice and mock tests for RTO Learner Licence theory exam with timed MCQs and instant results.",
+        "provider": {
+            "@type": "DrivingSchool",
+            "name": "Dwarkesh Motor Driving School",
+            "url": "https://dwarkeshmotordrivingschool.com"
+        }
+    }
+    </script>
+
+    <!-- =========================================================
+         GOOGLE ANALYTICS (OPTIONAL – SAME PROPERTY)
+    ========================================================= -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HRGDQJKW55"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-HRGDQJKW55', {
+            page_title: 'RTO Learner Licence Theory Test',
+            page_path: '/theory-test.html'
+        });
+    </script>
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <div data-include="includes/header.html"></div>
+
+    <!-- MAIN -->
+    <main class="rto-wrapper">
+
+        <!-- ================= LAYOUT ================= -->
+        <div class="exam-layout">
+
+            <!-- ================= SIDEBAR ================= -->
+            <aside class="exam-sidebar">
+                <ul class="sidebar-list">
+                    <li id="mockTestBtn" class="sidebar-item active">
+                        📝 Mock Test (Real Exam)
+                    </li>
+                    <li id="practiceMenuBtn" class="sidebar-item">
+                        📘 Practice Revision Questions
+                    </li>
+                </ul>
+            </aside>
+
+
+            <!-- ================= MAIN CONTENT ================= -->
+            <section class="exam-content">
+
+                <!-- ================= EMAIL + OTP ================= -->
+                <section class="test-auth-section" id="authSection">
+                    <div class="otp-gate" id="otp-gate">
+
+                        <!-- ================= EXAM INFO ================= -->
+                        <div class="exam-intro-card">
+                            <h1>Car Driver – RTO Theory Exam</h1>
+
+                            <p class="exam-intro-text">
+                                During this <strong>Car Theory Test</strong>, you will be asked
+                                <strong>15 multiple-choice questions</strong>.
+                                You will have <strong>48 seconds</strong> to choose the correct answer
+                                for each question.
+                            </p>
+
+                            <ul class="exam-rules">
+                                <li>✅ Minimum <strong>9 correct answers</strong> required to pass</li>
+                                <li>⏱️ Time is limited for each question</li>
+                                <li>📊 Live score will be shown during the test</li>
+                                <li>📘 At the end, you will see correct and wrong answers with explanations</li>
+                            </ul>
+                        </div>
+
+                        <!-- ================= EMAIL VERIFICATION ================= -->
+                        <h2 class="auth-title">Verify Email to Start Test</h2>
+
+                        <p class="auth-intro">
+                            Please verify your <b>Email ID</b> before starting the test.
+                        </p>
+
+                        <div class="form-row">
+                            <label>Email Address <span class="required">*</span></label>
+                            <input type="email" id="gate-email" placeholder="Enter your email" required>
+                        </div>
+
+                        <button id="gate-send-otp" class="primary-btn">
+                            Send Verification Code
+                        </button>
+
+                        <!-- ================= OTP BOX ================= -->
+                        <div id="gate-otp-box" class="otp-card" style="display:none;">
+                            <p class="otp-title">🔐 Verify Email</p>
+                            <p class="otp-sub">
+                                Enter the 4-digit code sent to <b id="otpTarget"></b>
+                            </p>
+
+                            <div class="otp-container">
+                                <input class="otp-input" maxlength="1">
+                                <input class="otp-input" maxlength="1">
+                                <input class="otp-input" maxlength="1">
+                                <input class="otp-input" maxlength="1">
+                            </div>
+
+                            <div class="otp-footer">
+                                <span id="gate-otp-status"></span>
+                                <span id="otpTimer"></span>
+                                <button id="resendOtpBtn" disabled>Resend</button>
+                            </div>
+                        </div>
+
+                        <button id="startTestBtn" class="primary-btn" disabled>
+                            Start Test →
+                        </button>
+                    </div>
+                </section>
+
+                <section id="practiceSection" style="display:none;">
+                    <h2 class="practice-title">Practice Categories</h2>
+                    <div id="practiceCategoryGrid" class="practice-grid"></div>
+                </section>
+
+                <!-- ================= TEST ================= -->
+                <section id="testSection" style="display:none;">
+
+                    <header class="rto-header" id="rtoHeader">
+                        Screen Test Aid For Learner Licence
+                    </header>
+
+                    <section class="candidate-bar" id="candidateBar">
+                        <div class="candidate-left">
+                            <img src="images/logo.png" alt="RTO Logo">
+                            <div class="candidate-details">
+                                <div><strong>GJ01</strong></div>
+                                <div>LMV</div>
+                            </div>
+                        </div>
+
+                        <div class="candidate-center">
+                            <div class="label">Time (Seconds)</div>
+                            <div id="timer" class="time">48</div>
+                        </div>
+
+                        <div class="candidate-right">
+                            <div class="label">Score</div>
+                            <div id="live-score" class="score">0.0</div>
+                        </div>
+                    </section>
+
+                    <form id="exam-form" autocomplete="off">
+
+                        <section class="question-box">
+                            <div class="question-header">
+                                <div class="question-label">
+                                    Question
+                                    <span id="current-question">1</span>
+                                </div>
+                                <div class="question-text" id="question-text"></div>
+                            </div>
+                        </section>
+
+                        <ul class="options-list" id="options-list"></ul>
+
+                        <div class="confirm-area">
+                            <button type="button" id="next-btn" class="confirm-btn" disabled>
+                                Confirm
+                            </button>
+                        </div>
+
+                        <div class="exam-footer">
+                            Question
+                            <span id="footer-current-question">1</span>
+                            of
+                            <span id="total-questions">15</span>
+                        </div>
+                    </form>
+
+                    <section id="result-section" class="ll-result" hidden>
+
+                        <div class="ll-result-header">
+                            <h2>Screen Test Aid For Learner License</h2>
+                            <div class="ll-divider"></div>
+                        </div>
+
+                        <div class="ll-result-card">
+                            <div class="ll-status">
+                                <div id="result-pass" class="status pass hidden">
+                                    ✔ PASS
+                                </div>
+                                <div id="result-fail" class="status fail hidden">
+                                    ✖ FAIL
+                                </div>
+                            </div>
+
+                            <div class="ll-user-info">
+                                <p><strong>Candidate Email:</strong> <span id="result-email"></span></p>
+                            </div>
+
+                            <div class="ll-score">
+                                <p id="result-message"></p>
+                                <h3>
+                                    You scored
+                                    <span id="final-score"></span>
+                                    out of
+                                    <span id="final-total"></span>
+                                    marks
+                                </h3>
+                            </div>
+
+                            <div class="ll-footer-message" id="ll-footer-message"></div>
+
+                            <div class="ll-actions">
+                                <button id="reviewAnswersBtn" class="primary-btn">
+                                    Review Your Answers
+                                </button>
+                                <button id="restartMockBtn" class="restart-btn">
+                                    ⟳ Start New Mock Test
+                                </button>
+                            </div>
+                        </div>
+
+                    </section>
+                    <section id="review-section" class="review-section" hidden>
+
+                        <div class="review-header">
+                            <button id="backToResultBtn" class="back-btn">
+                                ← Back to Result
+                            </button>
+                            <h2>Answer Review</h2>
+                        </div>
+
+                        <ul id="review-list" class="review-list"></ul>
+
+                    </section>
+                </section>
+
+            </section>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <div data-include="includes/footer.html"></div>
+
+    <!-- SCRIPTS -->
+    <script src="js/includeHTML.js" defer></script>
+    <script type="module" src="js/exam/main.js"></script>
+    <script src="js/common.js" defer></script>
+
+</body>
+
+</html>

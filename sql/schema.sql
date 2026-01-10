@@ -1224,3 +1224,311 @@ SET @sql := IF(@idx_exists=0,
     'CREATE INDEX idx_email_created ON email_otps (email, created_at);',
     'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- EXAM USERS TABLE
+-- =====================================
+
+CREATE TABLE IF NOT EXISTS exam_users (
+    id INT AUTO_INCREMENT PRIMARY KEY
+);
+
+-- email
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_users'
+      AND column_name='email'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_users ADD COLUMN email VARCHAR(255) NOT NULL UNIQUE;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- first_verified_at
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_users'
+      AND column_name='first_verified_at'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_users ADD COLUMN first_verified_at DATETIME;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- last_seen_at
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_users'
+      AND column_name='last_seen_at'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_users ADD COLUMN last_seen_at DATETIME;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- total_attempts
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_users'
+      AND column_name='total_attempts'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_users ADD COLUMN total_attempts INT DEFAULT 0;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- best_score
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_users'
+      AND column_name='best_score'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_users ADD COLUMN best_score DECIMAL(4,1) DEFAULT 0.0;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- last_score
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_users'
+      AND column_name='last_score'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_users ADD COLUMN last_score DECIMAL(4,1) DEFAULT 0.0;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- last_result
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_users'
+      AND column_name='last_result'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_users ADD COLUMN last_result ENUM("PASS","FAIL");',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ip_address
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_users'
+      AND column_name='ip_address'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_users ADD COLUMN ip_address VARCHAR(45);',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- user_agent
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_users'
+      AND column_name='user_agent'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_users ADD COLUMN user_agent TEXT;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- EXAM ATTEMPTS TABLE
+-- =====================================
+
+CREATE TABLE IF NOT EXISTS exam_attempts (
+    id INT AUTO_INCREMENT PRIMARY KEY
+);
+
+-- user_id
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_attempts'
+      AND column_name='user_id'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_attempts ADD COLUMN user_id INT NOT NULL;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- mode
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_attempts'
+      AND column_name='mode'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_attempts ADD COLUMN mode ENUM("mock","practice");',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- score
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_attempts'
+      AND column_name='score'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_attempts ADD COLUMN score DECIMAL(4,1);',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- total_questions
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_attempts'
+      AND column_name='total_questions'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_attempts ADD COLUMN total_questions INT;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- correct_answers
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_attempts'
+      AND column_name='correct_answers'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_attempts ADD COLUMN correct_answers INT;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- result
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_attempts'
+      AND column_name='result'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_attempts ADD COLUMN result ENUM("PASS","FAIL");',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- started_at
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_attempts'
+      AND column_name='started_at'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_attempts ADD COLUMN started_at DATETIME;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- finished_at
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_attempts'
+      AND column_name='finished_at'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_attempts ADD COLUMN finished_at DATETIME;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- answers
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_attempts'
+      AND column_name='answers'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_attempts ADD COLUMN answers JSON;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- status
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_attempts'
+      AND column_name='status'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE exam_attempts ADD COLUMN status ENUM("started","completed") DEFAULT "started";',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- FOREIGN KEY (SAFE CHECK)
+-- =====================================
+SET @fk_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_attempts'
+      AND constraint_name='fk_exam_attempts_user'
+);
+SET @sql := IF(@fk_exists=0,
+    'ALTER TABLE exam_attempts ADD CONSTRAINT fk_exam_attempts_user FOREIGN KEY (user_id) REFERENCES exam_users(id);',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- INDEXES
+-- =====================================
+
+-- exam_users email index
+SET @idx_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_users'
+      AND index_name='idx_exam_users_email'
+);
+SET @sql := IF(@idx_exists=0,
+    'CREATE INDEX idx_exam_users_email ON exam_users (email);',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- exam_attempts user_id index
+SET @idx_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE table_schema='drivingschool'
+      AND table_name='exam_attempts'
+      AND index_name='idx_exam_attempts_user'
+);
+SET @sql := IF(@idx_exists=0,
+    'CREATE INDEX idx_exam_attempts_user ON exam_attempts (user_id);',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

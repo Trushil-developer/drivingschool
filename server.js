@@ -18,7 +18,10 @@ import otpRoutes from "./routes/otpRoutes.js";
 import carsRoute from './routes/carsRoutes.js';
 import upload from "./public/middleware/upload.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import examUsersRoutes from "./routes/examUsersRoutes.js";
+import examRoutes from "./routes/examRoutes.js";
 import AWS from "aws-sdk";
+import fs from "fs";
 
 dotenv.config();
 
@@ -725,6 +728,17 @@ app.get("/api/public/certificates", async (req, res) => {
   }
 });
 
+app.get("/api/questions", (req, res) => {
+    const filePath = path.join(__dirname, "data", "questions.json");
+
+    fs.readFile(filePath, "utf8", (err, data) => {
+        if (err) {
+            return res.status(500).json({ error: "Failed to load questions" });
+        }
+        res.json(JSON.parse(data));
+    });
+});
+
 app.get('/', (req, res) => {
     res.render('index', { googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY });
 });
@@ -736,6 +750,8 @@ app.use('/api/cars', carsRoute);
 app.use("/api/courses", preferredCoursesRoutes);
 app.use("/api/enquiries", enquiriesRoutes);
 app.use("/api/enquiries", otpRoutes);
+app.use("/api/exam/users", examUsersRoutes);
+app.use("/api/exam", examRoutes);
 
 // ---------- START SERVER ----------
 app.listen(PORT, '0.0.0.0', () => {

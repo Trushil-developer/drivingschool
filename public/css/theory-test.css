@@ -1,0 +1,361 @@
+/* ==================================================
+   RESET & BASE
+================================================== */
+* {
+    box-sizing: border-box;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #eef2f6;
+    color: #1f2937;
+}
+
+/* ==================================================
+   MAIN WRAPPER
+================================================== */
+.rto-wrapper {
+    min-height: 100vh;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==================================================
+   HEADER
+================================================== */
+.rto-header {
+    background: linear-gradient(90deg, #1a73e8, #1558b0);
+    color: #fff;
+    padding: 14px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* ==================================================
+   LAYOUT
+================================================== */
+.exam-layout {
+    display: flex;
+    flex: 1;
+}
+
+/* ==================================================
+   SIDEBAR
+================================================== */
+.exam-sidebar {
+    width: 260px;
+    background: #f9fbff;
+    border-right: 1px solid #dde3ea;
+    padding: 16px;
+}
+
+.sidebar-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-item {
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #ffffff;
+    border: 1px solid #e5eaf0;
+    transition: 0.2s ease;
+}
+
+.sidebar-item:hover {
+    background: #e8f0fe;
+}
+
+.sidebar-item.active {
+    background: #1a73e8;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+/* ==================================================
+   CONTENT
+================================================== */
+.exam-content {
+    flex: 1;
+    padding: 20px;
+    background: #ffffff;
+}
+
+/* ==================================================
+   PRACTICE SECTION
+================================================== */
+.practice-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+.practice-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.practice-card {
+    padding: 18px 20px;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid #e5eaf0;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.practice-card:hover {
+    background: #f5f7fa;
+    transform: translateY(-2px);
+}
+
+.practice-card h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.practice-card p {
+    margin: 0;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+/* ==================================================
+   CANDIDATE BAR
+================================================== */
+.candidate-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: center;
+    padding: 14px 18px;
+    background: #f8fafc;
+    border: 1px solid #e5eaf0;
+    border-radius: 10px;
+    margin-bottom: 18px;
+}
+
+.candidate-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.candidate-left img {
+    width: 46px;
+    height: 46px;
+    border-radius: 6px;
+}
+
+.candidate-center,
+.candidate-right {
+    text-align: center;
+}
+
+.label {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.time {
+    font-size: 22px;
+    font-weight: 700;
+    color: #dc2626;
+}
+
+.score {
+    font-size: 20px;
+    font-weight: 700;
+    color: #15803d;
+}
+
+/* ==================================================
+   QUESTION BOX
+================================================== */
+.question-box {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e5eaf0;
+    padding: 18px;
+    margin-bottom: 16px;
+}
+
+.question-header {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 18px;
+}
+
+.question-label {
+    text-align: center;
+    font-weight: 600;
+    font-size: 14px;
+    border-right: 1px solid #e5eaf0;
+}
+
+.question-label span {
+    display: block;
+    margin-top: 6px;
+    font-size: 24px;
+    color: #1a73e8;
+}
+
+.question-text {
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+/* ==================================================
+   OPTIONS
+================================================== */
+.options-list {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0;
+}
+
+.options-list li {
+    border: 1px solid #e5eaf0;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    background: #fafcff;
+    transition: 0.2s ease;
+}
+
+.options-list li:hover {
+    background: #eef5ff;
+}
+
+.options-list label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    cursor: pointer;
+}
+
+/* ===== Practice Feedback ===== */
+.options-list li.correct {
+    background: #2e7d32;
+    border-color: #2e7d32;
+    color: #ffffff;
+}
+
+.options-list li.wrong {
+    background: #c62828;
+    border-color: #c62828;
+    color: #ffffff;
+}
+
+.practice-mode input[type="radio"] {
+    display: none;
+}
+
+/* ==================================================
+   CONFIRM BUTTON
+================================================== */
+.confirm-area {
+    text-align: center;
+    margin-top: 10px;
+}
+
+.confirm-btn {
+    background: #1a73e8;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 42px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.confirm-btn:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+}
+
+/* ==================================================
+   FOOTER INFO
+================================================== */
+.exam-footer {
+    text-align: center;
+    font-size: 13px;
+    padding: 12px;
+    color: #374151;
+}
+
+/* ==================================================
+   MOBILE RESPONSIVE
+================================================== */
+@media (max-width: 900px) {
+
+    .exam-layout {
+        flex-direction: column;
+    }
+
+    /* Sidebar -> top menu */
+    .exam-sidebar {
+        width: 100%;
+        padding: 10px;
+        border-right: none;
+        border-bottom: 1px solid #dde3ea;
+        background: #ffffff;
+    }
+
+    .sidebar-list {
+        display: flex;
+        gap: 10px;
+    }
+
+    .sidebar-item {
+        flex: 1;
+        justify-content: center;
+        margin-bottom: 0;
+        padding: 12px;
+        font-size: 14px;
+    }
+
+    .exam-content {
+        padding: 14px;
+    }
+
+    .candidate-bar {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        text-align: center;
+    }
+
+    .question-header {
+        grid-template-columns: 1fr;
+    }
+
+    .question-label {
+        border-right: none;
+        border-bottom: 1px solid #e5eaf0;
+        padding-bottom: 6px;
+        margin-bottom: 6px;
+    }
+}
+
+/* =====================================
+   PRACTICE MODE – HIDE TOP BAR
+===================================== */
+.practice-mode .rto-header,
+.practice-mode .candidate-bar {
+    display: none !important;
+}
