@@ -111,6 +111,7 @@ export function initEmailOtp({
             });
 
             const data = await res.json();
+            console.log("data", data)
 
             if (data.success) {
                 verified = true;
