@@ -93,8 +93,7 @@ export function initEmailOtp({
         const otp = Array.from(otpInputs).map(i => i.value).join("");
         if (otp.length !== 4) return;
 
-        const email = lockedEmail;
-        if (!email) return;
+        const email = emailInput.value.trim();
 
         console.log("Verifying OTP:", otp, "for email:", email);
 
@@ -109,7 +108,7 @@ export function initEmailOtp({
             const res = await fetch("/api/enquiries/verify-email-otp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, otp: Number(otp) })
+                body: JSON.stringify({ email, otp })
             });
 
             const data = await res.json();
