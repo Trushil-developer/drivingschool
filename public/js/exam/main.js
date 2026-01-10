@@ -8,7 +8,7 @@ import { stopTimer } from "./timer.js";
 /**
  * Set true ONLY for local testing
  */
-const DEV_MODE = true;
+const DEV_MODE = false;
 
 document.addEventListener("DOMContentLoaded", async () => {
 
