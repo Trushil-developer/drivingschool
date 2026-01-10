@@ -64,6 +64,7 @@ router.post("/send-email-otp", async (req, res) => {
    VERIFY EMAIL OTP
 ============================= */
 router.post("/verify-email-otp", async (req, res) => {
+  console.log("VERIFY OTP REQUEST:", req.body);
   try {
     const { email, otp } = req.body;
 
@@ -123,7 +124,7 @@ router.post("/verify-email-otp", async (req, res) => {
 
   } catch (err) {
     console.error("VERIFY OTP ERROR:", err);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
