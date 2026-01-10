@@ -345,3 +345,8 @@ footer {
         padding: 22px;
     }
 }
+
+/* ================= ACTIVE NAV LINK ================= */
+.header-nav a.active::after {
+    width: 100%;
+}

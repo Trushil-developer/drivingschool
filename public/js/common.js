@@ -1,39 +1,48 @@
 // common.js
 window.CommonReady = (async () => {
 
-    // -------- Load HTML fragments --------
+    /* =====================================
+       LOAD HTML INCLUDES
+    ===================================== */
     async function loadHTML(selectorOrId, url) {
         try {
             const res = await fetch(url);
             if (!res.ok) throw new Error(`Failed to load ${url}`);
             const html = await res.text();
 
-            // Determine if it's a selector (querySelectorAll) or an ID
             if (selectorOrId.startsWith('#')) {
                 const el = document.getElementById(selectorOrId.slice(1));
                 if (el) el.innerHTML = html;
             } else {
-                document.querySelectorAll(selectorOrId).forEach(el => el.innerHTML = html);
+                document.querySelectorAll(selectorOrId).forEach(el => {
+                    el.innerHTML = html;
+                });
             }
         } catch (err) {
             console.error(err);
         }
     }
 
-    // -------- Data-include support --------
+    /* =====================================
+       DATA-INCLUDE SUPPORT
+    ===================================== */
     const includeElements = document.querySelectorAll('[data-include]');
     for (const el of includeElements) {
         const file = el.getAttribute('data-include');
-        if (file) await loadHTML(`#${el.id}`, file).catch(() => {
-            // fallback to direct innerHTML if no id
-            fetch(file)
-                .then(r => r.text())
-                .then(txt => el.innerHTML = txt)
-                .catch(err => console.error(err));
-        });
+        if (!file) continue;
+
+        try {
+            const res = await fetch(file);
+            const html = await res.text();
+            el.innerHTML = html;
+        } catch (err) {
+            console.error(err);
+        }
     }
 
-    // -------- Hamburger Menu --------
+    /* =====================================
+       HAMBURGER MENU
+    ===================================== */
     const hamburger = document.getElementById("hamburger");
     const navMenu = document.getElementById("nav-menu");
 
@@ -44,21 +53,64 @@ window.CommonReady = (async () => {
         });
     }
 
-    // -------- Other specific includes --------
+    /* =====================================
+       CLOSE MOBILE MENU ON LINK CLICK (FIX)
+    ===================================== */
+    document.addEventListener("click", (e) => {
+        const navLink = e.target.closest(".header-nav a");
+        if (!navLink) return;
+
+        if (window.innerWidth <= 768) {
+            hamburger?.classList.remove("active");
+            navMenu?.classList.remove("open");
+        }
+    });
+
+    /* =====================================
+       HIGHLIGHT ACTIVE HEADER TAB
+    ===================================== */
+    function highlightActiveNav() {
+        const currentPage =
+            location.pathname.split("/").pop() || "index.html";
+
+        document.querySelectorAll(".header-nav a").forEach(link => {
+            const href = link.getAttribute("href");
+            if (href === currentPage) {
+                link.classList.add("active");
+            }
+        });
+    }
+
+    // Header loads async → wait briefly
+    setTimeout(highlightActiveNav, 80);
+
+    /* =====================================
+       OPTIONAL ADMIN INCLUDES
+    ===================================== */
     await loadHTML('#topbar', '/includes/topbar.html');
     await loadHTML('#sidebar', '/includes/sidebar.html');
     await loadHTML('#attendanceModalContainer', '/includes/attendance-modal.html');
 
-    // -------- Logout --------
+    /* =====================================
+       LOGOUT
+    ===================================== */
     document.getElementById('logoutBtn')?.addEventListener('click', async () => {
-        const res = await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+        const res = await fetch('/api/logout', {
+            method: 'POST',
+            credentials: 'same-origin'
+        });
         const j = await res.json();
-        if (j?.success) window.location.href = 'login.html';
-        else alert('Logout failed');
+
+        if (j?.success) {
+            window.location.href = 'login.html';
+        } else {
+            alert('Logout failed');
+        }
     });
 
-    // -------- Sidebar navigation --------
-
+    /* =====================================
+       SIDEBAR NAVIGATION (ADMIN)
+    ===================================== */
     const sidebarItems = document.querySelectorAll('.sidebar li');
 
     const tabMapping = {
@@ -82,20 +134,36 @@ window.CommonReady = (async () => {
         });
     });
 
-
-    // -------- API helper --------
-    window.api = async function(path, opts = {}) {
-        opts.headers = { 'Content-Type': 'application/json', ...opts.headers };
+    /* =====================================
+       API HELPER
+    ===================================== */
+    window.api = async function (path, opts = {}) {
+        opts.headers = {
+            'Content-Type': 'application/json',
+            ...opts.headers
+        };
         opts.credentials = 'same-origin';
-        if (opts.body && typeof opts.body === 'object') opts.body = JSON.stringify(opts.body);
+
+        if (opts.body && typeof opts.body === 'object') {
+            opts.body = JSON.stringify(opts.body);
+        }
+
         const res = await fetch(path, opts);
-        if (res.status === 401) window.location.href = 'login.html';
+
+        if (res.status === 401) {
+            window.location.href = 'login.html';
+        }
+
         return res.json();
     };
 
 })();
 
-// Initialize modal if available
+/* =====================================
+   OPTIONAL MODAL INIT
+===================================== */
 window.addEventListener("DOMContentLoaded", () => {
-    if (window.Modal) Modal.init();
+    if (window.Modal) {
+        Modal.init();
+    }
 });
