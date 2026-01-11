@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     "provider": {
                         "@type": "DrivingSchool",
                         "name": "Dwarkesh Motor Driving School",
-                        "url": "https://dwarkeshmotordrivingschool.com"
+                        "url": "https://dwarkeshdrivingschool.com"
                     },
                     "hasCourseInstance": images.map(img => ({
                         "@type": "Course",
@@ -130,7 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         "provider": {
                             "@type": "Organization",
                             "name": "Dwarkesh Motor Driving School",
-                            "sameAs": "https://dwarkeshmotordrivingschool.com"
+                            "sameAs": "https://dwarkeshdrivingschool.com"
                         },
                         "educationalCredentialAwarded": `Certificate for ${img.studentName || "student"} - ${img.course || "Vehicle"} Training`
                     }))
