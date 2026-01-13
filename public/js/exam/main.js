@@ -8,7 +8,7 @@ import { stopTimer } from "./timer.js";
 /**
  * Set true ONLY for local testing
  */
-const DEV_MODE = false;
+const DEV_MODE = true;
 
 document.addEventListener("DOMContentLoaded", async () => {
 
@@ -33,9 +33,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     const backBtn = document.getElementById("backToResultBtn");
     const resultSection = document.getElementById("result-section");
 
+    const languageSelect = document.getElementById("languageSelect");
+
+    /* ================= LANGUAGE ================= */
+    state.language = localStorage.getItem("examLang") || "en";
+    languageSelect.value = state.language;
+
+    languageSelect.addEventListener("change", async () => {
+        state.language = languageSelect.value;
+        localStorage.setItem("examLang", state.language);
+
+        await loadPracticeCategories()
+
+        if (state.mode === "mock" && testSection.style.display !== "none") {
+            await loadQuestions();
+        }
+    });
+
     /* ================= GLOBAL STATE ================= */
     state.isVerified = false;
-    state.authPurpose = null; // "mock" | null
+    state.authPurpose = null;
 
     /* ================= INIT OTP ================= */
     const otpController = initEmailOtp({
@@ -51,44 +68,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     /* ================= LOAD PRACTICE CATEGORIES ================= */
-    try {
-        const res = await fetch("/api/questions");
-        const questions = await res.json();
-
-        const categoryMap = {};
-
-        questions.forEach(q => {
-            const cat = q.CATEGORY || q.category;
-            if (!cat) return;
-
-            categoryMap[cat] = (categoryMap[cat] || 0) + 1;
-        });
-
-        renderPracticeCategories(categoryMap);
-
-    } catch (err) {
-        console.error("Failed to load categories", err);
-    }
+    await loadPracticeCategories();
 
     /* ================= SIDEBAR EVENTS ================= */
 
     // 📝 MOCK TEST
     mockTestBtn.addEventListener("click", () => {
         setActiveSidebar(mockTestBtn);
-        resetEntireExamUI();
-
+        showSection(authSection);
         state.authPurpose = "mock";
-        authSection.style.display = "block";
     });
 
     // 📘 PRACTICE
     practiceMenuBtn.addEventListener("click", () => {
         setActiveSidebar(practiceMenuBtn);
-        resetEntireExamUI();
-
-        state.authPurpose = null;
-        authSection.style.display = "none";
-        practiceSection.style.display = "block";
+        showSection(practiceSection);
     });
 
     /* ================= START MOCK ================= */
@@ -105,13 +99,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (restartBtn) {
         restartBtn.addEventListener("click", () => {
-            resetEntireExamUI();
-
-            // Force mock mode
-            state.authPurpose = "mock";
+            resetForNewExam();
             setActiveSidebar(mockTestBtn);
-
-            authSection.style.display = "block";
+            showSection(authSection);
         });
     }
 
@@ -129,7 +119,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             `;
 
             card.addEventListener("click", () => {
-                resetEntireExamUI();
+                resetForNewExam();
                 state.selectedCategory = cat;
                 startExam("practice");
             });
@@ -138,16 +128,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    async function loadPracticeCategories() {
+        try {
+            const res = await fetch(`/api/questions?lang=${state.language}`);
+            const questions = await res.json();
+
+            const categoryMap = {};
+            questions.forEach(q => {
+                if (!q.CATEGORY) return;
+                categoryMap[q.CATEGORY] = (categoryMap[q.CATEGORY] || 0) + 1;
+            });
+
+            renderPracticeCategories(categoryMap);
+        } catch (err) {
+            console.error("Failed to load categories", err);
+        }
+    }
 
     /* ================= START EXAM ================= */
     function startExam(mode) {
-
-        resetState();
+        resetForNewExam();
         state.mode = mode;
 
-        authSection.style.display = "none";
-        practiceSection.style.display = "none";
-        testSection.style.display = "block";
+        hideAllSections();
+        showSection(testSection);
 
         document.getElementById("exam-form").style.display = "block";
         document.body.classList.remove("mock-mode", "practice-mode");
@@ -156,16 +160,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const header = document.getElementById("rtoHeader");
         const bar = document.getElementById("candidateBar");
 
-        if (mode === "mock") {
-            header.style.display = "block";
-            bar.style.display = "grid";
-        } else {
-            header.style.display = "none";
-            bar.style.display = "grid";
-        }
+        header.style.display = mode === "mock" ? "block" : "none";
+        bar.style.display = "grid";
 
         const timerBox = document.querySelector(".candidate-center");
-
         timerBox.innerHTML =
             mode === "mock"
                 ? `<div class="label">Time (Seconds)</div><div id="timer" class="time">48</div>`
@@ -178,43 +176,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     /* ================= REVIEW ================= */
     if (reviewBtn) {
         reviewBtn.addEventListener("click", () => {
-            resultSection.hidden = true;
+            hideAllSections();
             reviewSection.hidden = false;
-            document.getElementById("rtoHeader").style.display = "none";
-            document.getElementById("candidateBar").style.display = "none";
             buildReview();
         });
     }
 
     if (backBtn) {
         backBtn.addEventListener("click", () => {
-            reviewSection.hidden = true;
+            hideAllSections();
             resultSection.hidden = false;
         });
     }
 
-    /* ================= RESET ================= */
-    function resetEntireExamUI() {
+    /* ================= RESET / HELPERS ================= */
+    function resetForNewExam() {
         stopTimer();
         resetState();
 
         state.isVerified = false;
-        emailInput.value = "";
-        state.authPurpose = null;
-        state.mode = "mock";
         state.selectedCategory = null;
 
-        authSection.style.display = "block";
-        testSection.style.display = "none";
-        practiceSection.style.display = "none";
-        resultSection.hidden = true;
-        reviewSection.hidden = true;
-
-        document.getElementById("rtoHeader").style.display = "none";
-        document.getElementById("candidateBar").style.display = "none";
-        document.getElementById("exam-form").style.display = "block";
-
-        startBtn.disabled = true;
+        emailInput.value = "";
         otpController.resetOtp();
         statusEl.textContent = "";
         document.getElementById("gate-otp-box").style.display = "none";
@@ -225,7 +208,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         dom.totalQuestionsEl.textContent = "0";
     }
 
-    /* ================= HELPERS ================= */
+    function hideAllSections() {
+        authSection.style.display = "none";
+        testSection.style.display = "none";
+        practiceSection.style.display = "none";
+        resultSection.hidden = true;
+        reviewSection.hidden = true;
+    }
+
+    function showSection(section) {
+        hideAllSections();
+        section.style.display = "block";
+    }
+
     function getEmail() {
         const email =
             sessionStorage.getItem("examEmail") ||
@@ -296,5 +291,5 @@ document.addEventListener("DOMContentLoaded", async () => {
             reviewList.appendChild(li);
         });
     }
-});
 
+});

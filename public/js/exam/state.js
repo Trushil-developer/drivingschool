@@ -7,7 +7,8 @@ export const state = {
     timeLeft: 48,
     mode: "mock", 
     isVerified: false,
-    selectedCategory: null
+    selectedCategory: null,
+    language: "en"
 };
 export function resetState() {
     state.questions = [];

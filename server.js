@@ -729,15 +729,28 @@ app.get("/api/public/certificates", async (req, res) => {
 });
 
 app.get("/api/questions", (req, res) => {
-    const filePath = path.join(__dirname, "data", "questions.json");
+    const lang = (req.query.lang || "en").toLowerCase();
+
+    const fileMap = {
+        en: "questions_en.json",
+        gu: "questions_gu.json"
+    };
+
+    // Ensure fallback is questions_en.json
+    const fileName = fileMap[lang] || "questions_en.json";
+
+    const filePath = path.join(process.cwd(), "data", fileName);
+    console.log("Loading questions from:", filePath);
 
     fs.readFile(filePath, "utf8", (err, data) => {
         if (err) {
-            return res.status(500).json({ error: "Failed to load questions" });
+            console.error("Question load error:", err);
+            return res.status(500).json([]);
         }
         res.json(JSON.parse(data));
     });
 });
+
 
 app.get('/', (req, res) => {
     res.render('index', { googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY });

@@ -15,6 +15,10 @@ body {
     color: #1f2937;
 }
 
+body {
+    font-family: "Noto Sans Gujarati", "Segoe UI", sans-serif;
+}
+
 /* ==================================================
    MAIN WRAPPER
 ================================================== */
@@ -358,4 +362,34 @@ body {
 .practice-mode .rto-header,
 .practice-mode .candidate-bar {
     display: none !important;
+}
+
+.language-select {
+    margin-bottom: 14px;
+}
+
+.language-select select {
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    font-size: 14px;
+}
+
+.sidebar-language-select {
+    padding: 1rem;
+    text-align: left;
+}
+
+.sidebar-language-select label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.sidebar-language-select select {
+    width: 100%;
+    padding: 0.4rem;
+    font-size: 1rem;
+    border-radius: 4px;
+    border: 1px solid #ccc;
 }
