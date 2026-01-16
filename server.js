@@ -305,8 +305,14 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   const slotTimes = normalizeSlots(data.selected_slots || []);
 
   try {
-    const [rows] = await dbPool.query('SELECT hold_status, hold_from, extended_days FROM bookings WHERE id = ? LIMIT 1', [id]);
-    if (!rows.length) return res.json({ success: false, error: 'Booking not found' });
+    const [rows] = await dbPool.query(
+      `SELECT * FROM bookings WHERE id = ? LIMIT 1`,
+      [id]
+    );
+
+    if (!rows.length) {
+      return res.json({ success: false, error: 'Booking not found' });
+    }
 
     const current = rows[0];
     const newHoldStatus = data.hold_status ? 1 : 0;
@@ -321,57 +327,87 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
     if (current.hold_status === 1 && newHoldStatus === 0) {
       if (hold_from) {
         const today = new Date();
-        const holdDays = Math.ceil((today - new Date(hold_from)) / (1000 * 60 * 60 * 24));
+        const holdDays = Math.ceil(
+          (today - new Date(hold_from)) / (1000 * 60 * 60 * 24)
+        );
         extended_days += holdDays;
         resume_from = today;
-        hold_from = null; 
+        hold_from = null;
       }
     }
 
     const sql = `
       UPDATE bookings SET
-        branch=?, training_days=?, customer_name=?, address=?, pincode=?, mobile_no=?, whatsapp_no=?,
-        sex=?, birth_date=?, cov_lmv=?, cov_mc=?, dl_no=?, dl_from=?, dl_to=?, email=?,
-        occupation=?, ref=?,
-        allotted_time=?, allotted_time2=?, allotted_time3=?, allotted_time4=?,
-        duration_minutes=?, starting_from=?,
-        total_fees=?, advance=?, car_name=?, instructor_name=?,ac_facility=?, pickup_drop=?, has_licence=?, hold_status=?, hold_from=?, resume_from=?, extended_days=?
-        WHERE id=?
+        branch=?,
+        training_days=?,
+        customer_name=?,
+        address=?,
+        pincode=?,
+        mobile_no=?,
+        whatsapp_no=?,
+        sex=?,
+        birth_date=?,
+        cov_lmv=?,
+        cov_mc=?,
+        dl_no=?,
+        dl_from=?,
+        dl_to=?,
+        email=?,
+        occupation=?,
+        ref=?,
+        allotted_time=?,
+        allotted_time2=?,
+        allotted_time3=?,
+        allotted_time4=?,
+        duration_minutes=?,
+        starting_from=?,
+        total_fees=?,
+        advance=?,
+        car_name=?,
+        instructor_name=?,
+        ac_facility=?,
+        pickup_drop=?,
+        has_licence=?,
+        hold_status=?,
+        hold_from=?,
+        resume_from=?,
+        extended_days=?
+      WHERE id=?
     `;
 
     const values = [
-      data.branch,
-      data.training_days,
-      data.customer_name,
-      data.address || '',
-      data.pincode || '',
-      data.mobile_no,
-      data.whatsapp_no || '',
-      data.sex || '',
-      toMySQLDate(data.birth_date),
-      data.cov_lmv ? 1 : 0,
-      data.cov_mc ? 1 : 0,
-      data.dl_no || '',
-      toMySQLDate(data.dl_from),
-      toMySQLDate(data.dl_to),
-      data.email || '',
-      data.occupation || '',
-      data.ref || '',
-      slotTimes.allotted_time,
-      slotTimes.allotted_time2,
-      slotTimes.allotted_time3,
-      slotTimes.allotted_time4,
-      data.duration_minutes || 30,
-      toMySQLDate(data.starting_from),
-      data.total_fees || 0,
-      data.advance || 0,
-      data.car_name || '',
-      data.instructor_name || '',
-
-      data.ac_facility ? 1 : 0,
-      data.pickup_drop ? 1 : 0,
-      data.has_licence === 'yes' ? 'Yes' : 'No',
-
+      data.branch ?? current.branch,
+      data.training_days ?? current.training_days, 
+      data.customer_name ?? current.customer_name,
+      data.address ?? current.address,
+      data.pincode ?? current.pincode,
+      data.mobile_no ?? current.mobile_no,
+      data.whatsapp_no ?? current.whatsapp_no,
+      data.sex ?? current.sex,
+      toMySQLDate(data.birth_date) ?? current.birth_date,
+      data.cov_lmv ?? current.cov_lmv,
+      data.cov_mc ?? current.cov_mc,
+      data.dl_no ?? current.dl_no,
+      toMySQLDate(data.dl_from) ?? current.dl_from,
+      toMySQLDate(data.dl_to) ?? current.dl_to,
+      data.email ?? current.email,
+      data.occupation ?? current.occupation,
+      data.ref ?? current.ref,
+      slotTimes.allotted_time ?? current.allotted_time,
+      slotTimes.allotted_time2 ?? current.allotted_time2,
+      slotTimes.allotted_time3 ?? current.allotted_time3,
+      slotTimes.allotted_time4 ?? current.allotted_time4,
+      data.duration_minutes ?? current.duration_minutes,
+      toMySQLDate(data.starting_from) ?? current.starting_from,
+      data.total_fees ?? current.total_fees,
+      data.advance ?? current.advance,
+      data.car_name ?? current.car_name,
+      data.instructor_name ?? current.instructor_name,
+      data.ac_facility ?? current.ac_facility,
+      data.pickup_drop ?? current.pickup_drop,
+      data.has_licence
+        ? (data.has_licence === 'yes' ? 'Yes' : 'No')
+        : current.has_licence,
       newHoldStatus,
       hold_from ? toMySQLDate(hold_from) : null,
       resume_from ? toMySQLDate(resume_from) : null,
@@ -379,8 +415,8 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
       id
     ];
 
-
     await dbPool.query(sql, values);
+
     await recomputeAndStoreAttendanceStatus(id);
 
     res.json({ success: true, message: 'Booking updated successfully' });
