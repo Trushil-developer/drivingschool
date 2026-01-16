@@ -363,7 +363,7 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
     WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='training_days');
 SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN training_days INT NOT NULL;',
+    'ALTER TABLE bookings ADD COLUMN training_days INT NOT NULL DEFAULT 0;',
     'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
