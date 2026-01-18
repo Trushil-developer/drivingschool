@@ -69,13 +69,15 @@ window.renderScheduleModule = function(tableWrap) {
 
                     const resCars = await window.api('/api/cars');
                     if(!resCars.success) {
-                        document.getElementById("scheduleTableWrap").innerHTML = `<div class="error">${resCars.error}</div>`;
+                        document.getElementById("scheduleTableWrap").innerHTML =
+                            `<div class="error">${resCars.error}</div>`;
                         return;
                     }
 
                     const cars = resCars.cars.filter(c => c.branch === branch);
                     if(cars.length === 0) {
-                        document.getElementById("scheduleTableWrap").innerHTML = `<div class="empty">No cars for this branch.</div>`;
+                        document.getElementById("scheduleTableWrap").innerHTML =
+                            `<div class="empty">No cars for this branch.</div>`;
                         return;
                     }
 
@@ -88,21 +90,33 @@ window.renderScheduleModule = function(tableWrap) {
                         times.push(`${hh}:${mm}`);
                     }
 
-                    // Fetch bookings and attendance together
-                    const [resBookings, resAttendance] = await Promise.all([
-                        window.api('/api/bookings'),
-                        window.api('/api/attendance-all')
-                    ]);
+                    let bookings = [];
+                    let attendanceRecords = [];
 
-                    const bookings = resBookings.success ? resBookings.bookings : [];
-                    const attendanceRecords = resAttendance.success ? resAttendance.records : [];
+                    try {
+                        const [resBookings, resAttendance] = await Promise.all([
+                            window.api('/api/bookings'),
+                            window.api('/api/attendance-all')
+                        ]);
 
-                    // Build attendance map
+                        bookings = resBookings?.success ? resBookings.bookings : [];
+                        attendanceRecords = resAttendance?.success ? resAttendance.records : [];
+                    } catch (err) {
+                        console.error("Booking/Attendance API failed:", err);
+                    }
+
                     const attendanceMap = {};
                     attendanceRecords.forEach(r => {
-                        if(!attendanceMap[r.booking_id]) attendanceMap[r.booking_id] = [];
-                        attendanceMap[r.booking_id].push(r);
+                        if (!attendanceMap[r.booking_id]) {
+                            attendanceMap[r.booking_id] = {};
+                        }
+
+                        const dateKey = new Date(r.date).toISOString().split("T")[0];
+
+                        attendanceMap[r.booking_id][dateKey] = Number(r.present);
                     });
+
+
 
                     const branchBookings = bookings.filter(b => {
                         if (!b.starting_from) return false;
@@ -127,9 +141,9 @@ window.renderScheduleModule = function(tableWrap) {
                         const car = b.car_name.trim();
 
                         const totalDays = Number(b.training_days) || 15;
-                        const customerWithDays = `${b.customer_name || ''} (${b.present_days}/${totalDays})`;
+                        const customerWithDays =
+                            `${b.customer_name || ''} (${b.present_days}/${totalDays})`;
 
-                        // Collect actual 30-min slots from DB
                         const slots = [
                             b.allotted_time,
                             b.allotted_time2,
@@ -138,18 +152,15 @@ window.renderScheduleModule = function(tableWrap) {
                         ].filter(Boolean);
 
                         if (slots.length === 0) return;
-
-                       slots.sort();
+                        slots.sort();
 
                         if (!bookedSlots[car]) bookedSlots[car] = {};
 
-                        // Convert slots to minutes
                         const slotMinutes = slots.map(s => {
                             const [h, m] = s.split(':').map(Number);
                             return h * 60 + m;
                         });
 
-                        // Group continuous 30-min slots
                         let groups = [];
                         let currentGroup = [slotMinutes[0]];
 
@@ -163,7 +174,6 @@ window.renderScheduleModule = function(tableWrap) {
                         }
                         groups.push(currentGroup);
 
-                        // Render each group
                         groups.forEach(group => {
                             group.forEach((min, idx) => {
                                 const hh = String(Math.floor(min / 60)).padStart(2, '0');
@@ -174,30 +184,33 @@ window.renderScheduleModule = function(tableWrap) {
                                     ? {
                                         customer: customerWithDays,
                                         rowspan: group.length,
-                                        instructor_name: b.instructor_name || "N/A"
+                                        instructor_name: b.instructor_name || "N/A",
+                                        booking_id: b.id   // ✅ IMPORTANT
                                     }
                                     : { skip: true };
+
                             });
                         });
-
                     });
 
-                    // Count active/available slots
                     let totalSlots = cars.length * times.length;
                     let activeSlots = 0;
                     cars.forEach(car => {
                         const carName = car.car_name.trim();
                         times.forEach(t => {
-                            if(bookedSlots[carName]?.[t] && !bookedSlots[carName][t].skip) activeSlots++;
+                            if(bookedSlots[carName]?.[t] &&
+                               !bookedSlots[carName][t].skip) {
+                                activeSlots++;
+                            }
                         });
                     });
+
                     let availableSlots = totalSlots - activeSlots;
                     document.getElementById("slotStats").innerHTML = `
                         <span class="active-slots">Active Slots: ${activeSlots}</span>
                         <span class="available-slots">Available Slots: ${availableSlots}</span>
                     `;
 
-                    // Render schedule table
                     let html = `<table class="schedule-table">
                         <thead>
                             <tr>
@@ -206,43 +219,59 @@ window.renderScheduleModule = function(tableWrap) {
                             </tr>
                         </thead>
                         <tbody>
-                            ${times.map(t => {
-                                return `<tr>
+                            ${times.map(t => `
+                                <tr>
                                     <td class="time-col">${to12HourFormat(t)}</td>
                                     ${cars.map(car => {
                                         const carName = car.car_name.trim();
                                         const slot = bookedSlots[carName]?.[t];
                                         if(slot?.skip) return '';
-                                        if(slot) {
-                                            const instructor = slot.instructor_name || "N/A";
-                                            return `<td class="slot" rowspan="${slot.rowspan}">
-                                                        ${slot.customer} 
-                                                        <span class="info-tooltip">
-                                                            ℹ
-                                                            <span class="tooltip-text">${instructor}</span>
-                                                        </span>
-                                                    </td>`;
-                                        }
+                                        if (slot) {
+                                            const todayStr = currentDate.toISOString().split("T")[0];
+                                            const now = new Date();
+                                            const slotDateTime = new Date(`${todayStr}T${t}:00`);
 
+                                            const presentValue = attendanceMap[slot.booking_id]?.[todayStr] ?? null;
+
+
+                                            let slotClass = "slot";
+
+                                            if (presentValue !== null && presentValue > 0) {
+                                                slotClass += " slot-present"; // 🟢 attendance marked
+                                            } else if (slotDateTime < now) {
+                                                slotClass += " slot-absent"; // 🔴 time passed, no attendance
+                                            }
+
+                                            return `
+                                                <td class="${slotClass}" rowspan="${slot.rowspan}">
+                                                    ${slot.customer}
+                                                    <span class="info-tooltip">
+                                                        ℹ
+                                                        <span class="tooltip-text">
+                                                            ${slot.instructor_name}
+                                                        </span>
+                                                    </span>
+                                                </td>`;
+                                        }
                                         return `<td class="slot"></td>`;
                                     }).join('')}
-                                </tr>`;
-                            }).join('')}
+                                </tr>
+                            `).join('')}
                         </tbody>
                     </table>`;
 
                     document.getElementById("scheduleTableWrap").innerHTML = html;
-
                     initTooltips();
                 }
 
-                document.getElementById("printScheduleBtn").onclick = () => {
-                    printSchedule(branch, currentDate);
-                };
+                document.getElementById("printScheduleBtn").onclick =
+                    () => printSchedule(branch, currentDate);
+
                 document.getElementById("prevDay").onclick = () => {
                     currentDate.setDate(currentDate.getDate()-1);
                     renderDay();
                 };
+
                 document.getElementById("nextDay").onclick = () => {
                     currentDate.setDate(currentDate.getDate()+1);
                     renderDay();
@@ -252,7 +281,9 @@ window.renderScheduleModule = function(tableWrap) {
             }
 
             function formatDate(d) {
-                return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+                return `${String(d.getDate()).padStart(2,'0')}/` +
+                       `${String(d.getMonth()+1).padStart(2,'0')}/` +
+                       `${d.getFullYear()}`;
             }
 
         } catch(err) {
@@ -275,9 +306,8 @@ function initTooltips() {
     });
 
     document.addEventListener('click', () => {
-        document.querySelectorAll('.info-tooltip.active').forEach(icon => {
-            icon.classList.remove('active');
-        });
+        document.querySelectorAll('.info-tooltip.active')
+            .forEach(icon => icon.classList.remove('active'));
     });
 }
 
@@ -290,8 +320,13 @@ function to12HourFormat(time24) {
 }
 
 function printSchedule(branch, date) {
-    const scheduleTable = document.getElementById("scheduleTableWrap").innerHTML;
-    const dateStr = `${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}`;
+    const scheduleTable =
+        document.getElementById("scheduleTableWrap").innerHTML;
+
+    const dateStr =
+        `${String(date.getDate()).padStart(2,'0')}/` +
+        `${String(date.getMonth()+1).padStart(2,'0')}/` +
+        `${date.getFullYear()}`;
 
     const printWindow = window.open('', '', 'width=900,height=700');
 
@@ -301,20 +336,9 @@ function printSchedule(branch, date) {
             <title>Schedule - ${branch} (${dateStr})</title>
             <style>
                 body { font-family: Arial; padding: 10px; }
-                h2 { margin-bottom: 10px; }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-top: 10px;
-                }
-                th, td {
-                    border: 1px solid #000;
-                    padding: 3px;
-                    text-align: center;
-                }
-                th {
-                    background: #f3f3f3;
-                }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { border: 1px solid #000; padding: 3px; }
+                th { background: #f3f3f3; }
             </style>
         </head>
         <body>

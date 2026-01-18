@@ -219,6 +219,21 @@
     transform: translateX(-50%) scale(1);
 }
 
+.slot-present {
+    background-color: #b6f7c1 !important;
+    /* green */
+    font-weight: bold;
+}
+
+.slot-absent {
+    background-color: #f7b6b6 !important;
+    /* red */
+}
+
+.slot {
+    background-color: #fff;
+}
+
 /* -----------------------------
    Responsive
 --------------------------------*/
