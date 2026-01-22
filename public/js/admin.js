@@ -335,7 +335,16 @@ import { renderDashboardModule } from "./Dashboard/renderDashboardModule.js";
             } finally {
                 hideLoading();
             }
-        }
+        },
+        cms: async () => {
+            showLoading();
+            try {
+                const renderer = window.renderCMSModule(tableWrap, tabRenderers, currentTab);
+                await renderer();
+            } finally {
+                hideLoading();
+            }
+        },
     };
 
     attachFilterListeners(tabRenderers, () => currentTab);
@@ -354,7 +363,7 @@ import { renderDashboardModule } from "./Dashboard/renderDashboardModule.js";
             }
         }
 
-        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard') {
+        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
         } else if (tab === 'trainingDays' || tab === 'courses') {

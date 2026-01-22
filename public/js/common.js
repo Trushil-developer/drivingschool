@@ -123,7 +123,8 @@ window.CommonReady = (async () => {
         schedule: 'admin.html?tab=schedule',
         trainingDays: 'admin.html?tab=trainingDays',
         enquiries: 'admin.html?tab=enquiries',
-        courses: 'admin.html?tab=courses'
+        courses: 'admin.html?tab=courses',
+        cms: 'admin.html?tab=cms'
     };
 
     sidebarItems.forEach(li => {

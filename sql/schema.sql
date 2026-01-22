@@ -1532,3 +1532,123 @@ SET @sql := IF(@idx_exists=0,
     'SELECT "exists";'
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- CMS PAGES TABLE
+-- =====================================
+
+CREATE TABLE IF NOT EXISTS cms_pages (
+    id INT AUTO_INCREMENT PRIMARY KEY
+);
+
+-- slug
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='cms_pages'
+      AND column_name='slug'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE cms_pages ADD COLUMN slug VARCHAR(100) NOT NULL UNIQUE;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- title
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='cms_pages'
+      AND column_name='title'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE cms_pages ADD COLUMN title VARCHAR(255);',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- content
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='cms_pages'
+      AND column_name='content'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE cms_pages ADD COLUMN content LONGTEXT;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- status
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='cms_pages'
+      AND column_name='status'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE cms_pages ADD COLUMN status TINYINT(1) DEFAULT 1;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- updated_at
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='cms_pages'
+      AND column_name='updated_at'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE cms_pages ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- CMS INDEXES
+-- =====================================
+
+-- slug index (fast public fetch)
+SET @idx_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE table_schema='drivingschool'
+      AND table_name='cms_pages'
+      AND index_name='idx_cms_slug'
+);
+
+SET @sql := IF(
+    @idx_exists = 0,
+    'CREATE INDEX idx_cms_slug ON cms_pages (slug);',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

@@ -19,6 +19,7 @@ import carsRoute from './routes/carsRoutes.js';
 import upload from "./public/middleware/upload.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import examUsersRoutes from "./routes/examUsersRoutes.js";
+import cmsRoutes from "./routes/cmsRoutes.js";
 import examRoutes from "./routes/examRoutes.js";
 import AWS from "aws-sdk";
 import fs from "fs";
@@ -801,6 +802,7 @@ app.use("/api/enquiries", enquiriesRoutes);
 app.use("/api/enquiries", otpRoutes);
 app.use("/api/exam/users", examUsersRoutes);
 app.use("/api/exam", examRoutes);
+app.use("/api/cms", cmsRoutes);
 
 // ---------- START SERVER ----------
 app.listen(PORT, '0.0.0.0', () => {

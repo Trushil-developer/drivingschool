@@ -1,0 +1,262 @@
+/* ============================
+   RESET
+============================ */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* ============================
+   CMS PAGE WRAPPER
+============================ */
+.cms-page {
+    padding: 50px 20px;
+    background: #f4f6f9;
+}
+
+.cms-container {
+    max-width: 1100px;
+    margin: auto;
+    background: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+}
+
+/* ============================
+   CMS TABLE
+============================ */
+.cms-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+.cms-table thead {
+    background: #f1f3f6;
+}
+
+.cms-table th,
+.cms-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #e6e6e6;
+    text-align: left;
+    font-size: 14px;
+}
+
+.cms-table th {
+    font-weight: 600;
+    color: #333;
+}
+
+.cms-row:hover {
+    background: #fafafa;
+}
+
+/* ============================
+   CMS ID & TITLE
+============================ */
+.cms-id {
+    background: #f0f0f0;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #555;
+}
+
+.cms-title {
+    color: #1565c0;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cms-title:hover {
+    text-decoration: underline;
+}
+
+/* ============================
+   ACTION BUTTONS
+============================ */
+.cms-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.cms-table .btn {
+    padding: 6px 14px;
+    font-size: 13px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.25s ease;
+}
+
+.cms-table .btn.view {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.cms-table .btn.view:hover {
+    background: #bbdefb;
+}
+
+.cms-table .btn.edit {
+    background: #ede7f6;
+    color: #5e35b1;
+}
+
+.cms-table .btn.edit:hover {
+    background: #d1c4e9;
+}
+
+/* ============================
+   DETAILS ROW
+============================ */
+.cms-details {
+    background: #f9fafc;
+}
+
+.cms-details.hidden {
+    display: none;
+}
+
+/* ============================
+   CMS CONTENT – VIEW MODE
+============================ */
+.cms-content-wrapper {
+    max-width: 860px;
+    margin: 32px auto;
+    background: #ffffff;
+    padding: 34px 38px;
+    border-radius: 10px;
+    border: 1px solid #e5e9f2;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.06);
+}
+
+/* Page preview label */
+.cms-content-wrapper::before {
+    content: "Page Preview";
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    color: #888;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+}
+
+.cms-content {
+    font-size: 15px;
+    line-height: 1.85;
+    color: #2f2f2f;
+}
+
+.cms-content h1,
+.cms-content h2,
+.cms-content h3 {
+    color: #1565c0;
+    margin: 26px 0 14px;
+}
+
+.cms-content p {
+    margin-bottom: 18px;
+}
+
+/* ============================
+   CMS EDIT MODE
+============================ */
+.cms-edit-form {
+    max-width: 860px;
+    margin: 32px auto;
+    background: #ffffff;
+    padding: 28px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+}
+
+.cms-edit-form label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #444;
+}
+
+.cms-input,
+.cms-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+.cms-textarea {
+    min-height: 200px;
+    resize: vertical;
+}
+
+/* Edit action buttons */
+.cms-edit-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.cms-edit-actions .btn.save {
+    background: #43a047;
+    color: #fff;
+}
+
+.cms-edit-actions .btn.save:hover {
+    background: #388e3c;
+}
+
+.cms-edit-actions .btn.cancel {
+    background: #eeeeee;
+    color: #333;
+}
+
+.cms-edit-actions .btn.cancel:hover {
+    background: #e0e0e0;
+}
+
+/* ============================
+   EMPTY & ERROR STATES
+============================ */
+.empty {
+    padding: 50px;
+    text-align: center;
+    color: #777;
+    font-size: 14px;
+}
+
+.error {
+    padding: 16px;
+    background: #ffecec;
+    color: #b00020;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+/* ============================
+   RESPONSIVE
+============================ */
+@media (max-width: 768px) {
+
+    .cms-table th:nth-child(1),
+    .cms-table td:nth-child(1),
+    .cms-table th:nth-child(3),
+    .cms-table td:nth-child(3) {
+        display: none;
+    }
+
+    .cms-content-wrapper,
+    .cms-edit-form {
+        padding: 24px 20px;
+        margin: 20px 10px;
+    }
+
+    .cms-content {
+        font-size: 14px;
+    }
+}
