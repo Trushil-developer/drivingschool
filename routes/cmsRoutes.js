@@ -1,15 +1,37 @@
 import express from "express";
-import { dbPool } from "../server.js"; 
-// adjust path if server file name is different
+import { dbPool } from "../server.js";
 
 const router = express.Router();
 
 /* ============================
+   LIST ALL CMS PAGES (PUBLIC)
+   GET /api/cms
+============================ */
+router.get("/", async (req, res) => {
+    try {
+        const [rows] = await dbPool.query(
+            `SELECT id, slug, title, updated_at
+             FROM cms_pages
+             WHERE status = 1
+             ORDER BY id ASC`
+        );
+
+        res.json({
+            success: true,
+            pages: rows
+        });
+    } catch (err) {
+        console.error("CMS LIST ERROR:", err);
+        res.status(500).json({
+            success: false,
+            error: "Failed to load CMS pages"
+        });
+    }
+});
+
+/* ============================
    GET CMS PAGE BY SLUG (PUBLIC)
-   Example:
-   /api/cms/privacy-policy
-   /api/cms/terms
-   /api/cms/faqs
+   GET /api/cms/:slug
 ============================ */
 router.get("/:slug", async (req, res) => {
     const { slug } = req.params;
@@ -44,29 +66,6 @@ router.get("/:slug", async (req, res) => {
 });
 
 /* ============================
-   (OPTIONAL) LIST ALL CMS PAGES
-   Useful for admin dropdowns
-============================ */
-router.get("/", async (req, res) => {
-    try {
-        const [rows] = await dbPool.query(
-            `SELECT id, slug, title, updated_at
-             FROM cms_pages
-             WHERE status = 1
-             ORDER BY id ASC`
-        );
-
-        res.json({
-            success: true,
-            pages: rows
-        });
-    } catch (err) {
-        console.error("CMS LIST ERROR:", err);
-        res.status(500).json({ success: false });
-    }
-});
-
-/* ============================
    UPDATE CMS PAGE (ADMIN)
    PUT /api/cms/:id
 ============================ */
@@ -86,9 +85,10 @@ router.put("/:id", async (req, res) => {
             `UPDATE cms_pages
              SET title = ?,
                  content = ?,
+                 slug = COALESCE(?, slug),
                  status = COALESCE(?, status)
              WHERE id = ?`,
-            [title, content, slug || null, status ?? null, id]
+            [title, content, slug ?? null, status ?? null, id]
         );
 
         if (result.affectedRows === 0) {
@@ -105,7 +105,6 @@ router.put("/:id", async (req, res) => {
     } catch (err) {
         console.error("CMS UPDATE ERROR:", err);
 
-        // Handle duplicate slug
         if (err.code === "ER_DUP_ENTRY") {
             return res.status(400).json({
                 success: false,
@@ -119,6 +118,5 @@ router.put("/:id", async (req, res) => {
         });
     }
 });
-
 
 export default router;
