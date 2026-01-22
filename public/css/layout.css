@@ -356,6 +356,10 @@ header {
     color: #bbdefb;
 }
 
+.footer-bottom p {
+    color: #fff;
+}
+
 /* ---------- Footer Contact Links ---------- */
 .footer-col p {
     color: #e3f2fd;

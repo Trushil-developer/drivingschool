@@ -3,18 +3,88 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Dwarkesh Motor Driving School</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- =========================================================
+         SEO (Dynamic CMS)
+    ========================================================= -->
+    <title id="seoTitle">Dwarkesh Motor Driving School</title>
+
+    <meta name="description" id="seoDescription"
+        content="Read important information about Dwarkesh Motor Driving School including policies, terms, and FAQs.">
+
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" id="canonicalUrl" href="https://dwarkeshdrivingschool.com/">
+
+    <!-- =========================================================
+         Open Graph (Facebook / WhatsApp)
+    ========================================================= -->
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="Dwarkesh Motor Driving School">
+    <meta property="og:title" id="ogTitle" content="Dwarkesh Motor Driving School">
+    <meta property="og:description" id="ogDescription"
+        content="Official information from Dwarkesh Motor Driving School.">
+    <meta property="og:image" content="https://dwarkeshdrivingschool.com/images/logo.png">
+    <meta property="og:url" id="ogUrl" content="https://dwarkeshdrivingschool.com/">
+
+    <!-- =========================================================
+         Twitter Card
+    ========================================================= -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" id="twitterTitle" content="Dwarkesh Motor Driving School">
+    <meta name="twitter:description" id="twitterDescription"
+        content="Official information from Dwarkesh Motor Driving School.">
+    <meta name="twitter:image" content="https://dwarkeshdrivingschool.com/images/logo.png">
+
+    <!-- =========================================================
+         CSS
+    ========================================================= -->
     <link rel="stylesheet" href="/css/common.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/cms-public.css">
+
+    <!-- =========================================================
+         Google Analytics
+    ========================================================= -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HRGDQJKW55"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-HRGDQJKW55');
+    </script>
+
+    <!-- =========================================================
+         Structured Data (WebPage)
+    ========================================================= -->
+    <script type="application/ld+json" id="structuredData">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Dwarkesh Motor Driving School",
+            "url": "https://dwarkeshdrivingschool.com/",
+            "publisher": {
+                "@type": "Organization",
+                "name": "Dwarkesh Motor Driving School",
+                "logo": {
+                    "@type": "ImageObject",
+                    "url": "https://dwarkeshdrivingschool.com/images/logo.png"
+                }
+            }
+        }
+    </script>
 </head>
 
 <body>
 
-    <!-- Header include -->
+    <!-- =========================================================
+         HEADER
+    ========================================================= -->
     <div data-include="/includes/header.html"></div>
 
+    <!-- =========================================================
+         CMS CONTENT
+    ========================================================= -->
     <main class="cms-page">
         <div class="cms-container">
             <h1 id="cmsTitle">Loading...</h1>
@@ -24,11 +94,71 @@
         </div>
     </main>
 
-    <!-- Footer include -->
+    <!-- =========================================================
+         FOOTER
+    ========================================================= -->
     <div data-include="/includes/footer.html"></div>
 
+    <!-- =========================================================
+         SCRIPTS
+    ========================================================= -->
     <script src="/js/common.js"></script>
     <script src="/js/cms.js"></script>
+
+    <!-- =========================================================
+         DYNAMIC SEO UPDATE FROM CMS
+    ========================================================= -->
+    <script>
+        /**
+         * Call this AFTER CMS content loads
+         * Example data: { title, content, slug }
+         */
+        function updateSEO(page) {
+            if (!page) return;
+
+            const pageTitle = `${page.title} | Dwarkesh Motor Driving School`;
+            const description =
+                page.content
+                    ?.replace(/<[^>]*>/g, "")
+                    ?.substring(0, 160) ||
+                "Official information from Dwarkesh Motor Driving School.";
+
+            const url = `https://dwarkeshdrivingschool.com/${page.slug}`;
+
+            document.title = pageTitle;
+            document.getElementById("seoTitle").content = pageTitle;
+            document.getElementById("seoDescription").content = description;
+            document.getElementById("canonicalUrl").href = url;
+
+            document.getElementById("ogTitle").content = pageTitle;
+            document.getElementById("ogDescription").content = description;
+            document.getElementById("ogUrl").content = url;
+
+            document.getElementById("twitterTitle").content = pageTitle;
+            document.getElementById("twitterDescription").content = description;
+
+            // Update structured data
+            const schema = {
+                "@context": "https://schema.org",
+                "@type": "WebPage",
+                "name": pageTitle,
+                "url": url,
+                "dateModified": new Date().toISOString(),
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "Dwarkesh Motor Driving School",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://dwarkeshdrivingschool.com/images/logo.png"
+                    }
+                }
+            };
+
+            document.getElementById("structuredData").textContent =
+                JSON.stringify(schema, null, 2);
+        }
+
+    </script>
 </body>
 
 </html>
