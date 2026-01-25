@@ -249,6 +249,27 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 -- =====================================
+--  tag
+-- =====================================
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='cars'
+      AND column_name='tag'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE cars ADD COLUMN tag VARCHAR(30) NULL AFTER car_name;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- =====================================
 -- INSTRUCTORS TABLE
 -- =====================================
 CREATE TABLE IF NOT EXISTS instructors (
