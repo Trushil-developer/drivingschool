@@ -23,6 +23,7 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
                         <tr>
                             <th>ID</th>
                             <th>Car Name</th>
+                            <th>Tag</th>
                             <th>Branch</th>
                             <th>Registration No</th>
                             <th>15 Days Price</th>
@@ -38,6 +39,9 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
                                 <td class="car-name" style="cursor:pointer; color:blue; text-decoration:underline;">
                                     ${c.car_name || '-'}
                                 </td>
+                                <td>
+                                    ${c.tag ? `<span class="tag-pill">${c.tag}</span>` : '-'}
+                                </td>
                                 <td>${c.branch || '-'}</td>
                                 <td>${c.car_registration_no || '-'}</td>
                                 <td>₹ ${c.price_15_days ?? '0.00'}</td>
@@ -49,6 +53,7 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
                                     <button class="btn edit"
                                         data-id="${c.id}"
                                         data-name="${c.car_name || ''}"
+                                        data-tag="${c.tag || ''}"
                                         data-branch="${c.branch || ''}"
                                         data-car_registration_no="${c.car_registration_no || ''}"
                                         data-insurance_policy_no="${c.insurance_policy_no || ''}"
@@ -66,6 +71,7 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
 
                             <tr class="car-details hidden" id="details-${c.id}">
                                 <td colspan="8">
+                                    <strong>Tag:</strong> ${c.tag || '-'} <br>
                                     <strong>15 Days Price:</strong> ₹ ${c.price_15_days ?? '0.00'} <br>
                                     <strong>21 Days Price:</strong> ₹ ${c.price_21_days ?? '0.00'} <br>
                                     <strong>Insurance Policy:</strong> ${c.insurance_policy_no || '-'} <br>
@@ -90,6 +96,7 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
 
                     const carData = {
                         car_name: btn.dataset.name,
+                        tag: btn.dataset.tag,
                         branch: btn.dataset.branch,
                         car_registration_no: btn.dataset.car_registration_no,
                         insurance_policy_no: btn.dataset.insurance_policy_no,

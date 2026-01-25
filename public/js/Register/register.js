@@ -234,11 +234,15 @@ async function loadCars() {
 
         carsGrid.innerHTML = cars.map(car => {
             const price = getPriceByDays(car, SELECTED_TRAINING_DAYS);
+            const tagText = (car.tag || "").trim();
 
             return `
                 <div class="car-card"
                     data-car="${car.car_name}"
                     data-price="${price}">
+
+                    ${tagText ? `<span class="car-ribbon">${tagText}</span>` : ""}
+
                     <div class="car-card-body">
                         <div class="car-name">${car.car_name}</div>
                         <div class="car-price">₹${price}</div>

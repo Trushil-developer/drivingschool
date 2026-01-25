@@ -45,6 +45,9 @@ window.openCarAddModal = function (tabRenderers, currentTab) {
                     <label>Car Name</label>
                     <input id="car_name" type="text">
 
+                    <label>Tag (optional)</label>
+                    <input id="tag" type="text" placeholder="e.g. NEW">
+
                     <label>Branch</label>
                     <select id="branch"><option>Loading...</option></select>
 
@@ -92,6 +95,7 @@ window.openCarAddModal = function (tabRenderers, currentTab) {
             document.getElementById("saveCar").onclick = async () => {
                 const payload = {
                     car_name: document.getElementById("car_name").value.trim(),
+                    tag: document.getElementById("tag").value.trim() || null,
                     branch: document.getElementById("branch").value.trim(),
                     car_registration_no: document.getElementById("car_registration_no").value.trim(),
                     insurance_policy_no: document.getElementById("insurance_policy_no").value.trim(),
@@ -145,6 +149,9 @@ window.openCarEditModal = function (id, data, tabRenderers, currentTab) {
                     <label>Car Name</label>
                     <input id="car_name" type="text" value="${data.car_name || ''}">
 
+                    <label>Tag (optional)</label>
+                    <input id="tag" type="text" value="${data.tag || ''}" placeholder="e.g. NEW ARRIVAL">
+
                     <label>Branch</label>
                     <select id="branch"><option>Loading...</option></select>
 
@@ -194,6 +201,7 @@ window.openCarEditModal = function (id, data, tabRenderers, currentTab) {
             document.getElementById("saveCar").onclick = async () => {
                 const payload = {
                     car_name: document.getElementById("car_name").value.trim(),
+                    tag: document.getElementById("tag").value.trim() || null,
                     branch: document.getElementById("branch").value.trim(),
                     car_registration_no: document.getElementById("car_registration_no").value.trim(),
                     insurance_policy_no: document.getElementById("insurance_policy_no").value.trim(),

@@ -18,7 +18,7 @@ router.get('/', async (req, res, next) => {
 // ---------- ADD a new car ----------
 router.post('/', requireAdmin, async (req, res, next) => {
   const { 
-    car_name, branch, car_registration_no, insurance_policy_no, insurance_company, 
+    car_name, tag, branch, car_registration_no, insurance_policy_no, insurance_company, 
     insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date,
     price_15_days, price_21_days, inactive 
   } = req.body;
@@ -28,12 +28,13 @@ router.post('/', requireAdmin, async (req, res, next) => {
   try {
     const [result] = await dbPool.query(`
       INSERT INTO cars 
-      (car_name, branch, car_registration_no, insurance_policy_no, insurance_company,
+      (car_name, tag, branch, car_registration_no, insurance_policy_no, insurance_company,
        insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date,
        price_15_days, price_21_days, inactive)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       car_name,
+      tag?.trim() || null,
       branch || null,
       car_registration_no || null,
       insurance_policy_no || null,
@@ -58,7 +59,7 @@ router.post('/', requireAdmin, async (req, res, next) => {
 router.put('/:id', requireAdmin, async (req, res, next) => {
   const { id } = req.params;
   const { 
-    car_name, branch, car_registration_no, insurance_policy_no, insurance_company, 
+    car_name, tag, branch, car_registration_no, insurance_policy_no, insurance_company, 
     insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date,
     price_15_days, price_21_days, inactive 
   } = req.body;
@@ -69,6 +70,7 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
     await dbPool.query(`
       UPDATE cars SET
         car_name=?,
+        tag=?,
         branch=?,
         car_registration_no=?,
         insurance_policy_no=?,
@@ -83,6 +85,7 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
       WHERE id=?
     `, [
       car_name,
+      tag?.trim() || null,
       branch || null,
       car_registration_no || null,
       insurance_policy_no || null,
