@@ -16,6 +16,37 @@ window.renderEnquiryModule = async function (tableWrap) {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     }
 
+    function renderEnquiryRows(data) {
+        const tbody = tableWrap.querySelector(".enquiries-table tbody");
+
+        if (!data.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="11" class="empty">No enquiries found</td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = data.map(e => `
+            <tr id="enquiry-${e.id}">
+                <td>${e.id}</td>
+                <td>${e.full_name || "-"}</td>
+                <td>${e.email || "-"}</td>
+                <td>${e.phone || "-"}</td>
+                <td>${e.branch_name || "-"}</td>
+                <td>${e.course_name || "-"}</td>
+                <td>${e.has_licence || "-"}</td>
+                <td>${e.hear_about || "-"}</td>
+                <td>${e.message || "-"}</td>
+                <td>${e.created_at ? formatDate(e.created_at) : "-"}</td>
+                <td>
+                    <button class="btn delete" data-id="${e.id}">Delete</button>
+                </td>
+            </tr>
+        `).join("");
+    }
+
     async function fetchEnquiries() {
         showLoading();
 
@@ -23,14 +54,26 @@ window.renderEnquiryModule = async function (tableWrap) {
             const res = await window.api("/api/enquiries");
             if (!res.success) throw new Error(res.error || "Failed to fetch enquiries");
 
-            const enquiries = res.enquiries || [];
+            let enquiries = res.enquiries || [];
 
             if (!enquiries.length) {
                 tableWrap.innerHTML = `<div class="empty">No enquiries found</div>`;
                 return;
             }
 
-            const html = `
+            // ---------- Build filter & table ----------
+            const branchFilterHTML = `
+                <div class="filter-bar">
+                    <label>
+                        Branch:
+                        <select id="enquiryBranchFilter">
+                            <option value="">All</option>
+                        </select>
+                    </label>
+                </div>
+            `;
+
+            const tableHTML = `
                 <table class="enquiries-table">
                     <thead>
                         <tr>
@@ -47,29 +90,41 @@ window.renderEnquiryModule = async function (tableWrap) {
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        ${enquiries.map(e => `
-                            <tr id="enquiry-${e.id}">
-                                <td>${e.id}</td>
-                                <td>${e.full_name || "-"}</td>
-                                <td>${e.email || "-"}</td>
-                                <td>${e.phone || "-"}</td>
-                                <td>${e.branch_name || "-"}</td>
-                                <td>${e.course_name || "-"}</td>
-                                <td>${e.has_licence || "-"}</td>
-                                <td>${e.hear_about || "-"}</td>
-                                <td>${e.message || "-"}</td>
-                                <td>${e.created_at ? formatDate(e.created_at) : "-"}</td>
-                                <td>
-                                    <button class="btn delete" data-id="${e.id}">Delete</button>
-                                </td>
-                            </tr>
-                        `).join("")}
-                    </tbody>
+                    <tbody></tbody>
                 </table>
             `;
 
-            tableWrap.innerHTML = html;
+            tableWrap.innerHTML = branchFilterHTML + tableHTML;
+
+            const branchSelect = document.getElementById("enquiryBranchFilter");
+
+            // ---------- Populate branch filter ----------
+            try {
+                const branchRes = await window.api("/api/branches");
+                if (branchRes.success && branchRes.branches) {
+                    branchRes.branches.forEach(b => {
+                        const opt = document.createElement("option");
+                        opt.value = b.branch_name;
+                        opt.textContent = b.branch_name;
+                        branchSelect.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to load branches", err);
+            }
+
+            // ---------- Initial render ----------
+            renderEnquiryRows(enquiries);
+
+            // ---------- Filter listener ----------
+            branchSelect?.addEventListener("change", () => {
+                const selectedBranch = branchSelect.value;
+                const filtered = selectedBranch
+                    ? enquiries.filter(e => e.branch_name === selectedBranch)
+                    : enquiries;
+
+                renderEnquiryRows(filtered);
+            });
         } catch (err) {
             console.error(err);
             tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
@@ -78,7 +133,7 @@ window.renderEnquiryModule = async function (tableWrap) {
         }
     }
 
-    /* ---------- DELETE HANDLER (ONCE) ---------- */
+    // ---------- DELETE HANDLER (ONCE) ----------
     if (!tableWrap.dataset.listenerAttached) {
         tableWrap.addEventListener("click", async e => {
             const btn = e.target;
