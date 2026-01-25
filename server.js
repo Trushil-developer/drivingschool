@@ -188,27 +188,13 @@ app.post('/api/bookings', async (req, res, next) => {
   const slotTimes = normalizeSlots(data.selected_slots || []);
 
   if (!data.training_days) {
-  return res.status(400).json({
-    success: false,
-    error: "Training days missing"
-  });
-}
-  try {
-    const sql = `
-      INSERT INTO bookings (
-        branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
-        sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
-        occupation, ref,
-        allotted_time, allotted_time2, allotted_time3, allotted_time4,
-        duration_minutes, starting_from,
-        total_fees, advance, car_name, instructor_name,
-        ac_facility, pickup_drop, has_licence,
-        present_days, hold_status, attendance_status,
-        certificate_url
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    return res.status(400).json({
+      success: false,
+      error: "Training days missing"
+    });
+  }
 
+  try {
     const initialPresentDays = 0;
     const initialHoldStatus = data.hold_status ? 1 : 0;
 
@@ -221,46 +207,75 @@ app.post('/api/bookings', async (req, res, next) => {
 
     const attendanceStatus = computeAttendanceStatus(preliminaryBooking);
 
+    // Correct column order matching DESCRIBE BOOKINGS
+    const sql = `
+INSERT INTO bookings (
+  branch, training_days, car_name,
+  customer_name, address, pincode,
+  mobile_no, whatsapp_no,
+  sex, birth_date,
+  cov_lmv, cov_mc,
+  dl_no, dl_from, dl_to,
+  email, occupation, ref,
+  allotted_time, allotted_time2, allotted_time3, allotted_time4,
+  starting_from,
+  total_fees, advance,
+  instructor_name,
+  present_days, hold_status, attendance_status,
+  hold_from, resume_from, extended_days,
+  duration_minutes, certificate_url,
+  ac_facility, pickup_drop, has_licence,
+  apply_licence, licence_types, licence_fee
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+`;
+
     const values = [
       data.branch,
       data.training_days,
-      data.customer_name,
-      data.address || '',
-      data.pincode || '',
-      data.mobile_no,
-      data.whatsapp_no || '',
-      data.sex || '',
+      data.car_name || null,
+      data.customer_name || null,
+      data.address || null,
+      data.pincode || null,
+      data.mobile_no || null,
+      data.whatsapp_no || null,
+      data.sex || null,
       toMySQLDate(data.birth_date),
       data.cov_lmv ? 1 : 0,
       data.cov_mc ? 1 : 0,
-      data.dl_no || '',
-      toMySQLDate(data.dl_from),
-      toMySQLDate(data.dl_to),
-      data.email || '',
-      data.occupation || '',
-      data.ref || '',
+      data.dl_no || null,
+      data.dl_from || null,
+      data.dl_to || null,
+      data.email || null,
+      data.occupation || null,
+      data.ref || null,
       slotTimes.allotted_time,
       slotTimes.allotted_time2,
       slotTimes.allotted_time3,
       slotTimes.allotted_time4,
-      data.duration_minutes || (slotTimes.allotted_time2 ? 60 : 30),
       toMySQLDate(data.starting_from),
       data.total_fees || 0,
       data.advance || 0,
-      data.car_name || '',
-      data.instructor_name || '',
+      data.instructor_name || null,
+      0, // present_days
+      data.hold_status ? 1 : 0,
+      attendanceStatus,
+      null, // hold_from
+      null, // resume_from
+      0, // extended_days
+      data.duration_minutes || 30,
+      data.certificate_url || null,
       data.ac_facility ? 1 : 0,
       data.pickup_drop ? 1 : 0,
-      data.has_licence === 'yes' ? 'Yes' : 'No',
-  
-      initialPresentDays,
-      initialHoldStatus,
-      attendanceStatus,
-      data.certificate_url || null  
+      data.has_licence === "Yes" ? "Yes" : "No",
+      data.apply_licence === "Yes" ? "Yes" : "No",
+      data.licence_types || null,
+      Number(data.licence_fee) || 0
     ];
 
     const [result] = await dbPool.query(sql, values);
+
     res.json({ success: true, booking_id: result.insertId, attendance_status: attendanceStatus });
+
   } catch (err) {
     console.error('BOOKING CREATE ERROR:', err);
     next(err);
@@ -372,13 +387,16 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
         hold_status=?,
         hold_from=?,
         resume_from=?,
-        extended_days=?
+        extended_days=?,
+        apply_licence=?,
+        licence_types=?,
+        licence_fee=?
       WHERE id=?
     `;
 
     const values = [
       data.branch ?? current.branch,
-      data.training_days ?? current.training_days, 
+      data.training_days ?? current.training_days,
       data.customer_name ?? current.customer_name,
       data.address ?? current.address,
       data.pincode ?? current.pincode,
@@ -407,12 +425,17 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
       data.ac_facility ?? current.ac_facility,
       data.pickup_drop ?? current.pickup_drop,
       data.has_licence
-        ? (data.has_licence === 'yes' ? 'Yes' : 'No')
+        ? (data.has_licence === "Yes" ? "Yes" : "No")
         : current.has_licence,
       newHoldStatus,
       hold_from ? toMySQLDate(hold_from) : null,
       resume_from ? toMySQLDate(resume_from) : null,
       extended_days,
+      data.apply_licence
+        ? (data.apply_licence === "Yes" ? "Yes" : "No")
+        : current.apply_licence,
+      data.licence_types ?? current.licence_types,
+      Number(data.licence_fee ?? current.licence_fee),
       id
     ];
 

@@ -3,14 +3,12 @@
 ===================================================== */
 (function enforceTrainingDaysGuard() {
     const params = new URLSearchParams(window.location.search);
-
     const trainingDays =
         history.state?.training_days ||
         window.training_days ||
         sessionStorage.getItem("training_days") ||
         localStorage.getItem("training_days") ||
         params.get("training_days");
-
     if (!trainingDays) {
         window.location.replace("index.html");
     }
@@ -29,6 +27,11 @@ let state = {
     car: null,
     carPrice: 0,
     addons: { ac: false, pickup: false },
+    licenceApplication: {
+        apply: null,
+        type: null,
+        price: 0
+    },
     addonPrice: 1000,
     totalPrice: 0,
     date: null,
@@ -98,7 +101,6 @@ const backToAddonBtn = document.getElementById("backToAddon");
 
 const SELECTED_TRAINING_DAYS = Number(getTrainingDaysFromProps());
 
-
 /* =====================================================
    INIT FUNCTION
 ===================================================== */
@@ -107,8 +109,8 @@ function init() {
     showSection("branch");
 
     timeSlotContainer.hidden = true;
-    goToLicenceBtn && (goToLicenceBtn.hidden = true);
-    goToDateBtn.hidden = true
+    goToLicenceBtn.hidden = true;
+    goToDateBtn.hidden = true;
     goToInstructorBtn.hidden = true; 
     goToAddonFromInstructorBtn.hidden = true;
 
@@ -491,7 +493,12 @@ function fromMinutes(mins) {
    LICENCE EVENTS
 ===================================================== */
 function attachLicenceEvents() {
-
+    const applyLicenceBox = document.getElementById("applyLicenceBox");
+    const applyBtns = document.querySelectorAll(".apply-licence-btn");
+    const licenceOptionsBox = document.getElementById("licenceOptions");
+    const licenceOptions = document.querySelectorAll(".licence-option");
+    const noLicenceInfo = document.getElementById("noLicenceInfo");
+    applyBtns.forEach(b => b.disabled = true);
     licenceButtons.forEach(btn => {
         btn.addEventListener("click", () => {
             licenceButtons.forEach(b => b.classList.remove("active"));
@@ -499,14 +506,27 @@ function attachLicenceEvents() {
 
             state.hasLicence = btn.dataset.value;
 
-            const noLicenceInfo = document.getElementById("noLicenceInfo");
-            
             if (state.hasLicence === "yes") {
-                licenceDetails.hidden = false;   
+                licenceDetails.hidden = false;
                 noLicenceInfo.hidden = true;
+                applyLicenceBox.hidden = true;
+                clearLicenceApplication();
             } else {
-                licenceDetails.hidden = true;  
+                licenceDetails.hidden = true;
                 noLicenceInfo.hidden = false;
+                applyLicenceBox.hidden = false;
+
+                state.licenceApplication = {
+                    apply: null,
+                    type: null,
+                    price: 0
+                };
+
+                licenceOptionsBox.hidden = true;
+                applyBtns.forEach(b => b.classList.remove("active"));
+                licenceOptions.forEach(o => o.classList.remove("active"));
+
+                applyBtns.forEach(b => b.disabled = false);
 
                 state.licenceData = { dlNo: "", from: "", to: "" };
                 document.getElementById("dlNumber").value = "";
@@ -514,14 +534,55 @@ function attachLicenceEvents() {
                 document.getElementById("dlTo").value = "";
             }
 
+
             goToInstructorBtn.hidden = false;
+            updateTotalPrice();
         });
     });
 
-    goToInstructorBtn && (goToInstructorBtn.onclick = () => {
+applyBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+
+        // reset everything FIRST
+        licenceOptions.forEach(o => o.classList.remove("active"));
+        licenceOptionsBox.hidden = true;
+
+        state.licenceApplication = {
+            apply: btn.dataset.value,
+            type: null,
+            price: 0
+        };
+
+        applyBtns.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        // ONLY if YES → show options
+        if (btn.dataset.value === "yes") {
+            licenceOptionsBox.hidden = false;
+        }
+
+        updateTotalPrice();
+    });
+});
+
+
+    licenceOptions.forEach(opt => {
+        opt.addEventListener("click", () => {
+            licenceOptions.forEach(o => o.classList.remove("active"));
+            opt.classList.add("active");
+
+            state.licenceApplication.type = opt.dataset.type;
+            state.licenceApplication.price = Number(opt.dataset.price);
+
+            updateTotalPrice();
+        });
+    });
+
+    goToInstructorBtn.onclick = () => {
         if (!validateLicenceSection()) return;
-            if (state.hasLicence === "yes") {
-                state.licenceData = {
+
+        if (state.hasLicence === "yes") {
+            state.licenceData = {
                 dlNo: document.getElementById("dlNumber").value.trim(),
                 from: document.getElementById("dlFrom").value,
                 to: document.getElementById("dlTo").value
@@ -529,7 +590,17 @@ function attachLicenceEvents() {
         }
 
         showSection("instructor");
-    });
+    };
+}
+
+
+function clearLicenceApplication() {
+    state.licenceApplication = { apply: null, type: null, price: 0 };
+    document.querySelectorAll(".apply-licence-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".licence-option").forEach(o => o.classList.remove("active"));
+    const licenceOptionsBox = document.getElementById("licenceOptions");
+    if (licenceOptionsBox) licenceOptionsBox.hidden = true;
+    updateTotalPrice();
 }
 
 /* =====================================================
@@ -673,15 +744,20 @@ function attachPersonalSubmit() {
             allotted_time = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
         }
 
+        const trainingDays = Number(getTrainingDaysFromProps());
+        if (![15, 21].includes(trainingDays)) {
+            return alert("Invalid training days.");
+        }
+        
         // Build backend payload
         const body = {
             branch: state.branch,
-            training_days: getTrainingDaysFromProps(),
+            training_days: trainingDays,
             car_name: state.car,
 
             ac_facility: state.addons.ac ? 1 : 0,
             pickup_drop: state.addons.pickup ? 1 : 0,
-            has_licence: state.hasLicence === "yes" ? "yes" : "no",
+            has_licence: state.hasLicence === "yes" ? "Yes" : "No",
 
             customer_name: state.personalData.fullName,
             address: state.personalData.address,
@@ -715,7 +791,10 @@ function attachPersonalSubmit() {
                 return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:00`;
             }),
             total_fees: state.totalPrice,
-            advance: 0
+            advance: 0,
+            apply_licence: state.licenceApplication.apply === "yes" ? "Yes" : "No",
+            licence_types: state.licenceApplication.type || null,
+            licence_fee: state.licenceApplication.price || 0,
         };
 
         // Final required checks
@@ -762,12 +841,13 @@ function updateTotalPrice() {
     let price = state.carPrice;
     if (state.addons.ac) price += state.addonPrice;
     if (state.addons.pickup) price += state.addonPrice;
+    if (state.licenceApplication.price) price += state.licenceApplication.price;
+
     state.totalPrice = price;
 
-    const priceEls = document.querySelectorAll(".total-price");
-    priceEls.forEach(el => {
+    document.querySelectorAll(".total-price").forEach(el => {
         const section = el.closest(".form-step");
-        if (section.id === "branchSection") {
+        if (section?.id === "branchSection") {
             el.style.display = "none";
         } else {
             el.style.display = "block";
@@ -777,15 +857,8 @@ function updateTotalPrice() {
 }
 
 function getTrainingDaysFromProps() {
-    if (history.state?.training_days) return String(history.state.training_days);
-    if (window.training_days) return String(window.training_days);
-    if (sessionStorage.getItem("training_days")) return sessionStorage.getItem("training_days");
-    if (localStorage.getItem("training_days")) return localStorage.getItem("training_days");
-
     const params = new URLSearchParams(window.location.search);
-    if (params.has("training_days")) return params.get("training_days");
-
-    return "15";
+    return history.state?.training_days || sessionStorage.getItem("training_days") || params.get("training_days") || 15;
 }
 
 async function loadInstructors() {
@@ -856,6 +929,13 @@ function validateLicenceSection() {
 
         if (!dlNo || !dlFrom || !dlTo) {
             alert("Please fill all licence details.");
+            return false;
+        }
+    }
+
+    if (state.hasLicence === "no" && state.licenceApplication.apply === "yes") {
+        if (!state.licenceApplication.type) {
+            alert("Please select a licence application type.");
             return false;
         }
     }

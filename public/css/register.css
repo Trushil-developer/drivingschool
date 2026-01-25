@@ -345,6 +345,16 @@ footer {
     white-space: nowrap;
 }
 
+.addon-card .addon-btn.active~.addon-price,
+.addon-card.active .addon-price {
+    color: #ffffff !important;
+}
+
+.addon-card .addon-btn.active~.addon-info p,
+.addon-card.active .addon-info p {
+    color: #ffffff !important;
+}
+
 /* Button overrides inside addon */
 .addon-card .button-group {
     margin: 0;
@@ -801,6 +811,51 @@ footer {
 
 .licence-warning strong {
     color: #991b1b;
+}
+
+.apply-licence-box {
+    margin-top: 1.5rem;
+}
+
+.apply-licence-btn {
+    padding: 0.8rem;
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--border-light);
+    background: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.apply-licence-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.licence-options {
+    margin-top: 1rem;
+    display: grid;
+    gap: 0.75rem;
+}
+
+.licence-option {
+    padding: 0.9rem 1.2rem;
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--border-light);
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.licence-option.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+#licenceOptions[hidden] {
+    display: none !important;
 }
 
 /* MOBILE */

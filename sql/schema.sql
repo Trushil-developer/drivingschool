@@ -715,6 +715,52 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- apply_licence
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='bookings'
+      AND column_name='apply_licence'
+);
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE bookings ADD COLUMN apply_licence ENUM("Yes","No") DEFAULT "No";',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+
+-- licence_types
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='bookings'
+      AND column_name='licence_types'
+);
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE bookings ADD COLUMN licence_types VARCHAR(50);',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+
+-- licence_fee
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='bookings'
+      AND column_name='licence_fee'
+);
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE bookings ADD COLUMN licence_fee DECIMAL(10,2) DEFAULT 0.00;',
+    'SELECT "exists";'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- ATTENDANCE TABLE
