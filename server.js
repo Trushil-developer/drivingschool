@@ -283,10 +283,28 @@ INSERT INTO bookings (
   }
 });
 
+// Public endpoint for checking time slot availability during registration
+app.get('/api/bookings/availability', async (req, res, next) => {
+  try {
+    const [rows] = await dbPool.query(`
+      SELECT
+        branch, car_name, starting_from,
+        allotted_time, allotted_time2, allotted_time3, allotted_time4,
+        attendance_status
+      FROM bookings
+      WHERE attendance_status IN ('Active', 'Pending')
+    `);
+    res.json({ success: true, bookings: rows });
+  } catch (err) {
+    console.error('BOOKINGS AVAILABILITY ERROR:', err);
+    next(err);
+  }
+});
+
 app.get('/api/bookings', requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
-      SELECT 
+      SELECT
         id, branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
         sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
         occupation, ref, allotted_time, allotted_time2, allotted_time3, allotted_time4, duration_minutes, starting_from, total_fees, advance,

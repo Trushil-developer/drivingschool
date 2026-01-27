@@ -964,7 +964,7 @@ function validateAddonSection() {
 
 
 async function fetchBookedSlots(branch, car, date) {
-    const res = await fetch("/api/bookings");
+    const res = await fetch("/api/bookings/availability");
     const data = await res.json();
 
     if (!data.success) return [];
