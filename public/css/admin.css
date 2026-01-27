@@ -21,6 +21,74 @@ body {
 }
 
 /* ========================================
+   Menu Toggle Button (Hamburger)
+======================================== */
+.menu-toggle {
+    display: none;
+    position: fixed;
+    top: 75px;
+    left: 15px;
+    z-index: 1001;
+    background: #1a73e8;
+    border: none;
+    border-radius: 5px;
+    width: 45px;
+    height: 45px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    padding: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+/* Sidebar overlay background */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+.menu-toggle:hover {
+    background: #0d47a1;
+}
+
+.menu-toggle span {
+    display: block;
+    width: 25px;
+    height: 3px;
+    background: #fff;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.menu-toggle.active span:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+}
+
+.menu-toggle.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.menu-toggle.active span:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
+}
+
+/* ========================================
    Sidebar Styles
 ======================================== */
 #sidebar {
@@ -29,6 +97,7 @@ body {
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
+    transition: transform 0.3s ease;
 }
 
 #sidebar ul {
@@ -511,32 +580,51 @@ body {
 /* Tablet (768px - 1023px) */
 @media (min-width: 768px) and (max-width: 1023px) {
     .main {
-        flex-direction: column;
+        flex-direction: row;
     }
 
+    /* Show hamburger menu */
+    .menu-toggle {
+        display: flex;
+    }
+
+    /* Sidebar toggle behavior */
     #sidebar {
-        width: 100%;
-        flex-direction: row;
-        overflow-x: auto;
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 200px;
+        flex-direction: column;
+        flex-shrink: 0;
+        transform: translateX(-100%);
+        z-index: 1000;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #sidebar.open {
+        transform: translateX(0);
     }
 
     #sidebar li {
-        flex: 1 0 auto;
-        text-align: center;
+        text-align: left;
+        white-space: nowrap;
     }
 
     .content {
         padding: 1.5rem;
+        flex: 1;
+        margin-left: 0;
     }
 
     .controls {
-        flex-direction: column;
-        align-items: stretch;
+        flex-direction: row;
+        flex-wrap: wrap;
     }
 
-    .search-input,
-    .btn {
-        width: 100%;
+    .search-input {
+        flex: 1;
+        min-width: 200px;
     }
 
     .bookings-table th,
@@ -959,17 +1047,35 @@ body {
 /* Mobile (<768px) */
 @media (max-width: 767px) {
     .main {
-        flex-direction: column;
+        flex-direction: row;
     }
 
+    /* Show hamburger menu */
+    .menu-toggle {
+        display: flex;
+    }
+
+    /* Sidebar toggle behavior */
     #sidebar {
-        width: 100%;
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 250px;
         flex-direction: column;
         overflow-x: hidden;
+        transform: translateX(-100%);
+        z-index: 1000;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #sidebar.open {
+        transform: translateX(0);
     }
 
     .content {
         padding: 1rem;
+        width: 100%;
     }
 
     .controls {
@@ -1039,6 +1145,21 @@ body {
 
 /* Laptop / Desktop (≥1024px) */
 @media (min-width: 1024px) {
+    /* Hide hamburger menu on desktop */
+    .menu-toggle {
+        display: none !important;
+    }
+
+    /* Sidebar always visible on desktop */
+    #sidebar {
+        position: relative;
+        transform: translateX(0) !important;
+    }
+
+    /* No overlay on desktop */
+    .sidebar-overlay {
+        display: none !important;
+    }
 
     .bookings-table th,
     .bookings-table td {

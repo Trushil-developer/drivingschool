@@ -6,10 +6,57 @@ import { renderDashboardModule } from "./Dashboard/renderDashboardModule.js";
     await window.CommonReady;
 
     loadFilterBranches();
-   
+
     const tableWrap = document.getElementById('tableWrap');
     const searchInput = document.getElementById('searchInput');
     const addBtn = document.getElementById('addBtn');
+
+    // Menu toggle functionality
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+    function closeSidebar() {
+        sidebar?.classList.remove('open');
+        menuToggle?.classList.remove('active');
+        sidebarOverlay?.classList.remove('active');
+    }
+
+    function openSidebar() {
+        sidebar?.classList.add('open');
+        menuToggle?.classList.add('active');
+        if (window.innerWidth < 1024) {
+            sidebarOverlay?.classList.add('active');
+        }
+    }
+
+    if (menuToggle && sidebar) {
+        menuToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (sidebar.classList.contains('open')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        });
+
+        // Close sidebar when clicking on overlay
+        sidebarOverlay?.addEventListener('click', closeSidebar);
+
+        // Close sidebar when clicking on a menu item
+        sidebar.addEventListener('click', (e) => {
+            if (e.target.tagName === 'LI' && window.innerWidth < 1024) {
+                closeSidebar();
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 1024) {
+                closeSidebar();
+            }
+        });
+    }
 
     const urlParams = new URLSearchParams(window.location.search);
     let currentTab = urlParams.get('tab') || 'dashboard';
