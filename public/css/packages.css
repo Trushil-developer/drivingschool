@@ -1,0 +1,221 @@
+/* ========================================
+   Packages Table Styles
+======================================== */
+
+.packages-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    font-size: 15px;
+}
+
+.packages-table td.actions-cell {
+    padding: 10px 14px;
+}
+
+.packages-table th {
+    background: #f7f9fc;
+    padding: 12px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 1px solid #e3e6ea;
+}
+
+.packages-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #eceff3;
+    vertical-align: middle;
+}
+
+.packages-table tr:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.packages-table tbody tr:nth-child(4n+1):hover,
+.packages-table tbody tr:nth-child(4n+2):hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+/* Clickable package title */
+.package-title {
+    color: #1a73e8;
+    cursor: pointer;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.package-title:hover {
+    color: #0c47a1;
+}
+
+/* Action buttons */
+.packages-table .btn {
+    padding: 6px 10px;
+    font-size: 14px;
+    border-radius: 5px;
+    margin-right: 0.5rem;
+}
+
+.packages-table .btn.edit {
+    background: #1a73e8;
+    color: white;
+}
+
+.packages-table .btn.edit:hover {
+    background: #0f56b3;
+}
+
+.packages-table .btn.delete {
+    background: #e53935;
+    color: white;
+}
+
+.packages-table .btn.delete:hover {
+    background: #c62828;
+}
+
+/* Expandable details row */
+.package-details {
+    background: #fbfcfe;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e3e6ea;
+    color: #444;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.package-details.hidden {
+    display: none;
+}
+
+.package-details strong {
+    color: #222;
+}
+
+.package-details ul {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding-left: 1.5rem;
+}
+
+.package-details li {
+    margin-bottom: 0.25rem;
+}
+
+/* ========================================
+   Package Modal Styles
+======================================== */
+
+.package-modal {
+    max-width: 600px;
+}
+
+.package-modal label {
+    display: block;
+    font-weight: 600;
+    margin-top: 0.75rem;
+    margin-bottom: 0.25rem;
+    color: #333;
+}
+
+.package-modal input,
+.package-modal textarea {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 1rem;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+    outline: none;
+    transition: 0.25s ease;
+    background: #f9f9f9;
+}
+
+.package-modal input:focus,
+.package-modal textarea:focus {
+    border-color: #1a73e8;
+    background: #fff;
+    box-shadow: 0 0 4px rgba(26, 115, 232, 0.4);
+}
+
+.package-modal textarea {
+    min-height: 100px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.package-modal textarea#extra_features {
+    min-height: 120px;
+}
+
+.package-modal .btn.primary {
+    margin-top: 1rem;
+    width: 100%;
+    padding: 0.75rem;
+    font-weight: 600;
+    background-color: #1a73e8;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+}
+
+.package-modal .btn.primary:hover {
+    background-color: #0f56b3;
+    transform: translateY(-1px);
+}
+
+.package-modal .btn.primary:active {
+    transform: translateY(0);
+}
+
+/* ========================================
+   Responsive Styles for Packages
+======================================== */
+
+@media (max-width: 768px) {
+    .packages-table th,
+    .packages-table td {
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+
+    .packages-table td:last-child {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .packages-table .btn {
+        padding: 5px 8px !important;
+        font-size: 12px !important;
+        margin-right: 0.25rem !important;
+    }
+
+    .package-details {
+        font-size: 13px;
+        padding: 12px 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .packages-table th,
+    .packages-table td {
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+
+    .packages-table .btn {
+        padding: 4px 7px !important;
+        font-size: 11px !important;
+    }
+
+    .package-details {
+        font-size: 12px;
+        padding: 10px 12px;
+    }
+}

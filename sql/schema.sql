@@ -1719,3 +1719,137 @@ SET @sql := IF(
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- DRIVING PACKAGES TABLE
+-- =====================================
+
+CREATE TABLE IF NOT EXISTS driving_packages (
+    id INT AUTO_INCREMENT PRIMARY KEY
+);
+
+-- badge
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='driving_packages'
+      AND column_name='badge'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE driving_packages ADD COLUMN badge VARCHAR(100);',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- title
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='driving_packages'
+      AND column_name='title'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE driving_packages ADD COLUMN title VARCHAR(255) NOT NULL;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- description
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='driving_packages'
+      AND column_name='description'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE driving_packages ADD COLUMN description TEXT;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- practical_sessions
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='driving_packages'
+      AND column_name='practical_sessions'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE driving_packages ADD COLUMN practical_sessions INT;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- session_duration
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='driving_packages'
+      AND column_name='session_duration'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE driving_packages ADD COLUMN session_duration VARCHAR(50);',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- daily_distance
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='driving_packages'
+      AND column_name='daily_distance'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE driving_packages ADD COLUMN daily_distance VARCHAR(50);',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- extra_features
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='driving_packages'
+      AND column_name='extra_features'
+);
+
+SET @sql := IF(
+    @col_exists = 0,
+    'ALTER TABLE driving_packages ADD COLUMN extra_features JSON;',
+    'SELECT "exists";'
+);
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

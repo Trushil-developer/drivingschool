@@ -345,6 +345,19 @@ import { renderDashboardModule } from "./Dashboard/renderDashboardModule.js";
                 hideLoading();
             }
         },
+        packages: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderPackagesModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Packages module not loaded</div>';
+                    return;
+                }
+                const renderer = window.renderPackagesModule(tableWrap, tabRenderers, currentTab);
+                await renderer();
+            } finally {
+                hideLoading();
+            }
+        },
     };
 
     attachFilterListeners(tabRenderers, () => currentTab);
@@ -366,11 +379,11 @@ import { renderDashboardModule } from "./Dashboard/renderDashboardModule.js";
         if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
-        } else if (tab === 'trainingDays' || tab === 'courses') {
-            searchInput?.classList.add('hidden'); 
-            addBtn?.classList.remove('hidden'); 
+        } else if (tab === 'trainingDays' || tab === 'courses' || tab === 'packages') {
+            searchInput?.classList.add('hidden');
+            addBtn?.classList.remove('hidden');
         } else if (tab === 'cars' || tab == 'branches' || tab == 'instructors'  ) {
-            searchInput?.classList.add('hidden'); 
+            searchInput?.classList.add('hidden');
         } else {
             searchInput?.classList.remove('hidden');
             addBtn?.classList.remove('hidden');
@@ -391,6 +404,7 @@ import { renderDashboardModule } from "./Dashboard/renderDashboardModule.js";
         else if (currentTab === "branches") openBranchModal(tabRenderers, currentTab)();
         else if (currentTab === "trainingDays") openTrainingDaysModal(tabRenderers, currentTab);
         else if (currentTab === "courses") window.openCourseAddModal(tabRenderers, currentTab)();
+        else if (currentTab === "packages") window.openPackageAddModal(tabRenderers, currentTab)();
         else window.location.href = "index.html";
     });
 
@@ -433,7 +447,8 @@ import { renderDashboardModule } from "./Dashboard/renderDashboardModule.js";
                 cars: '/api/cars',
                 branches: '/api/branches',
                 trainingDays: '/api/training-days',
-                courses: '/api/courses'
+                courses: '/api/courses',
+                packages: '/api/packages'
             };
             try {
                 const res = await window.api(`${deleteApiMap[currentTab]}/${id}`, { method: "DELETE" });

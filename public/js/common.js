@@ -124,6 +124,7 @@ window.CommonReady = (async () => {
         trainingDays: 'admin.html?tab=trainingDays',
         enquiries: 'admin.html?tab=enquiries',
         courses: 'admin.html?tab=courses',
+        packages: 'admin.html?tab=packages',
         cms: 'admin.html?tab=cms'
     };
 

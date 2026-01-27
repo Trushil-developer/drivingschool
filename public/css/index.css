@@ -5,6 +5,8 @@
     --primary: #1a73e8;
     --primary-dark: #0f5ec7;
     --success: #43a047;
+    --danger: #e53935;
+    --warning: #fbbc04;
     --text-main: #202124;
     --text-muted: #555;
     --bg-main: #f4f6f9;
@@ -31,7 +33,6 @@ body {
     color: var(--text-main);
 }
 
-/* Links & Buttons */
 a {
     text-decoration: none;
     color: inherit;
@@ -93,7 +94,7 @@ p {
 
 .packages-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1.5rem;
     max-width: 1100px;
     margin: auto;
@@ -144,6 +145,7 @@ p {
     color: #fff;
     border-radius: 20px;
     background: var(--success);
+    text-transform: uppercase;
 }
 
 .badge.premium {
@@ -151,19 +153,23 @@ p {
 }
 
 /* Features */
-.features {
+.features,
+.package-features {
     list-style: none;
     margin-bottom: 2rem;
+    padding-left: 0;
 }
 
-.features li {
+.features li,
+.package-features li {
     position: relative;
     padding-left: 1.8rem;
     margin-bottom: 0.7rem;
     font-size: 0.95rem;
 }
 
-.features li::before {
+.features li::before,
+.package-features li::before {
     content: "✔";
     position: absolute;
     left: 0;
@@ -254,7 +260,7 @@ p {
 }
 
 .stars {
-    color: #fbbc04;
+    color: var(--warning);
     margin: 0 4px;
 }
 
@@ -305,6 +311,12 @@ p {
     scroll-snap-align: start;
     display: flex;
     flex-direction: column;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.review-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
 }
 
 .review-header {
@@ -332,7 +344,7 @@ p {
 }
 
 .review-stars {
-    color: #fbbc04;
+    color: var(--warning);
     font-size: 14px;
 }
 
@@ -344,26 +356,6 @@ p {
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 5;
     overflow: hidden;
-    line-clamp: 5;
-}
-
-/* View Google Button */
-.view-google-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    margin: 12px auto 0;
-    border-radius: 20px;
-    border: 1px solid #d2e3fc;
-    color: var(--primary);
-    font-weight: 600;
-    transition: background 0.2s ease, box-shadow 0.2s ease;
-}
-
-.view-google-btn:hover {
-    background: #e8f0fe;
-    box-shadow: var(--shadow-sm);
 }
 
 /* =========================================================

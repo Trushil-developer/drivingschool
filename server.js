@@ -23,6 +23,7 @@ import cmsRoutes from "./routes/cmsRoutes.js";
 import examRoutes from "./routes/examRoutes.js";
 import AWS from "aws-sdk";
 import fs from "fs";
+import packagesRoutes from './routes/packagesRoutes.js';
 
 dotenv.config();
 
@@ -826,6 +827,7 @@ app.use("/api/enquiries", otpRoutes);
 app.use("/api/exam/users", examUsersRoutes);
 app.use("/api/exam", examRoutes);
 app.use("/api/cms", cmsRoutes);
+app.use('/api/packages', packagesRoutes);
 
 // ---------- START SERVER ----------
 app.listen(PORT, '0.0.0.0', () => {
