@@ -1,83 +1,226 @@
 /* ========================================
-   General Styles
+   CSS Variables - Modern Design System
 ======================================== */
-html,
-body {
-    scroll-behavior: smooth;
-}
+:root {
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --primary-light: rgba(59, 130, 246, 0.1);
+    --success: #10b981;
+    --success-hover: #059669;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --danger-hover: #dc2626;
 
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    font-size: 16px;
-    background-color: #f9f9f9;
-    color: #333;
-    overflow-anchor: none;
-}
+    --bg-main: #f1f5f9;
+    --bg-card: #ffffff;
+    --bg-sidebar: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
 
-.main {
-    display: flex;
-    min-height: 100vh;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --text-light: #f8fafc;
+
+    --border-color: #e2e8f0;
+    --border-light: #f1f5f9;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.25s ease;
 }
 
 /* ========================================
-   Menu Toggle Button (Hamburger)
+   Reset & Base
+======================================== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    scroll-behavior: smooth;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========================================
+   Topbar / Header
+======================================== */
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: #fff;
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.topbar .brand h1 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #fff;
+}
+
+.topbar .top-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.topbar .btn-ghost {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.topbar .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+/* ========================================
+   Main Layout
+======================================== */
+.main {
+    display: flex;
+    min-height: calc(100vh - 52px);
+}
+
+/* ========================================
+   Sidebar
+======================================== */
+#sidebar {
+    width: 260px;
+    background: var(--bg-sidebar);
+    color: var(--text-light);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    transition: transform var(--transition-normal);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+/* Override common.css .sidebar styles inside #sidebar */
+#sidebar .sidebar,
+#sidebar nav.sidebar {
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    height: auto !important;
+}
+
+#sidebar ul,
+#sidebar .sidebar ul {
+    list-style: none;
+    padding: 16px 12px;
+    margin: 0;
+}
+
+#sidebar li,
+#sidebar .sidebar li {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    margin-bottom: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #f1f5f9 !important;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#sidebar li:hover,
+#sidebar .sidebar li:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #fff !important;
+}
+
+#sidebar li.active,
+#sidebar .sidebar li.active {
+    background: var(--primary) !important;
+    color: #fff !important;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+/* ========================================
+   Menu Toggle (Hamburger)
 ======================================== */
 .menu-toggle {
     display: none;
     position: fixed;
-    top: 75px;
-    left: 15px;
+    top: 16px;
+    left: 16px;
     z-index: 1001;
-    background: #1a73e8;
+    background: var(--primary);
     border: none;
-    border-radius: 5px;
-    width: 45px;
-    height: 45px;
+    border-radius: var(--radius-md);
+    width: 44px;
+    height: 44px;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     gap: 5px;
     cursor: pointer;
     padding: 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s ease;
-}
-
-/* Sidebar overlay background */
-.sidebar-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.sidebar-overlay.active {
-    display: block;
-    opacity: 1;
+    box-shadow: var(--shadow-lg);
+    transition: all var(--transition-normal);
 }
 
 .menu-toggle:hover {
-    background: #0d47a1;
+    background: var(--primary-hover);
+    transform: scale(1.05);
 }
 
 .menu-toggle span {
     display: block;
-    width: 25px;
-    height: 3px;
+    width: 22px;
+    height: 2.5px;
     background: #fff;
     border-radius: 2px;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
 }
 
 .menu-toggle.active span:nth-child(1) {
-    transform: translateY(8px) rotate(45deg);
+    transform: translateY(7.5px) rotate(45deg);
 }
 
 .menu-toggle.active span:nth-child(2) {
@@ -85,40 +228,24 @@ body {
 }
 
 .menu-toggle.active span:nth-child(3) {
-    transform: translateY(-8px) rotate(-45deg);
+    transform: translateY(-7.5px) rotate(-45deg);
 }
 
-/* ========================================
-   Sidebar Styles
-======================================== */
-#sidebar {
-    width: 250px;
-    color: #fff;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.3s ease;
+/* Sidebar Overlay */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity var(--transition-normal);
 }
 
-#sidebar ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-#sidebar li {
-    padding: 15px 20px;
-    cursor: pointer;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    transition: background 0.3s;
-}
-
-#sidebar li:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-#sidebar li.active {
-    background-color: #1565c0;
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
 }
 
 /* ========================================
@@ -126,8 +253,9 @@ body {
 ======================================== */
 .content {
     flex: 1;
-    padding: 1rem 2rem;
-    overflow-x: auto;
+    padding: 24px 32px;
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
 /* ========================================
@@ -136,365 +264,301 @@ body {
 .controls {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+    gap: 12px;
+    margin-bottom: 24px;
+    align-items: center;
+}
+
+/* Hide controls container when all children are hidden */
+.controls:has(> .hidden):has(> .filter-bar.hidden):has(> .btn.hidden) {
+    display: none;
+}
+
+/* Alternative: hide controls when search, filter, and button are all hidden */
+.controls:has(#searchInput.hidden):has(#filterBar.hidden):has(#addBtn.hidden) {
+    display: none;
 }
 
 .search-input {
     flex: 1;
-    min-width: 150px;
-    padding: 0.5rem;
-    font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 3px;
+    min-width: 200px;
+    max-width: 400px;
+    padding: 10px 16px;
+    font-size: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
 }
 
-.btn {
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
-    cursor: pointer;
-    border-radius: 3px;
-    border: none;
-    transition: all 0.2s ease;
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
 }
 
-.btn:hover {
-    opacity: 0.9;
-}
-
-.btn.primary {
-    background-color: #1a73e8;
-    color: #fff;
-}
-
-.btn.delete {
-    background-color: #e53935;
-    color: #fff;
-}
-
-.btn.attendance {
-    background-color: #43a047;
-    color: #fff;
+.search-input::placeholder {
+    color: var(--text-muted);
 }
 
 /* ========================================
-   Table Styles
+   Buttons
+======================================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    border: none;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn.primary,
+.btn-primary {
+    background: var(--primary);
+    color: #fff;
+}
+
+.btn.primary:hover,
+.btn-primary:hover {
+    background: var(--primary-hover);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+
+.btn.delete,
+.btn-danger {
+    background: var(--danger);
+    color: #fff;
+}
+
+.btn.delete:hover,
+.btn-danger:hover {
+    background: var(--danger-hover);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+}
+
+.btn.attendance,
+.btn-success {
+    background: var(--success);
+    color: #fff;
+}
+
+.btn.attendance:hover,
+.btn-success:hover {
+    background: var(--success-hover);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+}
+
+.btn.edit {
+    background: var(--primary);
+    color: #fff;
+}
+
+.btn.edit:hover {
+    background: var(--primary-hover);
+}
+
+.btn.upload {
+    background: #8b5cf6;
+    color: #fff;
+}
+
+.btn.upload:hover {
+    background: #7c3aed;
+}
+
+/* ========================================
+   Table Wrapper
 ======================================== */
 .table-wrap {
     overflow-x: auto;
-    background: #fff;
-    border-radius: 5px;
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
 }
 
+/* ========================================
+   Tables - Modern Design
+======================================== */
 .bookings-table,
-.cars-table {
+.cars-table,
+.enquiries-table,
+.courses-table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: auto;
-    /* Adjust column width based on content */
+    font-size: 14px;
 }
 
 .bookings-table {
-    min-width: 800px;
-}
-
-.cars-table {
-    min-width: 100%;
-    /* Let content decide */
-    background: #fff;
-    border-radius: 5px;
-    overflow: hidden;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
+    min-width: 900px;
 }
 
 .bookings-table th,
 .bookings-table td,
 .cars-table th,
-.cars-table td {
-    padding: 0.5rem 0.75rem;
+.cars-table td,
+.enquiries-table th,
+.enquiries-table td,
+.courses-table th,
+.courses-table td {
+    padding: 14px 16px;
     text-align: left;
-    border-bottom: 1px solid #ddd;
-    vertical-align: middle;
-    white-space: nowrap;
+    border-bottom: 1px solid var(--border-light);
 }
 
 .bookings-table th,
-.cars-table th {
-    background-color: #f0f0f0;
+.cars-table th,
+.enquiries-table th,
+.courses-table th {
+    background: #f8fafc;
     font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
-.bookings-table tr:nth-child(even),
-.cars-table tr:nth-child(even) {
-    background-color: #fafafa;
+.bookings-table tbody tr,
+.cars-table tbody tr,
+.enquiries-table tbody tr,
+.courses-table tbody tr {
+    transition: background var(--transition-fast);
+}
+
+.bookings-table tbody tr:hover,
+.cars-table tbody tr:hover,
+.enquiries-table tbody tr:hover,
+.courses-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.bookings-table tbody tr:last-child td,
+.cars-table tbody tr:last-child td,
+.enquiries-table tbody tr:last-child td,
+.courses-table tbody tr:last-child td {
+    border-bottom: none;
 }
 
 .bookings-table td .btn,
-.cars-table td .btn {
-    margin-right: 0.25rem;
-    font-size: 0.85rem;
-    padding: 0.25rem 0.5rem;
+.cars-table td .btn,
+.enquiries-table td .btn,
+.courses-table td .btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    margin-right: 6px;
+    margin-bottom: 4px;
+    vertical-align: middle;
 }
 
 .bookings-table td:last-child,
-.cars-table td:last-child {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
+.cars-table td:last-child,
+.enquiries-table td:last-child,
+.courses-table td:last-child {
+    white-space: nowrap;
 }
 
-/* Force Delete button to show in mobile */
-.cars-table td .btn.delete {
-    display: inline-flex !important;
-}
-
-/* Empty / Error messages */
-.empty,
-.error {
-    padding: 2rem;
-    text-align: center;
-    color: #666;
+/* Ensure all td cells align vertically */
+.bookings-table td,
+.cars-table td,
+.enquiries-table td,
+.courses-table td {
+    vertical-align: middle;
 }
 
 /* ========================================
-   Modal Styles
-======================================== */
-.modal-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-    overflow-y: auto;
-    padding: 1rem;
-}
-
-.modal-container.active {
-    display: flex;
-}
-
-.modal-content-form {
-    background: #fff;
-    padding: 1.5rem 2rem;
-    border-radius: 8px;
-    width: 100%;
-    max-width: 600px;
-    max-height: 80vh;
-    overflow-y: auto;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-}
-
-.modal-content-form h2 {
-    margin-top: 0;
-    margin-bottom: 1rem;
-    font-size: 1.5rem;
-    color: #333;
-}
-
-.modal-content-form label {
-    display: block;
-    font-weight: 600;
-    margin-top: 0.75rem;
-    margin-bottom: 0.25rem;
-}
-
-.modal-content-form button {
-    margin-top: 15px;
-}
-
-.modal-content-form input,
-.modal-content-form textarea,
-.modal-content-form select {
-    width: 100%;
-    padding: 0.5rem;
-    font-size: 1rem;
-    border-radius: 3px;
-    border: 1px solid #ccc;
-    outline: none;
-    transition: 0.25s ease;
-    background: #f9f9f9;
-}
-
-.modal-content-form select:focus {
-    border-color: #4A90E2;
-    background: #fff;
-    box-shadow: 0px 0px 4px rgba(74, 144, 226, 0.4);
-}
-
-.modal-content-form textarea {
-    resize: vertical;
-    min-height: 80px;
-}
-
-.modal-content-form #saveInstructor,
-.modal-content-form.car-modal #saveCar {
-    margin-top: 1rem;
-    width: 100%;
-    font-weight: 600;
-}
-
-.hidden {
-    display: none !important;
-}
-
-.customer-link {
-    color: #007bff;
-    cursor: pointer;
-    text-decoration: underline;
-}
-
-.customer-link:hover {
-    color: #0056b3;
-}
-
-/* ========================================
-   Slot Stats
-======================================== */
-.day-nav-wrapper {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.day-nav button {
-    padding: 0.4rem 0.8rem;
-    margin: 0 5px;
-    font-size: 0.9rem;
-    border-radius: 3px;
-    border: 1px solid #ccc;
-    cursor: pointer;
-    background: #fff;
-}
-
-#slotStats {
-    display: flex;
-    gap: 0.5rem;
-    font-weight: 600;
-    font-size: 0.95rem;
-}
-
-#slotStats .active-slots {
-    color: #e53935;
-    background-color: #fdecea;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-}
-
-#slotStats .available-slots {
-    color: #2e7d32;
-    background-color: #e8f5e9;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-}
-
-/* ========================================
-   Switches
-======================================== */
-.instructor-active-switch,
-.car-active-switch {
-    position: relative;
-    width: 40px;
-    height: 20px;
-    -webkit-appearance: none;
-    background: #ccc;
-    outline: none;
-    border-radius: 20px;
-    transition: background 0.3s;
-    cursor: pointer;
-}
-
-.instructor-active-switch:checked,
-.car-active-switch:checked {
-    background: #4caf50;
-}
-
-.instructor-active-switch::before,
-.car-active-switch::before {
-    content: '';
-    position: absolute;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    top: 1px;
-    left: 1px;
-    background: white;
-    transition: 0.3s;
-}
-
-.instructor-active-switch:checked::before,
-.car-active-switch:checked::before {
-    transform: translateX(20px);
-}
-
-.car-active-switch:hover {
-    box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
-}
-
-/* ========================================
-   Print Button
-======================================== */
-.print-btn {
-    background-color: #1565c0;
-    color: white;
-    border: none;
-    padding: 0.45rem 1rem;
-    border-radius: 4px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.25s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.print-btn::before {
-    content: "🖨️";
-    font-size: 1rem;
-}
-
-.print-btn:hover {
-    background-color: #0d47a1;
-    transform: translateY(-2px);
-}
-
-.print-btn:active {
-    transform: translateY(0);
-}
-
-/* ========================================
-   Booking Status Colors
+   Status Badges
 ======================================== */
 .status-completed {
-    color: #0f9d58;
-    font-weight: 700;
+    color: var(--success);
+    font-weight: 600;
 }
 
 .status-active {
-    color: #1e88e5;
-    font-weight: 700;
+    color: var(--primary);
+    font-weight: 600;
 }
 
 .status-pending {
-    color: gray;
-    font-weight: 700;
+    color: var(--text-muted);
+    font-weight: 600;
 }
 
 .status-expired {
-    color: #dc2626;
-    font-weight: 700;
+    color: var(--danger);
+    font-weight: 600;
 }
 
 .status-hold {
-    color: #f59e0b;
-    font-weight: 700;
-    font-style: italic;
+    color: var(--warning);
+    font-weight: 600;
+}
+
+/* ========================================
+   Links
+======================================== */
+.customer-link {
+    color: var(--primary);
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color var(--transition-fast);
+}
+
+.customer-link:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
+.download-cert {
+    color: var(--primary);
+    text-decoration: none;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.download-cert:hover {
+    text-decoration: underline;
+}
+
+.missing {
+    color: var(--danger);
+    font-weight: 600;
+    font-size: 12px;
+}
+
+/* ========================================
+   Empty & Error States
+======================================== */
+.empty,
+.error {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 15px;
+}
+
+.error {
+    color: var(--danger);
+    background: #fef2f2;
+    border-radius: var(--radius-md);
 }
 
 /* ========================================
@@ -503,24 +567,24 @@ body {
 .loading-overlay {
     position: relative;
     width: 100%;
-    height: 300px;
+    min-height: 300px;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 18px;
-    font-weight: bold;
-    color: #333;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-secondary);
 }
 
 .loading-overlay::before {
     content: "";
-    width: 40px;
-    height: 40px;
-    margin-right: 10px;
-    border: 4px solid #ccc;
-    border-top-color: #007bff;
+    width: 36px;
+    height: 36px;
+    margin-right: 12px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--primary);
     border-radius: 50%;
-    animation: spin 1s linear infinite;
+    animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
@@ -530,465 +594,370 @@ body {
 }
 
 /* ========================================
-   Cars Tab & Modal
+   Modals
 ======================================== */
-#addCarBtn {
-    background-color: #1a73e8;
-    color: #fff;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 3px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s ease;
+.modal-container {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    padding: 24px;
 }
 
-#addCarBtn:hover {
-    opacity: 0.9;
+.modal-container.active {
+    display: flex;
+}
+
+.modal-content-form {
+    background: var(--bg-card);
+    padding: 28px 32px;
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-xl);
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-content-form h2 {
+    margin: 0 0 20px;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.modal-content-form label {
+    display: block;
+    font-weight: 600;
+    font-size: 13px;
+    margin-top: 16px;
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+}
+
+.modal-content-form input,
+.modal-content-form textarea,
+.modal-content-form select {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: #fff;
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+}
+
+.modal-content-form input:focus,
+.modal-content-form textarea:focus,
+.modal-content-form select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.modal-content-form textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.modal-content-form button {
+    margin-top: 20px;
 }
 
 .modal-content-form.car-modal {
-    max-width: 400px;
-    padding: 1.2rem 1.5rem;
-}
-
-.modal-content-form.car-modal h2 {
-    font-size: 1.3rem;
-    margin-bottom: 1rem;
-}
-
-.modal-content-form.car-modal input {
-    padding: 0.45rem 0.5rem;
-    font-size: 0.95rem;
-}
-
-.missing {
-    color: red;
-    font-weight: bold;
-}
-
-.download-cert {
-    color: #007bff;
-    text-decoration: underline;
-    cursor: pointer;
+    max-width: 450px;
 }
 
 /* ========================================
-   Responsive Styles
+   Toggle Switches
 ======================================== */
+.instructor-active-switch,
+.car-active-switch,
+.course-status-switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #cbd5e1;
+    outline: none;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
 
-/* Tablet (768px - 1023px) */
+.instructor-active-switch:checked,
+.car-active-switch:checked,
+.course-status-switch:checked {
+    background: var(--success);
+}
+
+.instructor-active-switch::before,
+.car-active-switch::before,
+.course-status-switch::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    background: white;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-fast);
+}
+
+.instructor-active-switch:checked::before,
+.car-active-switch:checked::before,
+.course-status-switch:checked::before {
+    transform: translateX(20px);
+}
+
+/* ========================================
+   Filter Bar
+======================================== */
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.filter-bar select {
+    padding: 10px 14px;
+    font-size: 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    cursor: pointer;
+    min-width: 160px;
+    transition: all var(--transition-fast);
+}
+
+.filter-bar select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.filter-bar select:hover {
+    border-color: var(--primary);
+}
+
+/* ========================================
+   Day Navigation
+======================================== */
+.day-nav-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.day-nav button {
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+}
+
+.day-nav button:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+#slotStats {
+    display: flex;
+    gap: 12px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+#slotStats .active-slots {
+    color: var(--danger);
+    background: #fef2f2;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+}
+
+#slotStats .available-slots {
+    color: var(--success);
+    background: #ecfdf5;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+}
+
+/* ========================================
+   Print Button
+======================================== */
+.print-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.print-btn:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+/* ========================================
+   Tags
+======================================== */
+.tag-pill {
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* ========================================
+   Hidden Utility
+======================================== */
+.hidden {
+    display: none !important;
+}
+
+/* ========================================
+   Responsive - Tablet
+======================================== */
 @media (min-width: 768px) and (max-width: 1023px) {
-    .main {
-        flex-direction: row;
+    .topbar {
+        padding-left: 70px;
     }
 
-    /* Show hamburger menu */
     .menu-toggle {
         display: flex;
+        top: 10px;
+        left: 12px;
     }
 
-    /* Sidebar toggle behavior */
     #sidebar {
         position: fixed;
         left: 0;
         top: 0;
         bottom: 0;
-        width: 200px;
-        flex-direction: column;
-        flex-shrink: 0;
+        width: 260px;
         transform: translateX(-100%);
         z-index: 1000;
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    }
+
+    /* Override common.css .sidebar display:none */
+    #sidebar .sidebar,
+    #sidebar nav.sidebar {
+        display: block !important;
     }
 
     #sidebar.open {
         transform: translateX(0);
     }
 
-    #sidebar li {
-        text-align: left;
-        white-space: nowrap;
-    }
-
     .content {
-        padding: 1.5rem;
-        flex: 1;
-        margin-left: 0;
+        padding: 20px;
     }
 
     .controls {
         flex-direction: row;
-        flex-wrap: wrap;
+    }
+}
+
+/* ========================================
+   Responsive - Mobile
+======================================== */
+@media (max-width: 767px) {
+    .topbar {
+        padding-left: 70px;
+    }
+
+    .menu-toggle {
+        display: flex;
+        top: 10px;
+        left: 12px;
+        width: 40px;
+        height: 40px;
+    }
+
+    #sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 280px;
+        transform: translateX(-100%);
+        z-index: 1000;
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    }
+
+    /* Override common.css .sidebar display:none */
+    #sidebar .sidebar,
+    #sidebar nav.sidebar {
+        display: block !important;
+    }
+
+    #sidebar.open {
+        transform: translateX(0);
+    }
+
+    .content {
+        padding: 16px;
+        padding-top: 20px;
+    }
+
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
     }
 
     .search-input {
-        flex: 1;
-        min-width: 200px;
+        max-width: 100%;
     }
 
-    .bookings-table th,
-    .bookings-table td {
-        font-size: 14px;
-        padding: 0.4rem 0.5rem;
-    }
-}
-
-/* ========================================
-   Enquiries Tab Styles
-======================================== */
-.enquiries-table {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: auto;
-    background: #fff;
-    border-radius: 5px;
-    overflow: hidden;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
-}
-
-.enquiries-table th,
-.enquiries-table td {
-    padding: 0.5rem 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-    vertical-align: middle;
-    white-space: nowrap;
-}
-
-.enquiries-table th {
-    background-color: #f0f0f0;
-    font-weight: 600;
-}
-
-.enquiries-table tr:nth-child(even) {
-    background-color: #fafafa;
-}
-
-.enquiries-table td .btn {
-    margin-right: 0.25rem;
-    font-size: 0.85rem;
-    padding: 0.25rem 0.5rem;
-}
-
-.enquiries-table td:last-child {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-}
-
-/* Form styles for enquiry modal or section */
-.enquiry-modal .modal-content-form {
-    max-width: 500px;
-    padding: 1.5rem 2rem;
-}
-
-.enquiry-modal .modal-content-form h2 {
-    font-size: 1.4rem;
-    margin-bottom: 1rem;
-    color: #333;
-}
-
-.enquiry-modal .modal-content-form label {
-    display: block;
-    font-weight: 600;
-    margin-top: 0.75rem;
-    margin-bottom: 0.25rem;
-}
-
-.enquiry-modal .modal-content-form input,
-.enquiry-modal .modal-content-form select,
-.enquiry-modal .modal-content-form textarea {
-    width: 100%;
-    padding: 0.5rem;
-    font-size: 1rem;
-    border-radius: 3px;
-    border: 1px solid #ccc;
-    outline: none;
-    transition: 0.25s ease;
-    background: #f9f9f9;
-}
-
-.enquiry-modal .modal-content-form select:focus,
-.enquiry-modal .modal-content-form input:focus,
-.enquiry-modal .modal-content-form textarea:focus {
-    border-color: #4A90E2;
-    background: #fff;
-    box-shadow: 0px 0px 4px rgba(74, 144, 226, 0.4);
-}
-
-.enquiry-modal .modal-content-form textarea {
-    resize: vertical;
-    min-height: 80px;
-}
-
-/* Buttons */
-.enquiry-modal .modal-content-form .btn.submit-enquiry {
-    margin-top: 1rem;
-    width: 100%;
-    font-weight: 600;
-    background-color: #1a73e8;
-    color: #fff;
-    border: none;
-    padding: 0.5rem;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.enquiry-modal .modal-content-form .btn.submit-enquiry:hover {
-    opacity: 0.9;
-}
-
-/* Empty / Error states for enquiries */
-.enquiries-table .empty,
-.enquiries-table .error {
-    padding: 2rem;
-    text-align: center;
-    color: #666;
-}
-
-/* Responsive adjustments for enquiries tab */
-@media (max-width: 767px) {
-
-    .enquiries-table th,
-    .enquiries-table td {
-        font-size: 13px;
-        padding: 0.35rem 0.5rem;
+    .btn {
+        width: 100%;
+        justify-content: center;
     }
 
-    .enquiry-modal .modal-content-form {
-        max-width: 90%;
-        padding: 1rem 1.2rem;
-    }
-}
-
-@media (max-width: 480px) {
-
-    .enquiries-table th,
-    .enquiries-table td {
-        font-size: 12px;
-        padding: 0.25rem 0.4rem;
-    }
-
-    .enquiry-modal .modal-content-form input,
-    .enquiry-modal .modal-content-form textarea,
-    .enquiry-modal .modal-content-form select {
-        font-size: 14px;
-        padding: 0.35rem 0.4rem;
-    }
-
-    .enquiry-modal .modal-content-form .btn.submit-enquiry {
-        font-size: 13px;
-        padding: 0.35rem 0.5rem;
-    }
-}
-
-/* ========================================
-   Courses Table
-======================================== */
-
-.courses-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: #fff;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-    font-size: 15px;
-}
-
-.courses-table td.actions-cell {
-    padding: 10px 14px;
-}
-
-.courses-table th {
-    background: #f7f9fc;
-    padding: 12px 14px;
-    text-align: left;
-    font-weight: 600;
-    color: #333;
-    border-bottom: 1px solid #e3e6ea;
-}
-
-.courses-table td {
-    padding: 10px 14px;
-    border-bottom: 1px solid #eceff3;
-    vertical-align: middle;
-}
-
-.courses-table tr:hover {
-    background: rgba(0, 0, 0, 0.03);
-}
-
-/* Clickable course name */
-.course-name {
-    color: #1a73e8;
-    cursor: pointer;
-    font-weight: 600;
-    text-decoration: underline;
-}
-
-.course-name:hover {
-    color: #0c47a1;
-}
-
-.courses-table .btn {
-    padding: 6px 10px;
-    font-size: 14px;
-    border-radius: 5px;
-}
-
-.btn.edit {
-    background: #1a73e8;
-    color: white;
-}
-
-.btn.edit:hover {
-    background: #0f56b3;
-}
-
-.btn.delete {
-    background: #e53935;
-    color: white;
-}
-
-.btn.delete:hover {
-    background: #c62828;
-}
-
-/* Status Switch */
-.course-status-switch {
-    width: 42px;
-    height: 22px;
-    background: #ccc;
-    border-radius: 20px;
-    position: relative;
-    cursor: pointer;
-    appearance: none;
-    transition: background 0.25s ease;
-}
-
-.course-status-switch:checked {
-    background: #4caf50;
-}
-
-.course-status-switch::before {
-    content: "";
-    position: absolute;
-    width: 18px;
-    height: 18px;
-    top: 2px;
-    left: 2px;
-    background: white;
-    border-radius: 50%;
-    transition: transform 0.25s ease;
-}
-
-.course-status-switch:checked::before {
-    transform: translateX(20px);
-}
-
-/* Expandable details row */
-.course-details {
-    background: #fbfcfe;
-    padding: 14px 18px;
-    border-bottom: 1px solid #e3e6ea;
-    color: #444;
-    font-size: 14px;
-    line-height: 1.6;
-}
-
-.course-details strong {
-    color: #222;
-}
-
-/* Hidden row */
-.hidden {
-    display: none;
-}
-
-/* Empty state */
-.empty {
-    padding: 2rem;
-    text-align: center;
-    color: #777;
-    font-size: 15px;
-}
-
-/* Error state */
-.error {
-    padding: 2rem;
-    text-align: center;
-    color: #c62828;
-    font-weight: 600;
-}
-
-/* ========================================
-   Filter Bar Styles
-======================================== */
-.filter-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.filter-bar label {
-    display: flex;
-    flex-direction: column;
-    font-weight: 600;
-    font-size: 0.95rem;
-    color: #333;
-}
-
-.filter-bar select {
-    margin-top: 0.25rem;
-    padding: 0.45rem 0.75rem;
-    font-size: 0.95rem;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-    background-color: #fff;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    min-width: 180px;
-    outline: none;
-}
-
-.filter-bar select:focus {
-    border-color: #1a73e8;
-    box-shadow: 0 0 4px rgba(26, 115, 232, 0.4);
-    background-color: #fff;
-}
-
-.filter-bar select option {
-    padding: 0.5rem;
-}
-
-/* Hover effect for better UX */
-.filter-bar select:hover {
-    border-color: #1a73e8;
-}
-
-.filter-bar .tag-pill {
-    margin-top: 0.5rem;
-    font-size: 0.75rem;
-}
-
-.tag-pill {
-    background: #e60000;
-    color: #fff;
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 12px;
-    text-transform: uppercase;
-    display: inline-block;
-}
-
-/* Responsive adjustments */
-@media (max-width: 767px) {
     .filter-bar {
         flex-direction: column;
         align-items: stretch;
@@ -998,177 +967,101 @@ body {
         width: 100%;
         min-width: unset;
     }
-}
-
-/* ========================================
-   Mobile Responsive
-======================================== */
-@media (max-width: 768px) {
-
-    .courses-table th,
-    .courses-table td {
-        padding: 8px 10px;
-        font-size: 13px;
-    }
-
-    .courses-table td:last-child {
-        flex-wrap: wrap;
-        gap: 4px;
-    }
-
-    .btn {
-        padding: 5px 8px !important;
-        font-size: 12px !important;
-    }
-
-    .course-status-switch {
-        transform: scale(0.9);
-    }
-}
-
-@media (max-width: 480px) {
-
-    .courses-table th,
-    .courses-table td {
-        padding: 6px 8px;
-        font-size: 12px;
-    }
-
-    .btn {
-        padding: 4px 7px !important;
-        font-size: 11px !important;
-    }
-
-    .course-details {
-        font-size: 13px;
-    }
-}
-
-/* Mobile (<768px) */
-@media (max-width: 767px) {
-    .main {
-        flex-direction: row;
-    }
-
-    /* Show hamburger menu */
-    .menu-toggle {
-        display: flex;
-    }
-
-    /* Sidebar toggle behavior */
-    #sidebar {
-        position: fixed;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 250px;
-        flex-direction: column;
-        overflow-x: hidden;
-        transform: translateX(-100%);
-        z-index: 1000;
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-    }
-
-    #sidebar.open {
-        transform: translateX(0);
-    }
-
-    .content {
-        padding: 1rem;
-        width: 100%;
-    }
-
-    .controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .search-input,
-    .btn {
-        width: 100%;
-    }
-
-    .bookings-table th,
-    .bookings-table td,
-    .cars-table th,
-    .cars-table td {
-        font-size: 13px;
-        padding: 0.35rem 0.5rem;
-    }
-
-    .bookings-table td:last-child,
-    .cars-table td:last-child {
-        flex-direction: row;
-        flex-wrap: wrap;
-    }
-
-    .cars-table {
-        min-width: 100%;
-    }
-
-    /* Ensure Delete button visible */
-    .cars-table td .btn.delete {
-        display: inline-flex !important;
-    }
-}
-
-/* Small Mobile (<480px) */
-@media (max-width: 480px) {
-    body {
-        font-size: 14px;
-    }
 
     .bookings-table th,
     .bookings-table td,
     .cars-table th,
     .cars-table td {
         font-size: 12px;
-        padding: 0.25rem 0.5rem;
+        padding: 10px 12px;
     }
 
-    .btn,
-    #addCarBtn {
-        font-size: 12px;
-        padding: 0.25rem 0.5rem;
+    .bookings-table td .btn,
+    .cars-table td .btn {
+        padding: 5px 10px;
+        font-size: 11px;
     }
 
     .modal-content-form {
-        max-width: 90%;
-        padding: 1rem 1.2rem;
-    }
-
-    .modal-content-form.car-modal {
-        max-width: 90%;
-        padding: 1rem 1.2rem;
+        max-width: 95%;
+        padding: 20px;
     }
 }
 
-/* Laptop / Desktop (≥1024px) */
-@media (min-width: 1024px) {
-    /* Hide hamburger menu on desktop */
-    .menu-toggle {
-        display: none !important;
+/* ========================================
+   Responsive - Small Mobile
+======================================== */
+@media (max-width: 480px) {
+    body {
+        font-size: 13px;
     }
 
-    /* Sidebar always visible on desktop */
-    #sidebar {
-        position: relative;
-        transform: translateX(0) !important;
-    }
-
-    /* No overlay on desktop */
-    .sidebar-overlay {
-        display: none !important;
+    .content {
+        padding: 12px;
     }
 
     .bookings-table th,
     .bookings-table td {
-        font-size: 1rem;
-        padding: 0.5rem 0.75rem;
+        font-size: 11px;
+        padding: 8px 10px;
     }
 
     .btn {
-        font-size: 1rem;
-        padding: 0.5rem 1rem;
+        padding: 8px 14px;
+        font-size: 13px;
     }
+
+    .modal-content-form {
+        padding: 16px;
+    }
+
+    .modal-content-form h2 {
+        font-size: 1.15rem;
+    }
+}
+
+/* ========================================
+   Responsive - Desktop
+======================================== */
+@media (min-width: 1024px) {
+    .menu-toggle {
+        display: none !important;
+    }
+
+    #sidebar {
+        position: sticky;
+        transform: translateX(0) !important;
+    }
+
+    .sidebar-overlay {
+        display: none !important;
+    }
+}
+
+/* ========================================
+   Course Details Row
+======================================== */
+.course-details {
+    background: #f8fafc;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.course-details strong {
+    color: var(--text-primary);
+}
+
+.course-name {
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.course-name:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
 }

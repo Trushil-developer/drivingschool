@@ -1,23 +1,29 @@
-/* ===== ROOT ===== */
+/* ===== ROOT VARIABLES ===== */
 :root {
-    --bg: #f7f9fb;
-    --primary: #1a73e8;
-    --primary-dark: #155ab6;
-    --muted: #6b7280;
+    --bg: #f1f5f9;
+    --primary: #3b82f6;
+    --primary-dark: #2563eb;
+    --primary-light: rgba(59, 130, 246, 0.1);
+    --muted: #64748b;
     --card: #ffffff;
-    --success: #28a745;
-    --danger: #f44336;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
     --radius: 12px;
+    --radius-sm: 8px;
     --gap: 16px;
     --max-width: 1200px;
-    --shadow: 0 6px 20px rgba(20, 30, 60, 0.08);
-    --font-sans: "Inter", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
     /* z-index layers for modals */
     --z-overlay-attendance: 1000;
     --z-modal-attendance: 1100;
     --z-overlay-instructor: 1200;
     --z-modal-instructor: 1300;
+
+    --transition: 0.2s ease;
 }
 
 * {
@@ -30,8 +36,9 @@ body {
     margin: 0;
     font-family: var(--font-sans);
     background: var(--bg);
-    color: #111827;
-    line-height: 1.5;
+    color: #0f172a;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
 }
 
 /* ===== Topbar ===== */
@@ -39,34 +46,51 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 24px;
-    background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
     color: #fff;
     box-shadow: var(--shadow);
 }
 
 .topbar h1 {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 1.15rem;
     font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.topbar .btn-ghost {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.topbar .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 /* ===== Main Layout ===== */
 .main {
-
-    margin: 14px auto;
+    margin: 0 auto;
     display: grid;
-    grid-template-columns: 220px 1fr;
-    gap: var(--gap);
-    padding: 0 2px;
+    grid-template-columns: 260px 1fr;
+    min-height: calc(100vh - 60px);
 }
 
 /* ===== Sidebar ===== */
 .sidebar {
     background: var(--card);
     border-radius: var(--radius);
-    padding: 20px;
+    padding: 20px 16px;
     box-shadow: var(--shadow);
+    height: fit-content;
+    position: sticky;
+    top: 16px;
 }
 
 .sidebar ul {
@@ -76,22 +100,26 @@ body {
 }
 
 .sidebar li {
-    padding: 14px 12px;
-    border-radius: 8px;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    color: #0f172a;
-    margin-bottom: 8px;
-    transition: 0.2s ease;
+    color: #475569;
+    margin-bottom: 4px;
+    transition: var(--transition);
     font-weight: 500;
+    font-size: 14px;
 }
 
 .sidebar li.active {
     background: var(--primary);
     color: #fff;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
 }
 
-.sidebar li:hover {
-    background: rgba(26, 115, 232, 0.1);
+.sidebar li:hover:not(.active) {
+    background: var(--primary-light);
+    color: var(--primary);
 }
 
 /* ===== Content ===== */
@@ -108,17 +136,17 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 16px;
-    border-radius: 8px;
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
     border: none;
     cursor: pointer;
     font-weight: 600;
-    transition: 0.2s;
-    font-size: 0.95rem;
+    transition: var(--transition);
+    font-size: 14px;
 }
 
 .btn:hover {
-    opacity: 0.95;
+    transform: translateY(-1px);
 }
 
 .btn-primary {
@@ -126,9 +154,18 @@ body {
     color: #fff;
 }
 
+.btn-primary:hover {
+    background: var(--primary-dark);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+
 .btn-success {
     background: var(--success);
     color: #fff;
+}
+
+.btn-success:hover {
+    background: #059669;
 }
 
 .btn-danger {
@@ -136,73 +173,89 @@ body {
     color: #fff;
 }
 
+.btn-danger:hover {
+    background: #dc2626;
+}
+
 .btn-ghost {
     background: transparent;
-    color: #fff;
-    border: 1px solid #d1d5db;
+    color: var(--muted);
+    border: 1px solid #e2e8f0;
+}
+
+.btn-ghost:hover {
+    background: #f8fafc;
+    border-color: var(--primary);
+    color: var(--primary);
 }
 
 /* ===== Small Buttons ===== */
 .btn-sm {
-    padding: 4px 8px;
-    font-size: 0.8rem;
+    padding: 6px 12px;
+    font-size: 12px;
     border-radius: 6px;
     cursor: pointer;
-    transition: 0.2s;
-}
-
-.btn-sm:hover {
-    background: var(--primary);
-    color: #fff;
+    transition: var(--transition);
+    border: none;
+    font-weight: 600;
 }
 
 /* ===== Tables ===== */
 .details-table,
 .bookings-table {
     width: 100%;
-    border-collapse: separate;
-    border-spacing: 0 8px;
+    border-collapse: collapse;
 }
 
 .details-table th,
 .details-table td,
 .bookings-table th,
 .bookings-table td {
-    padding: 12px 16px;
-    border-radius: 8px;
+    padding: 14px 16px;
     text-align: left;
+    border-bottom: 1px solid #f1f5f9;
 }
 
 .details-table th,
 .bookings-table th {
-    background-color: #f3f4f6;
+    background-color: #f8fafc;
     font-weight: 600;
+    color: #475569;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .details-table td,
 .bookings-table td {
-    background: #f9fafb;
+    background: #fff;
+}
+
+.details-table tbody tr:hover,
+.bookings-table tbody tr:hover {
+    background: #f8fafc;
 }
 
 /* ===== Error & Empty ===== */
 .error {
-    padding: 12px;
-    background: #f8d7da;
-    color: #721c24;
-    border-radius: 6px;
+    padding: 16px;
+    background: #fef2f2;
+    color: #dc2626;
+    border-radius: var(--radius-sm);
     margin-bottom: 12px;
+    font-weight: 500;
 }
 
 .empty {
-    padding: 12px;
-    background: #f3f4f6;
-    color: #555;
-    border-radius: 6px;
+    padding: 48px 16px;
+    background: #f8fafc;
+    color: #64748b;
+    border-radius: var(--radius-sm);
     text-align: center;
 }
 
 /* ==========================================================
-   ATTENDANCE MODAL (Original Design - FIXED)
+   ATTENDANCE MODAL
    ========================================================== */
 .attendance-overlay {
     position: fixed;
@@ -210,13 +263,11 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(3px);
-
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-
     z-index: var(--z-overlay-attendance);
     transition: all 0.3s ease;
 }
@@ -231,20 +282,18 @@ body {
     position: fixed;
     top: 50%;
     left: 50%;
-    width: 420px;
-    max-height: 82vh;
+    width: 440px;
+    max-height: 85vh;
     overflow-y: auto;
     background: var(--card);
-    padding: 22px;
-    border-radius: 14px;
-    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
-
+    padding: 24px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
     transform: translate(-50%, -40%);
     opacity: 0;
     pointer-events: none;
-
     z-index: var(--z-modal-attendance);
-    transition: all 0.35s ease;
+    transition: all 0.3s ease;
 }
 
 .attendance-modal.active {
@@ -254,69 +303,84 @@ body {
 }
 
 .attendance-modal h3 {
-    margin-top: 0;
-    margin-bottom: 16px;
-    font-size: 1.3rem;
-    font-weight: 600;
+    margin: 0 0 20px;
+    font-size: 1.25rem;
+    font-weight: 700;
     text-align: center;
+    color: #0f172a;
 }
 
 .attendance-modal table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 18px;
+    margin-bottom: 20px;
 }
 
 .attendance-modal th,
 .attendance-modal td {
-    padding: 10px;
-    border-bottom: 1px solid #eee;
+    padding: 12px;
+    border-bottom: 1px solid #f1f5f9;
     text-align: center;
 }
 
 .attendance-modal th {
-    background: #f2f4f7;
+    background: #f8fafc;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #475569;
     position: sticky;
     top: 0;
     z-index: 10;
 }
 
 .attendance-modal input[type="checkbox"] {
-    transform: scale(1.25);
+    transform: scale(1.3);
+    cursor: pointer;
 }
 
 #saveAttendanceBtn {
     background: var(--primary);
     color: #fff;
     font-weight: 600;
-    padding: 10px 16px;
-    border-radius: 6px;
+    padding: 12px 20px;
+    border-radius: var(--radius-sm);
     border: none;
     cursor: pointer;
+    transition: var(--transition);
+}
+
+#saveAttendanceBtn:hover {
+    background: var(--primary-dark);
 }
 
 #closeAttendanceBtn {
-    background: #e5e7eb;
-    color: #111;
-    padding: 10px 16px;
-    border-radius: 6px;
+    background: #f1f5f9;
+    color: #475569;
+    padding: 12px 20px;
+    border-radius: var(--radius-sm);
     border: none;
     cursor: pointer;
     margin-left: 8px;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+#closeAttendanceBtn:hover {
+    background: #e2e8f0;
 }
 
 /* ==========================================================
-   INSTRUCTOR MODAL (Separate)
+   INSTRUCTOR MODAL
    ========================================================== */
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-
     z-index: var(--z-overlay-instructor);
     transition: 0.3s;
 }
@@ -332,16 +396,13 @@ body {
     top: 50%;
     left: 50%;
     background: var(--card);
-    padding: 20px;
-    border-radius: 14px;
-    width: 420px;
-
-    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
-
+    padding: 24px;
+    border-radius: var(--radius);
+    width: 440px;
+    box-shadow: var(--shadow-lg);
     transform: translate(-50%, -40%);
     opacity: 0;
     pointer-events: none;
-
     z-index: var(--z-modal-instructor);
     transition: 0.3s;
 }
@@ -356,19 +417,22 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 8px;
 }
 
 .attendance-counter button {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border: none;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: var(--primary);
     color: #fff;
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 16px;
     cursor: pointer;
-    transition: 0.2s;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
     justify-content: center;
 }
 
@@ -377,12 +441,24 @@ body {
 }
 
 .attendance-counter span {
-    min-width: 24px;
+    min-width: 28px;
     text-align: center;
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 15px;
 }
 
 /* ===== Responsive ===== */
+@media (max-width: 1024px) {
+    .main {
+        grid-template-columns: 1fr;
+        padding: 16px;
+    }
+
+    .sidebar {
+        display: none;
+    }
+}
+
 @media (max-width: 480px) {
     body {
         font-size: 14px;
@@ -390,20 +466,28 @@ body {
 
     .attendance-modal,
     .modal {
-        width: 90%;
-        padding: 16px;
+        width: 95%;
+        padding: 20px;
     }
 
     .details-table th,
     .details-table td,
     .bookings-table th,
     .bookings-table td {
-        padding: 8px 10px;
+        padding: 10px 12px;
         font-size: 13px;
     }
 
     .btn {
-        padding: 8px 12px;
+        padding: 10px 14px;
         font-size: 13px;
+    }
+
+    .topbar {
+        padding: 12px 16px;
+    }
+
+    .topbar h1 {
+        font-size: 1rem;
     }
 }

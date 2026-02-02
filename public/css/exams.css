@@ -2,8 +2,9 @@
    EXAMS MODULE
 ================================ */
 .exams-module {
-    padding: 20px;
-    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
 }
 
 /* ==============================
@@ -12,33 +13,33 @@
 .exams-tabs {
     display: flex;
     gap: 8px;
-    margin-bottom: 20px;
     background: #ffffff;
     padding: 8px;
     border-radius: 12px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .tab-btn {
-    padding: 10px 20px;
+    padding: 10px 24px;
     border: none;
     background: transparent;
     border-radius: 8px;
     font-size: 14px;
-    font-weight: 500;
-    color: #6b7280;
+    font-weight: 600;
+    color: #64748b;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
 }
 
 .tab-btn:hover {
-    background: #f3f4f6;
-    color: #111827;
+    background: #f1f5f9;
+    color: #0f172a;
 }
 
 .tab-btn.active {
     background: #3b82f6;
     color: #ffffff;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
 }
 
 /* ==============================
@@ -65,10 +66,16 @@
 .stat-card {
     background: #ffffff;
     border-radius: 12px;
-    padding: 18px 20px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    padding: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     position: relative;
     overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 .stat-card::before {
@@ -90,18 +97,18 @@
 }
 
 .stat-card h4 {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
-    color: #6b7280;
-    margin-bottom: 8px;
+    color: #64748b;
+    margin: 0 0 8px;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.05em;
 }
 
 .stat-card .stat-value {
     font-size: 28px;
     font-weight: 700;
-    color: #111827;
+    color: #0f172a;
     margin: 0;
 }
 
@@ -118,14 +125,14 @@
     background: #ffffff;
     border-radius: 12px;
     padding: 20px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .chart-section h3 {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
-    color: #111827;
-    margin-bottom: 16px;
+    color: #0f172a;
+    margin: 0 0 16px;
 }
 
 .chart-section canvas {
@@ -140,7 +147,7 @@
     overflow-x: auto;
     background: #ffffff;
     border-radius: 12px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .exam-table {
@@ -151,22 +158,29 @@
 
 .exam-table th,
 .exam-table td {
-    padding: 12px 16px;
+    padding: 14px 16px;
     text-align: left;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid #f1f5f9;
 }
 
 .exam-table th {
-    background: #f9fafb;
+    background: #f8fafc;
     font-weight: 600;
-    color: #374151;
+    color: #475569;
     text-transform: uppercase;
     font-size: 12px;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.05em;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.exam-table tbody tr {
+    transition: background 0.15s ease;
 }
 
 .exam-table tbody tr:hover {
-    background: #f9fafb;
+    background: #f8fafc;
 }
 
 .exam-table tbody tr:last-child td {
@@ -188,38 +202,44 @@
 
 .status-started {
     color: #f59e0b;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .status-completed {
     color: #3b82f6;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 /* ==============================
    BUTTONS
 ================================ */
 .btn-sm {
-    padding: 6px 12px;
+    padding: 8px 14px;
     font-size: 12px;
+    font-weight: 600;
     border-radius: 6px;
     border: none;
     cursor: pointer;
     background: #3b82f6;
     color: #ffffff;
-    transition: background 0.2s ease;
+    transition: all 0.15s ease;
 }
 
 .btn-sm:hover {
     background: #2563eb;
+    transform: translateY(-1px);
 }
 
 .clear-filter {
-    background: #6b7280;
+    background: #64748b;
 }
 
 .clear-filter:hover {
-    background: #4b5563;
+    background: #475569;
+}
+
+.view-attempts {
+    background: #3b82f6;
 }
 
 /* ==============================
@@ -234,42 +254,46 @@
 
 .attempts-header h3 {
     font-size: 18px;
-    font-weight: 600;
-    color: #111827;
+    font-weight: 700;
+    color: #0f172a;
     margin: 0;
 }
 
 /* ==============================
    LOADING & EMPTY STATES
 ================================ */
-.loading {
+.exams-module .loading {
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 200px;
-    color: #9ca3af;
-    font-size: 15px;
+    color: #94a3b8;
+    font-size: 14px;
+    font-weight: 500;
 }
 
-.empty {
+.exams-module .empty {
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 200px;
-    color: #9ca3af;
-    font-size: 15px;
+    color: #94a3b8;
+    font-size: 14px;
     background: #ffffff;
     border-radius: 12px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-.error {
+.exams-module .error {
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 200px;
     color: #ef4444;
-    font-size: 15px;
+    font-size: 14px;
+    font-weight: 500;
+    background: #fef2f2;
+    border-radius: 12px;
 }
 
 /* ==============================
@@ -283,7 +307,7 @@
 
 @media (max-width: 768px) {
     .exams-module {
-        padding: 14px;
+        gap: 18px;
     }
 
     .exams-tabs {
@@ -292,16 +316,26 @@
 
     .tab-btn {
         flex: 1;
-        min-width: 80px;
+        min-width: 90px;
         text-align: center;
+        padding: 10px 16px;
     }
 
     .exam-stats-cards {
         grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .stat-card {
+        padding: 16px;
     }
 
     .stat-card .stat-value {
         font-size: 22px;
+    }
+
+    .chart-section {
+        padding: 16px;
     }
 
     .chart-section canvas {
@@ -321,5 +355,10 @@
 @media (max-width: 480px) {
     .exam-stats-cards {
         grid-template-columns: 1fr;
+    }
+
+    .tab-btn {
+        font-size: 13px;
+        padding: 8px 12px;
     }
 }
