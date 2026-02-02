@@ -1,6 +1,7 @@
 import { downloadCertificate, uploadCertificate } from "./globals/certificates.js";
 import { loadFilterBranches, filterData, attachFilterListeners } from "./globals/filters.js";
 import { renderDashboardModule } from "./Dashboard/renderDashboardModule.js";
+import { renderExamsModule } from "./Exams/renderExamsModule.js";
 
 (async () => {
     await window.CommonReady;
@@ -405,6 +406,19 @@ import { renderDashboardModule } from "./Dashboard/renderDashboardModule.js";
                 hideLoading();
             }
         },
+        exams: async () => {
+            showLoading();
+            try {
+                if (typeof renderExamsModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Exams module not loaded</div>';
+                    return;
+                }
+                const renderer = renderExamsModule(tableWrap);
+                await renderer();
+            } finally {
+                hideLoading();
+            }
+        },
     };
 
     attachFilterListeners(tabRenderers, () => currentTab);
@@ -423,7 +437,7 @@ import { renderDashboardModule } from "./Dashboard/renderDashboardModule.js";
             }
         }
 
-        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms') {
+        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
         } else if (tab === 'trainingDays' || tab === 'courses' || tab === 'packages') {

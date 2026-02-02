@@ -1,0 +1,325 @@
+/* ==============================
+   EXAMS MODULE
+================================ */
+.exams-module {
+    padding: 20px;
+    width: 100%;
+}
+
+/* ==============================
+   TABS
+================================ */
+.exams-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    background: #ffffff;
+    padding: 8px;
+    border-radius: 12px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.tab-btn.active {
+    background: #3b82f6;
+    color: #ffffff;
+}
+
+/* ==============================
+   TAB CONTENT
+================================ */
+.tab-content {
+    min-height: 400px;
+}
+
+.tab-content.hidden {
+    display: none;
+}
+
+/* ==============================
+   STATS CARDS
+================================ */
+.exam-stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #3b82f6;
+}
+
+.stat-card.success::before {
+    background: #10b981;
+}
+
+.stat-card.danger::before {
+    background: #ef4444;
+}
+
+.stat-card h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.stat-card .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+/* ==============================
+   CHARTS
+================================ */
+.exam-charts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.chart-section {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.chart-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 16px;
+}
+
+.chart-section canvas {
+    width: 100% !important;
+    height: 280px !important;
+}
+
+/* ==============================
+   TABLE
+================================ */
+.exam-table-wrap {
+    overflow-x: auto;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.exam-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.exam-table th,
+.exam-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.exam-table th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+}
+
+.exam-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.exam-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ==============================
+   STATUS STYLES
+================================ */
+.status-pass {
+    color: #10b981;
+    font-weight: 600;
+}
+
+.status-fail {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.status-started {
+    color: #f59e0b;
+    font-weight: 500;
+}
+
+.status-completed {
+    color: #3b82f6;
+    font-weight: 500;
+}
+
+/* ==============================
+   BUTTONS
+================================ */
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: #3b82f6;
+    color: #ffffff;
+    transition: background 0.2s ease;
+}
+
+.btn-sm:hover {
+    background: #2563eb;
+}
+
+.clear-filter {
+    background: #6b7280;
+}
+
+.clear-filter:hover {
+    background: #4b5563;
+}
+
+/* ==============================
+   ATTEMPTS HEADER
+================================ */
+.attempts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.attempts-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+}
+
+/* ==============================
+   LOADING & EMPTY STATES
+================================ */
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: #9ca3af;
+    font-size: 15px;
+}
+
+.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: #9ca3af;
+    font-size: 15px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: #ef4444;
+    font-size: 15px;
+}
+
+/* ==============================
+   RESPONSIVE
+================================ */
+@media (max-width: 1024px) {
+    .exam-charts {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .exams-module {
+        padding: 14px;
+    }
+
+    .exams-tabs {
+        flex-wrap: wrap;
+    }
+
+    .tab-btn {
+        flex: 1;
+        min-width: 80px;
+        text-align: center;
+    }
+
+    .exam-stats-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .stat-card .stat-value {
+        font-size: 22px;
+    }
+
+    .chart-section canvas {
+        height: 240px !important;
+    }
+
+    .exam-table {
+        font-size: 13px;
+    }
+
+    .exam-table th,
+    .exam-table td {
+        padding: 10px 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .exam-stats-cards {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,5 +1,12 @@
+// Store chart instances for cleanup
+let chartInstances = {};
+
 export function renderDashboardModule(container) {
   return async function renderDashboard() {
+    // Destroy existing charts before re-rendering
+    Object.values(chartInstances).forEach(chart => chart?.destroy());
+    chartInstances = {};
+
     container.innerHTML = `
       <div class="dashboard">
 
@@ -18,6 +25,33 @@ export function renderDashboardModule(container) {
 
         <div class="dashboard-cards" id="dashboardCards">
           <div class="card loading">Loading...</div>
+        </div>
+
+        <div class="dashboard-charts">
+          <div class="dashboard-section">
+            <h3>Booking Status Distribution</h3>
+            <canvas id="statusChart"></canvas>
+          </div>
+          <div class="dashboard-section">
+            <h3>Bookings by Branch</h3>
+            <canvas id="branchChart"></canvas>
+          </div>
+          <div class="dashboard-section">
+            <h3>Monthly Enrollment Trends</h3>
+            <canvas id="trendsChart"></canvas>
+          </div>
+          <div class="dashboard-section">
+            <h3>Theory Exam Performance</h3>
+            <canvas id="examChart"></canvas>
+          </div>
+          <div class="dashboard-section">
+            <h3>Popular Training Packages</h3>
+            <canvas id="packageChart"></canvas>
+          </div>
+          <div class="dashboard-section">
+            <h3>Instructor Workload</h3>
+            <canvas id="instructorChart"></canvas>
+          </div>
         </div>
 
       </div>
@@ -72,6 +106,7 @@ export function renderDashboardModule(container) {
       if (branchFilter.value) params.append("branch", branchFilter.value);
 
       await loadDashboardData(params.toString());
+      await loadAllCharts(params.toString());
     }
   };
 }
@@ -123,4 +158,282 @@ async function loadBranches() {
     option.textContent = branch.branch_name;
     select.appendChild(option);
   });
+}
+
+// Chart color palette
+const COLORS = {
+  primary: '#3b82f6',
+  success: '#10b981',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+  purple: '#8b5cf6',
+  indigo: '#6366f1',
+  pink: '#ec4899',
+  cyan: '#06b6d4'
+};
+
+async function loadAllCharts(query = "") {
+  await Promise.all([
+    loadStatusChart(query),
+    loadBranchChart(query),
+    loadTrendsChart(query),
+    loadExamChart(),
+    loadPackageChart(query),
+    loadInstructorChart(query)
+  ]);
+}
+
+async function loadStatusChart(query) {
+  try {
+    const res = await window.api(`/api/dashboard/stats?${query}`);
+    if (!res.success) return;
+
+    const { active, completed, hold, expired } = res.stats;
+    const ctx = document.getElementById('statusChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (chartInstances.status) chartInstances.status.destroy();
+
+    chartInstances.status = new Chart(ctx, {
+      type: 'doughnut',
+      plugins: [ChartDataLabels],
+      data: {
+        labels: ['Active', 'Completed', 'On Hold', 'Expired'],
+        datasets: [{
+          data: [active, completed, hold, expired],
+          backgroundColor: [COLORS.success, COLORS.primary, COLORS.warning, COLORS.danger],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' },
+          datalabels: {
+            color: '#fff',
+            font: { weight: 'bold', size: 14 },
+            formatter: (value) => value > 0 ? value : ''
+          }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Status chart error:", err);
+  }
+}
+
+async function loadBranchChart(query) {
+  try {
+    const res = await window.api(`/api/dashboard/bookings-by-branch?${query}`);
+    if (!res.success) return;
+
+    const ctx = document.getElementById('branchChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (chartInstances.branch) chartInstances.branch.destroy();
+
+    chartInstances.branch = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: res.data.map(d => d.branch),
+        datasets: [{
+          label: 'Bookings',
+          data: res.data.map(d => d.total),
+          backgroundColor: COLORS.primary,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Branch chart error:", err);
+  }
+}
+
+async function loadTrendsChart(query) {
+  try {
+    const branchParam = new URLSearchParams(query).get('branch');
+    const params = branchParam ? `?branch=${branchParam}` : '';
+    const res = await window.api(`/api/dashboard/monthly-trends${params}`);
+    if (!res.success) return;
+
+    const ctx = document.getElementById('trendsChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (chartInstances.trends) chartInstances.trends.destroy();
+
+    const labels = res.data.map(d => {
+      const [year, month] = d.month.split('-');
+      return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    });
+
+    chartInstances.trends = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Enrollments',
+            data: res.data.map(d => d.bookings),
+            borderColor: COLORS.primary,
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            fill: true,
+            tension: 0.3,
+            pointBackgroundColor: COLORS.primary,
+            pointRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Trends chart error:", err);
+  }
+}
+
+async function loadExamChart() {
+  try {
+    const res = await window.api('/api/dashboard/exam-stats');
+    if (!res.success) return;
+
+    const ctx = document.getElementById('examChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (chartInstances.exam) chartInstances.exam.destroy();
+
+    const { passed, failed, avgScore } = res.data;
+
+    chartInstances.exam = new Chart(ctx, {
+      type: 'doughnut',
+      plugins: [ChartDataLabels],
+      data: {
+        labels: ['Passed', 'Failed'],
+        datasets: [{
+          data: [passed, failed],
+          backgroundColor: [COLORS.success, COLORS.danger],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' },
+          title: {
+            display: true,
+            text: `Avg Score: ${avgScore}%`,
+            position: 'bottom',
+            font: { size: 14 }
+          },
+          datalabels: {
+            color: '#fff',
+            font: { weight: 'bold', size: 14 },
+            formatter: (value) => value > 0 ? value : ''
+          }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Exam chart error:", err);
+  }
+}
+
+async function loadPackageChart(query) {
+  try {
+    const branchParam = new URLSearchParams(query).get('branch');
+    const params = branchParam ? `?branch=${branchParam}` : '';
+    const res = await window.api(`/api/dashboard/package-popularity${params}`);
+    if (!res.success) return;
+
+    const ctx = document.getElementById('packageChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (chartInstances.package) chartInstances.package.destroy();
+
+    const colors = [COLORS.primary, COLORS.purple, COLORS.cyan, COLORS.pink, COLORS.indigo];
+
+    chartInstances.package = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: res.data.map(d => `${d.package} Days`),
+        datasets: [{
+          label: 'Students',
+          data: res.data.map(d => d.count),
+          backgroundColor: res.data.map((_, i) => colors[i % colors.length]),
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Package chart error:", err);
+  }
+}
+
+async function loadInstructorChart(query) {
+  try {
+    const branchParam = new URLSearchParams(query).get('branch');
+    const params = branchParam ? `?branch=${branchParam}` : '';
+    const res = await window.api(`/api/dashboard/instructor-workload${params}`);
+    if (!res.success) return;
+
+    const ctx = document.getElementById('instructorChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (chartInstances.instructor) chartInstances.instructor.destroy();
+
+    chartInstances.instructor = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: res.data.map(d => d.instructor),
+        datasets: [{
+          label: 'Active Students',
+          data: res.data.map(d => d.activeStudents),
+          backgroundColor: COLORS.indigo,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Instructor chart error:", err);
+  }
 }

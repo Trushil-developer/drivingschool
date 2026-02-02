@@ -165,11 +165,20 @@
 }
 
 /* ==============================
+   CHARTS GRID
+================================ */
+.dashboard-charts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+/* ==============================
    CHART RESPONSIVENESS
 ================================ */
 .dashboard-section canvas {
     width: 100% !important;
-    max-height: 360px;
+    height: 280px !important;
 }
 
 .dashboard-filters .branch-select {
@@ -196,6 +205,10 @@
     .dashboard-cards .card p {
         font-size: 24px;
     }
+
+    .dashboard-charts {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
@@ -219,6 +232,10 @@
 
     .dashboard-cards .card p {
         font-size: 22px;
+    }
+
+    .dashboard-section canvas {
+        height: 240px !important;
     }
 }
 

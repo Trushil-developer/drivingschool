@@ -250,4 +250,141 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
 
 
 
+/**
+ * MONTHLY BOOKING TRENDS (Last 6 months)
+ */
+router.get("/monthly-trends", requireAdmin, async (req, res) => {
+  try {
+    const { branch } = req.query;
+
+    let branchFilter = "";
+    let params = [];
+
+    if (branch) {
+      branchFilter = "WHERE TRIM(LOWER(branch)) = ?";
+      params.push(branch.toLowerCase());
+    }
+
+    const [rows] = await dbPool.query(`
+      SELECT
+        DATE_FORMAT(created_at, '%Y-%m') AS month,
+        COUNT(*) AS bookings,
+        COALESCE(SUM(total_fees), 0) AS revenue
+      FROM bookings
+      ${branchFilter}
+      GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+      ORDER BY month DESC
+      LIMIT 6
+    `, params);
+
+    // Reverse to show oldest to newest
+    res.json({ success: true, data: rows.reverse() });
+
+  } catch (err) {
+    console.error("MONTHLY TRENDS ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+/**
+ * EXAM PERFORMANCE STATS
+ */
+router.get("/exam-stats", requireAdmin, async (req, res) => {
+  try {
+    const [[stats]] = await dbPool.query(`
+      SELECT
+        COUNT(*) AS totalAttempts,
+        SUM(CASE WHEN result = 'PASS' THEN 1 ELSE 0 END) AS passed,
+        SUM(CASE WHEN result = 'FAIL' THEN 1 ELSE 0 END) AS failed,
+        ROUND(AVG(score), 1) AS avgScore
+      FROM exam_attempts
+      WHERE status = 'completed'
+    `);
+
+    res.json({
+      success: true,
+      data: {
+        totalAttempts: stats.totalAttempts || 0,
+        passed: stats.passed || 0,
+        failed: stats.failed || 0,
+        avgScore: stats.avgScore || 0
+      }
+    });
+
+  } catch (err) {
+    console.error("EXAM STATS ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+/**
+ * TRAINING DAYS POPULARITY
+ */
+router.get("/package-popularity", requireAdmin, async (req, res) => {
+  try {
+    const { branch } = req.query;
+
+    let branchFilter = "";
+    let params = [];
+
+    if (branch) {
+      branchFilter = "WHERE TRIM(LOWER(branch)) = ?";
+      params.push(branch.toLowerCase());
+    }
+
+    const [rows] = await dbPool.query(`
+      SELECT
+        training_days AS package,
+        COUNT(*) AS count
+      FROM bookings
+      ${branchFilter}
+      GROUP BY training_days
+      ORDER BY count DESC
+    `, params);
+
+    res.json({ success: true, data: rows });
+
+  } catch (err) {
+    console.error("PACKAGE POPULARITY ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+/**
+ * INSTRUCTOR WORKLOAD
+ */
+router.get("/instructor-workload", requireAdmin, async (req, res) => {
+  try {
+    const { branch } = req.query;
+
+    let branchFilter = "";
+    let params = [];
+
+    if (branch) {
+      branchFilter = "WHERE TRIM(LOWER(b.branch)) = ?";
+      params.push(branch.toLowerCase());
+    }
+
+    const [rows] = await dbPool.query(`
+      SELECT
+        b.instructor_name AS instructor,
+        COUNT(*) AS activeStudents
+      FROM bookings b
+      ${branchFilter}
+      ${branchFilter ? "AND" : "WHERE"} b.attendance_status = 'Active'
+      AND b.instructor_name IS NOT NULL
+      AND b.instructor_name != ''
+      GROUP BY b.instructor_name
+      ORDER BY activeStudents DESC
+      LIMIT 10
+    `, params);
+
+    res.json({ success: true, data: rows });
+
+  } catch (err) {
+    console.error("INSTRUCTOR WORKLOAD ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
 export default router;
