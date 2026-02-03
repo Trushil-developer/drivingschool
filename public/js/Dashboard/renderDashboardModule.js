@@ -36,10 +36,64 @@ export function renderDashboardModule(container) {
             <h3>Bookings by Branch</h3>
             <canvas id="branchChart"></canvas>
           </div>
-          <div class="dashboard-section">
-            <h3>Monthly Enrollment Trends</h3>
-            <canvas id="trendsChart"></canvas>
+
+          <!-- Enquiry Trends -->
+          <div class="dashboard-section dashboard-section-wide">
+            <div class="chart-header">
+              <h3>Enquiry Trends</h3>
+              <div class="chart-filters">
+                <select id="enquiryBranchFilter" class="chart-filter-select">
+                  <option value="">All Branches</option>
+                </select>
+                <select id="enquiryHeardAboutFilter" class="chart-filter-select">
+                  <option value="">All Sources</option>
+                </select>
+                <select id="enquiryGranularity" class="chart-filter-select">
+                  <option value="day" selected>By Day</option>
+                  <option value="month">By Month</option>
+                  <option value="year">By Year</option>
+                </select>
+              </div>
+            </div>
+            <canvas id="enquiryChart"></canvas>
           </div>
+
+          <!-- Enrollment Trends -->
+          <div class="dashboard-section dashboard-section-wide">
+            <div class="chart-header">
+              <h3>Enrollment Trends</h3>
+              <div class="chart-filters">
+                <select id="enrollmentBranchFilter" class="chart-filter-select">
+                  <option value="">All Branches</option>
+                </select>
+                <select id="enrollmentGranularity" class="chart-filter-select">
+                  <option value="day" selected>By Day</option>
+                  <option value="month">By Month</option>
+                  <option value="year">By Year</option>
+                </select>
+              </div>
+            </div>
+            <canvas id="enrollmentChart"></canvas>
+          </div>
+
+          <!-- Attendance Trends -->
+          <div class="dashboard-section dashboard-section-wide">
+            <div class="chart-header">
+              <h3>Attendance Trends</h3>
+              <div class="chart-filters">
+                <select id="attendanceBranchFilter" class="chart-filter-select">
+                  <option value="">All Branches</option>
+                </select>
+                <select id="attendanceGranularity" class="chart-filter-select">
+                  <option value="day" selected>By Day</option>
+                  <option value="month">By Month</option>
+                  <option value="year">By Year</option>
+                </select>
+              </div>
+            </div>
+            <canvas id="attendanceChart"></canvas>
+          </div>
+
           <div class="dashboard-section">
             <h3>Theory Exam Performance</h3>
             <canvas id="examChart"></canvas>
@@ -67,15 +121,27 @@ export function renderDashboardModule(container) {
     const currentMonth = now.toISOString().slice(0, 7);
     monthPicker.value = currentMonth;
 
-    // Load branches and initial dashboard
+    // Load branches, heard_about options and initial dashboard
     await loadBranches();
+    await loadHeardAboutOptions();
     await updateDashboard();
 
-    // Add event listeners for filters
+    // Add event listeners for main filters
     fromDate.addEventListener("change", () => { monthPicker.value = ""; updateDashboard(); });
     toDate.addEventListener("change", () => { monthPicker.value = ""; updateDashboard(); });
     monthPicker.addEventListener("change", () => { fromDate.value = ""; toDate.value = ""; updateDashboard(); });
     branchFilter.addEventListener("change", () => { updateDashboard(); });
+
+    // Add event listeners for chart-specific filters
+    document.getElementById("enquiryBranchFilter").addEventListener("change", loadEnquiryChart);
+    document.getElementById("enquiryHeardAboutFilter").addEventListener("change", loadEnquiryChart);
+    document.getElementById("enquiryGranularity").addEventListener("change", loadEnquiryChart);
+
+    document.getElementById("enrollmentBranchFilter").addEventListener("change", loadEnrollmentChart);
+    document.getElementById("enrollmentGranularity").addEventListener("change", loadEnrollmentChart);
+
+    document.getElementById("attendanceBranchFilter").addEventListener("change", loadAttendanceChart);
+    document.getElementById("attendanceGranularity").addEventListener("change", loadAttendanceChart);
 
     // Revenue unlock logic
     document.addEventListener("click", async (e) => {
@@ -151,13 +217,42 @@ async function loadBranches() {
   const data = await res.json();
   if (!data.success || !Array.isArray(data.branches)) return;
 
-  const select = document.getElementById("branchFilter");
-  data.branches.forEach(branch => {
-    const option = document.createElement("option");
-    option.value = branch.branch_name;
-    option.textContent = branch.branch_name;
-    select.appendChild(option);
+  // Populate all branch filter dropdowns
+  const branchSelects = [
+    document.getElementById("branchFilter"),
+    document.getElementById("enquiryBranchFilter"),
+    document.getElementById("enrollmentBranchFilter"),
+    document.getElementById("attendanceBranchFilter")
+  ];
+
+  branchSelects.forEach(select => {
+    if (!select) return;
+    data.branches.forEach(branch => {
+      const option = document.createElement("option");
+      option.value = branch.branch_name;
+      option.textContent = branch.branch_name;
+      select.appendChild(option);
+    });
   });
+}
+
+async function loadHeardAboutOptions() {
+  try {
+    const res = await window.api("/api/dashboard/heard-about-options");
+    if (!res.success) return;
+
+    const select = document.getElementById("enquiryHeardAboutFilter");
+    if (!select) return;
+
+    res.data.forEach(source => {
+      const option = document.createElement("option");
+      option.value = source;
+      option.textContent = source;
+      select.appendChild(option);
+    });
+  } catch (err) {
+    console.error("Load heard about options error:", err);
+  }
 }
 
 // Chart color palette
@@ -176,7 +271,9 @@ async function loadAllCharts(query = "") {
   await Promise.all([
     loadStatusChart(query),
     loadBranchChart(query),
-    loadTrendsChart(query),
+    loadEnquiryChart(),
+    loadEnrollmentChart(),
+    loadAttendanceChart(),
     loadExamChart(),
     loadPackageChart(query),
     loadInstructorChart(query)
@@ -260,39 +357,41 @@ async function loadBranchChart(query) {
   }
 }
 
-async function loadTrendsChart(query) {
+async function loadEnquiryChart() {
   try {
-    const branchParam = new URLSearchParams(query).get('branch');
-    const params = branchParam ? `?branch=${branchParam}` : '';
-    const res = await window.api(`/api/dashboard/monthly-trends${params}`);
+    const branch = document.getElementById('enquiryBranchFilter')?.value || '';
+    const heardAbout = document.getElementById('enquiryHeardAboutFilter')?.value || '';
+    const granularity = document.getElementById('enquiryGranularity')?.value || 'month';
+
+    const params = new URLSearchParams();
+    if (branch) params.append('branch', branch);
+    if (heardAbout) params.append('heard_about', heardAbout);
+    params.append('granularity', granularity);
+
+    const res = await window.api(`/api/dashboard/enquiry-trends?${params.toString()}`);
     if (!res.success) return;
 
-    const ctx = document.getElementById('trendsChart')?.getContext('2d');
+    const ctx = document.getElementById('enquiryChart')?.getContext('2d');
     if (!ctx) return;
 
-    if (chartInstances.trends) chartInstances.trends.destroy();
+    if (chartInstances.enquiry) chartInstances.enquiry.destroy();
 
-    const labels = res.data.map(d => {
-      const [year, month] = d.month.split('-');
-      return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-    });
+    const labels = res.data.map(d => formatPeriodLabel(d.period, granularity));
 
-    chartInstances.trends = new Chart(ctx, {
+    chartInstances.enquiry = new Chart(ctx, {
       type: 'line',
       data: {
         labels,
-        datasets: [
-          {
-            label: 'Enrollments',
-            data: res.data.map(d => d.bookings),
-            borderColor: COLORS.primary,
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            fill: true,
-            tension: 0.3,
-            pointBackgroundColor: COLORS.primary,
-            pointRadius: 4
-          }
-        ]
+        datasets: [{
+          label: 'Enquiries',
+          data: res.data.map(d => d.count),
+          borderColor: COLORS.purple,
+          backgroundColor: 'rgba(139, 92, 246, 0.1)',
+          fill: true,
+          tension: 0.3,
+          pointBackgroundColor: COLORS.purple,
+          pointRadius: 4
+        }]
       },
       options: {
         responsive: true,
@@ -306,7 +405,125 @@ async function loadTrendsChart(query) {
       }
     });
   } catch (err) {
-    console.error("Trends chart error:", err);
+    console.error("Enquiry chart error:", err);
+  }
+}
+
+async function loadEnrollmentChart() {
+  try {
+    const branch = document.getElementById('enrollmentBranchFilter')?.value || '';
+    const granularity = document.getElementById('enrollmentGranularity')?.value || 'month';
+
+    const params = new URLSearchParams();
+    if (branch) params.append('branch', branch);
+    params.append('granularity', granularity);
+
+    const res = await window.api(`/api/dashboard/enrollment-trends?${params.toString()}`);
+    if (!res.success) return;
+
+    const ctx = document.getElementById('enrollmentChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (chartInstances.enrollment) chartInstances.enrollment.destroy();
+
+    const labels = res.data.map(d => formatPeriodLabel(d.period, granularity));
+
+    chartInstances.enrollment = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Enrollments',
+          data: res.data.map(d => d.count),
+          borderColor: COLORS.primary,
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.3,
+          pointBackgroundColor: COLORS.primary,
+          pointRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Enrollment chart error:", err);
+  }
+}
+
+async function loadAttendanceChart() {
+  try {
+    const branch = document.getElementById('attendanceBranchFilter')?.value || '';
+    const granularity = document.getElementById('attendanceGranularity')?.value || 'month';
+
+    const params = new URLSearchParams();
+    if (branch) params.append('branch', branch);
+    params.append('granularity', granularity);
+
+    const res = await window.api(`/api/dashboard/attendance-trends?${params.toString()}`);
+    if (!res.success) return;
+
+    const ctx = document.getElementById('attendanceChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (chartInstances.attendance) chartInstances.attendance.destroy();
+
+    const labels = res.data.map(d => formatPeriodLabel(d.period, granularity));
+
+    chartInstances.attendance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Present',
+            data: res.data.map(d => d.present_count),
+            backgroundColor: COLORS.success,
+            borderRadius: 4
+          },
+          {
+            label: 'Absent',
+            data: res.data.map(d => d.absent_count),
+            backgroundColor: COLORS.danger,
+            borderRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        },
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Attendance chart error:", err);
+  }
+}
+
+function formatPeriodLabel(period, granularity) {
+  if (granularity === 'year') {
+    return period.toString();
+  } else if (granularity === 'day') {
+    const date = new Date(period);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } else {
+    // month format: YYYY-MM
+    const [year, month] = period.split('-');
+    return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
   }
 }
 

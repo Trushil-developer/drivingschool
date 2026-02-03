@@ -387,4 +387,172 @@ router.get("/instructor-workload", requireAdmin, async (req, res) => {
   }
 });
 
+/**
+ * ENQUIRY TRENDS
+ */
+router.get("/enquiry-trends", requireAdmin, async (req, res) => {
+  try {
+    const { branch, heard_about, granularity = 'day' } = req.query;
+
+    let groupBy, dateFormat;
+    switch (granularity) {
+      case 'day':
+        groupBy = "DATE(e.created_at)";
+        dateFormat = "%Y-%m-%d";
+        break;
+      case 'year':
+        groupBy = "YEAR(e.created_at)";
+        dateFormat = "%Y";
+        break;
+      default: // month
+        groupBy = "DATE_FORMAT(e.created_at, '%Y-%m')";
+        dateFormat = "%Y-%m";
+    }
+
+    let whereClause = "";
+    let params = [];
+
+    if (branch) {
+      whereClause = "WHERE TRIM(LOWER(b.branch_name)) = ?";
+      params.push(branch.toLowerCase());
+    }
+
+    if (heard_about) {
+      whereClause += whereClause ? " AND e.hear_about = ?" : " WHERE e.hear_about = ?";
+      params.push(heard_about);
+    }
+
+    const [rows] = await dbPool.query(`
+      SELECT
+        ${granularity === 'year' ? 'YEAR(e.created_at)' : (granularity === 'day' ? 'DATE(e.created_at)' : "DATE_FORMAT(e.created_at, '%Y-%m')")} AS period,
+        COUNT(*) AS count
+      FROM enquiries e
+      LEFT JOIN branches b ON e.branch_id = b.id
+      ${whereClause}
+      GROUP BY period
+      ORDER BY period DESC
+      LIMIT ${granularity === 'day' ? 30 : (granularity === 'year' ? 10 : 12)}
+    `, params);
+
+    res.json({ success: true, data: rows.reverse() });
+
+  } catch (err) {
+    console.error("ENQUIRY TRENDS ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+/**
+ * GET UNIQUE HEARD_ABOUT VALUES
+ */
+router.get("/heard-about-options", requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await dbPool.query(`
+      SELECT DISTINCT hear_about FROM enquiries
+      WHERE hear_about IS NOT NULL AND hear_about != ''
+      ORDER BY hear_about
+    `);
+    res.json({ success: true, data: rows.map(r => r.hear_about) });
+  } catch (err) {
+    console.error("HEARD ABOUT OPTIONS ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+/**
+ * ENROLLMENT TRENDS (with granularity)
+ */
+router.get("/enrollment-trends", requireAdmin, async (req, res) => {
+  try {
+    const { branch, granularity = 'day' } = req.query;
+
+    let groupBy;
+    switch (granularity) {
+      case 'day':
+        groupBy = "DATE(created_at)";
+        break;
+      case 'year':
+        groupBy = "YEAR(created_at)";
+        break;
+      default: // month
+        groupBy = "DATE_FORMAT(created_at, '%Y-%m')";
+    }
+
+    let whereClause = "";
+    let params = [];
+
+    if (branch) {
+      whereClause = "WHERE TRIM(LOWER(branch)) = ?";
+      params.push(branch.toLowerCase());
+    }
+
+    const [rows] = await dbPool.query(`
+      SELECT
+        ${granularity === 'year' ? 'YEAR(created_at)' : (granularity === 'day' ? 'DATE(created_at)' : "DATE_FORMAT(created_at, '%Y-%m')")} AS period,
+        COUNT(*) AS count,
+        COALESCE(SUM(total_fees), 0) AS revenue
+      FROM bookings
+      ${whereClause}
+      GROUP BY period
+      ORDER BY period DESC
+      LIMIT ${granularity === 'day' ? 30 : (granularity === 'year' ? 10 : 12)}
+    `, params);
+
+    res.json({ success: true, data: rows.reverse() });
+
+  } catch (err) {
+    console.error("ENROLLMENT TRENDS ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+/**
+ * ATTENDANCE TRENDS
+ */
+router.get("/attendance-trends", requireAdmin, async (req, res) => {
+  try {
+    const { branch, granularity = 'day' } = req.query;
+
+    let groupBy;
+    switch (granularity) {
+      case 'day':
+        groupBy = "DATE(a.date)";
+        break;
+      case 'year':
+        groupBy = "YEAR(a.date)";
+        break;
+      default: // month
+        groupBy = "DATE_FORMAT(a.date, '%Y-%m')";
+    }
+
+    let whereClause = "";
+    let params = [];
+
+    if (branch) {
+      whereClause = "WHERE TRIM(LOWER(b.branch)) = ?";
+      params.push(branch.toLowerCase());
+    }
+
+    const [rows] = await dbPool.query(`
+      SELECT
+        ${granularity === 'year' ? 'YEAR(a.date)' : (granularity === 'day' ? 'DATE(a.date)' : "DATE_FORMAT(a.date, '%Y-%m')")} AS period,
+        SUM(CASE WHEN a.present = 1 THEN 1 ELSE 0 END) AS present_count,
+        SUM(CASE WHEN a.present = 0 THEN 1 ELSE 0 END) AS absent_count,
+        COUNT(*) AS total
+      FROM attendance a
+      JOIN bookings b ON a.booking_id = b.id
+      ${whereClause}
+      GROUP BY period
+      ORDER BY period DESC
+      LIMIT ${granularity === 'day' ? 30 : (granularity === 'year' ? 10 : 12)}
+    `, params);
+
+    res.json({ success: true, data: rows.reverse() });
+
+  } catch (err) {
+    console.error("ATTENDANCE TRENDS ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
 export default router;
