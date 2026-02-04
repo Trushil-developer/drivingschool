@@ -205,6 +205,12 @@
                         Screen Test Aid For Learner Licence
                     </header>
 
+                    <!-- Progress Bar -->
+                    <div class="exam-progress-container">
+                        <div class="exam-progress-bar" id="examProgressBar"></div>
+                        <span class="exam-progress-text" id="examProgressText">0/15 Answered</span>
+                    </div>
+
                     <section class="candidate-bar" id="candidateBar">
                         <div class="candidate-left">
                             <img src="images/logo.png" alt="RTO Logo">
@@ -225,33 +231,70 @@
                         </div>
                     </section>
 
-                    <form id="exam-form" autocomplete="off">
-
-                        <section class="question-box">
-                            <div class="question-header">
-                                <div class="question-label">
-                                    Question
-                                    <span id="current-question">1</span>
-                                </div>
-                                <div class="question-text" id="question-text"></div>
+                    <div class="exam-main-layout">
+                        <!-- Question Navigation Panel -->
+                        <aside class="question-nav-section" id="questionNavSection">
+                            <div class="nav-header">
+                                <h4>Question Navigator</h4>
                             </div>
-                        </section>
+                            <div class="nav-legend-container"></div>
+                            <div class="question-nav-panel" id="questionNavPanel">
+                                <!-- Navigation buttons will be rendered here -->
+                            </div>
+                            <div class="keyboard-hints">
+                                <p><strong>Keyboard Shortcuts:</strong></p>
+                                <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> Select option</span>
+                                <span><kbd>Enter</kbd> Confirm</span>
+                                <span><kbd>←</kbd><kbd>→</kbd> Navigate</span>
+                                <span><kbd>M</kbd> Mark for review</span>
+                            </div>
+                        </aside>
 
-                        <ul class="options-list" id="options-list"></ul>
+                        <div class="exam-question-area">
+                            <form id="exam-form" autocomplete="off">
 
-                        <div class="confirm-area">
-                            <button type="button" id="next-btn" class="confirm-btn" disabled>
-                                Confirm
-                            </button>
+                                <section class="question-box">
+                                    <div class="question-header">
+                                        <div class="question-label">
+                                            Question
+                                            <span id="current-question">1</span>
+                                        </div>
+                                        <div class="question-text" id="question-text"></div>
+                                    </div>
+                                </section>
+
+                                <ul class="options-list" id="options-list"></ul>
+
+                                <div class="exam-actions">
+                                    <div class="action-left">
+                                        <button type="button" id="prevQuestionBtn" class="nav-action-btn" title="Previous Question (←)">
+                                            ← Previous
+                                        </button>
+                                        <button type="button" id="markForReviewBtn" class="mark-review-btn" title="Mark for Review (M)">
+                                            <span class="mark-icon">☆</span> Mark for Review
+                                        </button>
+                                    </div>
+                                    <div class="action-center">
+                                        <button type="button" id="next-btn" class="confirm-btn" disabled>
+                                            Confirm
+                                        </button>
+                                    </div>
+                                    <div class="action-right">
+                                        <button type="button" id="skipQuestionBtn" class="nav-action-btn" title="Skip Question (→)">
+                                            Skip →
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="exam-footer">
+                                    Question
+                                    <span id="footer-current-question">1</span>
+                                    of
+                                    <span id="total-questions">15</span>
+                                </div>
+                            </form>
                         </div>
-
-                        <div class="exam-footer">
-                            Question
-                            <span id="footer-current-question">1</span>
-                            of
-                            <span id="total-questions">15</span>
-                        </div>
-                    </form>
+                    </div>
 
                     <section id="result-section" class="ll-result" hidden>
 
@@ -285,11 +328,14 @@
                                 </h3>
                             </div>
 
+                            <!-- Detailed Statistics -->
+                            <div id="result-stats" class="result-stats"></div>
+
                             <div class="ll-footer-message" id="ll-footer-message"></div>
 
                             <div class="ll-actions">
                                 <button id="reviewAnswersBtn" class="primary-btn">
-                                    Review Your Answers
+                                    📋 Review Your Answers
                                 </button>
                                 <button id="restartMockBtn" class="restart-btn">
                                     ⟳ Start New Mock Test

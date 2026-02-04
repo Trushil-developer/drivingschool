@@ -3348,7 +3348,7 @@
     "OPTION3": "Both have equal right of way",
     "ANSWER": "1",
     "IMAGE": null
-  }, 
+  },
   {
     "Q_NUMBER": "337",
     "CATEGORY": "Traffic Rules",
@@ -4298,15 +4298,5 @@
     "OPTION3": "Follow the vehicle",
     "ANSWER": "2",
     "IMAGE": "q435.jpg"
-  },
-  {
-    "Q_NUMBER": "436",
-    "CATEGORY": "Vehicle Controls & Documents",
-    "QUESTION": "What is indicated by these on the instrument console?",
-    "OPTION1": "warning lamps",
-    "OPTION2": "Road signs",
-    "OPTION3": "Hazard lamp",
-    "ANSWER": "1",
-    "IMAGE": "q436.jpg"
   }
 ]
