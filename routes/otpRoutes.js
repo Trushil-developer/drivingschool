@@ -119,7 +119,20 @@ router.post("/verify-email-otp", async (req, res) => {
       [email]
     );
 
-    res.json({ success: true });
+    // Set exam user session
+    const [userRow] = await dbPool.query(
+      "SELECT id, email FROM exam_users WHERE email = ? LIMIT 1",
+      [email]
+    );
+    if (userRow.length) {
+      req.session.examUser = { id: userRow[0].id, email: userRow[0].email };
+    }
+
+    // Explicitly save session before responding so checkSession() sees it
+    req.session.save((err) => {
+      if (err) console.error("Session save error:", err);
+      res.json({ success: true });
+    });
 
   } catch (err) {
     console.error("VERIFY OTP ERROR:", err);

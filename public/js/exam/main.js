@@ -1,30 +1,30 @@
 import { initEmailOtp } from "../otp/emailOtp.js";
 import { loadQuestions } from "./loader.js";
 import { dom } from "./dom.js";
-import { confirmAnswer, selectAnswer, markCurrentForReview, previousQuestion, nextQuestion } from "./actions.js";
+import { confirmAnswer, selectAnswer, markCurrentForReview, previousQuestion, nextQuestion, submitExamEarly } from "./actions.js";
 import { state, resetState } from "./state.js";
 import { stopTimer } from "./timer.js";
 import { renderNavigationLegend } from "./render.js";
-
-/**
- * Set true ONLY for local testing
- */
-const DEV_MODE = false;
+import { renderProgressMonitor } from "./progress.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
 
     /* ================= DOM ================= */
-    const startBtn = document.getElementById("startTestBtn");
     const mockTestBtn = document.getElementById("mockTestBtn");
     const practiceMenuBtn = document.getElementById("practiceMenuBtn");
+    const progressMonitorBtn = document.getElementById("progressMonitorBtn");
+    const dashboardBtn = document.getElementById("dashboardBtn");
 
     const emailInput = document.getElementById("gate-email");
     const otpInputs = document.querySelectorAll(".otp-input");
     const statusEl = document.getElementById("gate-otp-status");
 
+    const sidebar = document.getElementById("examSidebar");
     const authSection = document.getElementById("authSection");
+    const dashboardSection = document.getElementById("dashboardSection");
     const testSection = document.getElementById("testSection");
     const practiceSection = document.getElementById("practiceSection");
+    const progressSection = document.getElementById("progressSection");
     const practiceGrid = document.getElementById("practiceCategoryGrid");
 
     const reviewBtn = document.getElementById("reviewAnswersBtn");
@@ -44,16 +44,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         state.language = languageSelect.value;
         localStorage.setItem("examLang", state.language);
 
-        await loadPracticeCategories()
+        if (state.activeView === "practice") {
+            await loadPracticeCategories();
+        }
 
         if (state.mode === "mock" && testSection.style.display !== "none") {
             await loadQuestions();
         }
     });
-
-    /* ================= GLOBAL STATE ================= */
-    state.isVerified = false;
-    state.authPurpose = null;
 
     /* ================= INIT OTP ================= */
     const otpController = initEmailOtp({
@@ -61,68 +59,174 @@ document.addEventListener("DOMContentLoaded", async () => {
         sendBtn: document.getElementById("gate-send-otp"),
         otpInputs,
         statusEl,
-        onVerified: () => {
-            state.isVerified = true;
-            startBtn.disabled = false;
+        onVerified: async () => {
+            // After OTP verification, session is set server-side
+            // Check session to get user info
+            await checkSession();
         },
-        DEV_MODE
+        DEV_MODE: false
     });
 
-    /* ================= LOAD PRACTICE CATEGORIES ================= */
-    await loadPracticeCategories();
+    /* ================= SESSION CHECK ================= */
+    async function checkSession() {
+        try {
+            const res = await fetch('/api/exam/session');
+            const data = await res.json();
+            if (data.loggedIn) {
+                state.sessionUser = data.user;
+                showDashboard();
+            } else {
+                showLogin();
+            }
+        } catch (err) {
+            showLogin();
+        }
+    }
+
+    // Check session on page load
+    await checkSession();
+
+    /* ================= SHOW LOGIN ================= */
+    function showLogin() {
+        state.sessionUser = null;
+        state.activeView = 'login';
+        sidebar.style.display = "none";
+        hideAllSections();
+        authSection.style.display = "block";
+    }
+
+    /* ================= SHOW DASHBOARD ================= */
+    function showDashboard() {
+        state.activeView = 'dashboard';
+        sidebar.style.display = "";
+        document.getElementById("sidebarUserEmail").textContent = state.sessionUser.email;
+        hideAllSections();
+        dashboardSection.style.display = "block";
+        setActiveSidebar(dashboardBtn);
+    }
 
     /* ================= SIDEBAR EVENTS ================= */
+
+    // Dashboard
+    dashboardBtn.addEventListener("click", () => {
+        resetForNewExam();
+        showDashboard();
+    });
 
     // Mock Test
     mockTestBtn.addEventListener("click", () => {
         setActiveSidebar(mockTestBtn);
-        showSection(authSection);
-        state.authPurpose = "mock";
+        startMockTest();
     });
 
     // Practice
-    practiceMenuBtn.addEventListener("click", () => {
+    practiceMenuBtn.addEventListener("click", async () => {
         setActiveSidebar(practiceMenuBtn);
-        showSection(practiceSection);
+        state.activeView = 'practice';
+        hideAllSections();
+        practiceSection.style.display = "block";
+        await loadPracticeCategories();
     });
 
-    /* ================= START MOCK ================= */
-    startBtn.addEventListener("click", async () => {
-        if (!state.isVerified) {
-            alert("Please verify your email to start the mock test.");
-            return;
+    // Progress Monitor
+    progressMonitorBtn.addEventListener("click", async () => {
+        setActiveSidebar(progressMonitorBtn);
+        state.activeView = 'progress';
+        hideAllSections();
+        progressSection.style.display = "block";
+        const progressContent = document.getElementById("progressContent");
+        await renderProgressMonitor(progressContent);
+    });
+
+    // Logout
+    document.getElementById("examLogoutBtn").addEventListener("click", async () => {
+        try {
+            await fetch('/api/exam/logout', { method: 'POST' });
+        } catch (err) {
+            console.error("Logout error", err);
         }
-
-        const email = getEmail();
-        await startAttempt(email);
-        startExam("mock");
+        resetForNewExam();
+        // Reset OTP UI
+        emailInput.value = "";
+        otpController.resetOtp();
+        statusEl.textContent = "";
+        document.getElementById("gate-otp-box").style.display = "none";
+        showLogin();
     });
+
+    /* ================= DASHBOARD BUTTONS ================= */
+    document.getElementById("startMockFromDash").addEventListener("click", () => {
+        setActiveSidebar(mockTestBtn);
+        startMockTest();
+    });
+
+    document.getElementById("goToPracticeFromDash").addEventListener("click", async () => {
+        setActiveSidebar(practiceMenuBtn);
+        state.activeView = 'practice';
+        hideAllSections();
+        practiceSection.style.display = "block";
+        await loadPracticeCategories();
+    });
+
+    document.getElementById("goToProgressFromDash").addEventListener("click", async () => {
+        setActiveSidebar(progressMonitorBtn);
+        state.activeView = 'progress';
+        hideAllSections();
+        progressSection.style.display = "block";
+        const progressContent = document.getElementById("progressContent");
+        await renderProgressMonitor(progressContent);
+    });
+
+    /* ================= START MOCK TEST ================= */
+    async function startMockTest() {
+        resetForNewExam();
+        // Start attempt on server
+        try {
+            await fetch("/api/exam/attempt/start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({})
+            });
+        } catch (err) {
+            console.error("Failed to start attempt", err);
+        }
+        startExam("mock");
+    }
 
     if (restartBtn) {
         restartBtn.addEventListener("click", () => {
-            resetForNewExam();
-            setActiveSidebar(mockTestBtn);
-            showSection(authSection);
+            startMockTest();
         });
     }
 
     /* ================= PRACTICE CATEGORY ================= */
-    function renderPracticeCategories(categoryMap) {
+    function renderPracticeCategories(categoryMap, progressMap = {}) {
         practiceGrid.innerHTML = "";
 
         Object.entries(categoryMap).forEach(([cat, count]) => {
             const card = document.createElement("div");
             card.className = "practice-card";
 
+            const progress = progressMap[cat];
+            const answered = progress ? progress.answered : 0;
+            const correct = progress ? Number(progress.correct) : 0;
+            const progressPct = count > 0 ? Math.round((answered / count) * 100) : 0;
+
             card.innerHTML = `
                 <h3>${cat}</h3>
                 <p>${count} Questions</p>
+                ${answered > 0 ? `
+                    <div class="practice-card-progress">
+                        <div class="mini-progress-bar">
+                            <div class="mini-progress-fill" style="width: ${progressPct}%"></div>
+                        </div>
+                        <span class="practice-card-stats">${answered}/${count} done (${correct} correct)</span>
+                    </div>
+                ` : '<span class="practice-card-stats">Not started</span>'}
             `;
 
             card.addEventListener("click", () => {
-                resetForNewExam();
-                state.selectedCategory = cat;
-                startExam("practice");
+                startExam("practice", cat);
             });
 
             practiceGrid.appendChild(card);
@@ -140,20 +244,37 @@ document.addEventListener("DOMContentLoaded", async () => {
                 categoryMap[q.CATEGORY] = (categoryMap[q.CATEGORY] || 0) + 1;
             });
 
-            renderPracticeCategories(categoryMap);
+            // Fetch user's practice progress summary
+            let progressMap = {};
+            if (state.sessionUser) {
+                try {
+                    const progRes = await fetch(`/api/exam/practice/summary?language=${state.language}`);
+                    const progData = await progRes.json();
+                    if (progData.success) {
+                        progData.summary.forEach(s => {
+                            progressMap[s.category] = { answered: s.answered, correct: s.correct };
+                        });
+                    }
+                } catch (err) {
+                    console.error("Failed to load practice summary", err);
+                }
+            }
+
+            renderPracticeCategories(categoryMap, progressMap);
         } catch (err) {
             console.error("Failed to load categories", err);
         }
     }
 
     /* ================= START EXAM ================= */
-    function startExam(mode) {
+    function startExam(mode, category = null) {
         resetForNewExam();
         state.mode = mode;
+        state.selectedCategory = category;
         state.examStartTime = new Date();
 
         hideAllSections();
-        showSection(testSection);
+        testSection.style.display = "block";
 
         document.getElementById("exam-form").style.display = "block";
         document.body.classList.remove("mock-mode", "practice-mode");
@@ -164,23 +285,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         const navSection = document.getElementById("questionNavSection");
 
         header.style.display = mode === "mock" ? "block" : "none";
-        bar.style.display = "grid";
+        bar.style.display = mode === "mock" ? "grid" : "none";
+
+        // Practice mode header with back button
+        const practiceModeHeader = document.getElementById("practiceModeHeader");
+        if (practiceModeHeader) {
+            practiceModeHeader.style.display = mode === "practice" ? "flex" : "none";
+            const categoryLabel = document.getElementById("practiceCategoryLabel");
+            if (categoryLabel) categoryLabel.textContent = category || '';
+        }
 
         // Show navigation panel
         if (navSection) {
             navSection.style.display = "block";
-            // Add legend
             const legendContainer = navSection.querySelector(".nav-legend-container");
             if (legendContainer) {
                 legendContainer.innerHTML = renderNavigationLegend();
             }
         }
 
-        const timerBox = document.querySelector(".candidate-center");
-        timerBox.innerHTML =
-            mode === "mock"
-                ? `<div class="label">Time (Seconds)</div><div id="timer" class="time">48</div>`
-                : `<div class="label">Time</div><div class="time">∞</div>`;
+        if (mode === "mock") {
+            const timerBox = document.querySelector(".candidate-center");
+            timerBox.innerHTML = `<div class="label">Time (Seconds)</div><div id="timer" class="time">48</div>`;
+            const rightBox = document.querySelector(".candidate-right");
+            rightBox.innerHTML = `<div class="label">Score</div><div id="live-score" class="score">0.0</div>`;
+        }
 
         // Show/hide mark for review button based on mode
         const markBtn = document.getElementById("markForReviewBtn");
@@ -191,8 +320,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Show/hide navigation buttons based on mode
         const prevBtn = document.getElementById("prevQuestionBtn");
         const skipBtn = document.getElementById("skipQuestionBtn");
+        const submitBtn = document.getElementById("submitExamBtn");
         if (prevBtn) prevBtn.style.display = mode === "mock" ? "inline-flex" : "none";
         if (skipBtn) skipBtn.style.display = mode === "mock" ? "inline-flex" : "none";
+        if (submitBtn) submitBtn.style.display = mode === "mock" ? "inline-flex" : "none";
 
         loadQuestions();
         dom.nextBtn.onclick = confirmAnswer;
@@ -201,16 +332,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     /* ================= REVIEW ================= */
     if (reviewBtn) {
         reviewBtn.addEventListener("click", () => {
-            // Hide other sections but keep testSection visible since review is inside it
             authSection.style.display = "none";
             practiceSection.style.display = "none";
+            dashboardSection.style.display = "none";
+            progressSection.style.display = "none";
             testSection.style.display = "block";
 
-            // Hide result, show review
             resultSection.hidden = true;
             reviewSection.hidden = false;
 
-            // Hide nav section and candidate bar during review
             const navSection = document.getElementById("questionNavSection");
             if (navSection) navSection.style.display = "none";
             document.getElementById("candidateBar").style.display = "none";
@@ -223,7 +353,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (backBtn) {
         backBtn.addEventListener("click", () => {
-            // Hide review, show result
             reviewSection.hidden = true;
             resultSection.hidden = false;
         });
@@ -236,20 +365,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     /* ================= NAVIGATION BUTTONS ================= */
-    const prevBtn = document.getElementById("prevQuestionBtn");
-    const skipBtn = document.getElementById("skipQuestionBtn");
+    const prevBtnEl = document.getElementById("prevQuestionBtn");
+    const skipBtnEl = document.getElementById("skipQuestionBtn");
 
-    if (prevBtn) {
-        prevBtn.addEventListener("click", previousQuestion);
+    if (prevBtnEl) {
+        prevBtnEl.addEventListener("click", previousQuestion);
     }
 
-    if (skipBtn) {
-        skipBtn.addEventListener("click", nextQuestion);
+    if (skipBtnEl) {
+        skipBtnEl.addEventListener("click", nextQuestion);
+    }
+
+    const submitExamBtn = document.getElementById("submitExamBtn");
+    if (submitExamBtn) {
+        submitExamBtn.addEventListener("click", submitExamEarly);
+    }
+
+    /* ================= BACK TO CATEGORIES (PRACTICE) ================= */
+    const backToCatBtn = document.getElementById("backToCategoriesBtn2");
+    if (backToCatBtn) {
+        backToCatBtn.addEventListener("click", async () => {
+            resetForNewExam();
+            setActiveSidebar(practiceMenuBtn);
+            state.activeView = 'practice';
+            hideAllSections();
+            practiceSection.style.display = "block";
+            await loadPracticeCategories();
+        });
     }
 
     /* ================= KEYBOARD NAVIGATION ================= */
     document.addEventListener("keydown", (e) => {
-        // Only handle if exam is active
         if (testSection.style.display === "none") return;
         if (document.getElementById("exam-form").style.display === "none") return;
 
@@ -292,57 +438,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         stopTimer();
         resetState();
 
-        state.isVerified = false;
         state.selectedCategory = null;
 
-        emailInput.value = "";
-        otpController.resetOtp();
-        statusEl.textContent = "";
-        document.getElementById("gate-otp-box").style.display = "none";
-
-        dom.liveScoreEl.textContent = "0.0";
+        if (dom.liveScoreEl) dom.liveScoreEl.textContent = "0.0";
         dom.currentQuestionNum.textContent = "1";
         dom.footerCurrentQuestion.textContent = "1";
         dom.totalQuestionsEl.textContent = "0";
 
-        // Reset progress bar
         const progressBar = document.getElementById("examProgressBar");
         if (progressBar) progressBar.style.width = "0%";
+
+        // Show progress container again (might have been hidden during review)
+        const progressContainer = document.querySelector(".exam-progress-container");
+        if (progressContainer) progressContainer.style.display = "";
     }
 
     function hideAllSections() {
         authSection.style.display = "none";
+        dashboardSection.style.display = "none";
         testSection.style.display = "none";
         practiceSection.style.display = "none";
+        progressSection.style.display = "none";
         resultSection.hidden = true;
         reviewSection.hidden = true;
-    }
-
-    function showSection(section) {
-        hideAllSections();
-        section.style.display = "block";
-    }
-
-    function getEmail() {
-        const email =
-            sessionStorage.getItem("examEmail") ||
-            emailInput.value.trim() ||
-            "dev@example.com";
-
-        sessionStorage.setItem("examEmail", email);
-        return email;
-    }
-
-    async function startAttempt(email) {
-        try {
-            await fetch("/api/exam/attempt/start", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email })
-            });
-        } catch (err) {
-            console.error("Failed to start attempt", err);
-        }
     }
 
     function setActiveSidebar(el) {
@@ -355,7 +473,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     function buildReview() {
         reviewList.innerHTML = "";
 
-        // Summary stats
         let correct = 0, incorrect = 0, unanswered = 0;
         state.questions.forEach((q, i) => {
             if (state.userAnswers[i] === null || state.userAnswers[i] === undefined) {
@@ -389,9 +506,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <span class="review-q-num">Q${i + 1}</span>
                     <span class="review-q-text">${q.question}</span>
                     <span class="review-status ${isUnanswered ? "unanswered" : userAns === correctAns ? "correct" : "wrong"}">
-                        ${isUnanswered ? "—" : userAns === correctAns ? "✔" : "✖"}
+                        ${isUnanswered ? "\u2014" : userAns === correctAns ? "\u2714" : "\u2716"}
                     </span>
-                    <span class="toggle-icon">▼</span>
+                    <span class="toggle-icon">\u25BC</span>
                 </div>
                 <div class="review-options" hidden>
                     ${q.options.map((opt, idx) => `
@@ -415,7 +532,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             header.addEventListener("click", () => {
                 const open = !options.hidden;
                 options.hidden = open;
-                icon.textContent = open ? "▼" : "▲";
+                icon.textContent = open ? "\u25BC" : "\u25B2";
             });
 
             reviewList.appendChild(li);

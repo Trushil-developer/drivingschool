@@ -183,6 +183,24 @@ app.post('/api/logout', (req, res) => {
   });
 });
 
+// ---------- EXAM USER SESSION ----------
+app.get('/api/exam/session', (req, res) => {
+  if (req.session && req.session.examUser) {
+    res.json({ success: true, loggedIn: true, user: req.session.examUser });
+  } else {
+    res.json({ success: true, loggedIn: false });
+  }
+});
+
+app.post('/api/exam/logout', (req, res) => {
+  if (req.session.examUser) {
+    delete req.session.examUser;
+  }
+  req.session.save(() => {
+    res.json({ success: true });
+  });
+});
+
 // ---------- BOOKINGS CRUD ----------
 app.post('/api/bookings', async (req, res, next) => {
   const data = req.body;
@@ -856,4 +874,9 @@ app.listen(PORT, '0.0.0.0', () => {
 export function requireAdmin(req, res, next) {
   if (req.session && req.session.adminLoggedIn) return next();
   return res.status(401).json({ success: false, error: 'Unauthorized access' });
+}
+
+export function requireExamUser(req, res, next) {
+  if (req.session && req.session.examUser) return next();
+  return res.status(401).json({ success: false, error: 'Not logged in' });
 }

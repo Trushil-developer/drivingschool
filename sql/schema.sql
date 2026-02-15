@@ -1853,3 +1853,43 @@ SET @sql := IF(
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- PRACTICE PROGRESS TABLE
+-- =====================================
+
+CREATE TABLE IF NOT EXISTS practice_progress (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    question_number VARCHAR(10) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    language VARCHAR(5) DEFAULT 'en',
+    selected_answer INT NOT NULL,
+    is_correct TINYINT(1) DEFAULT 0,
+    answered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_question_lang (user_id, question_number, language),
+    CONSTRAINT fk_practice_progress_user FOREIGN KEY (user_id) REFERENCES exam_users(id) ON DELETE CASCADE
+);
+
+-- practice_progress indexes
+SET @idx_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE table_schema='drivingschool'
+      AND table_name='practice_progress'
+      AND index_name='idx_practice_progress_user'
+);
+SET @sql := IF(@idx_exists=0,
+    'CREATE INDEX idx_practice_progress_user ON practice_progress (user_id);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE table_schema='drivingschool'
+      AND table_name='practice_progress'
+      AND index_name='idx_practice_progress_category'
+);
+SET @sql := IF(@idx_exists=0,
+    'CREATE INDEX idx_practice_progress_category ON practice_progress (user_id, category, language);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

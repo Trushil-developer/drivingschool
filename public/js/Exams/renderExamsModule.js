@@ -4,6 +4,7 @@ let allUsers = [];
 let allAttempts = [];
 let allQuestions = [];
 let questionCategories = [];
+let allPracticeProgress = [];
 
 export function renderExamsModule(container) {
     return async function renderExams() {
@@ -17,6 +18,7 @@ export function renderExamsModule(container) {
                     <button class="tab-btn active" data-tab="overview">Overview</button>
                     <button class="tab-btn" data-tab="users">Users</button>
                     <button class="tab-btn" data-tab="attempts">Attempts</button>
+                    <button class="tab-btn" data-tab="practice">Practice Progress</button>
                     <button class="tab-btn" data-tab="questions">Question Bank</button>
                 </div>
 
@@ -24,6 +26,7 @@ export function renderExamsModule(container) {
                     <div id="examOverview" class="tab-content active"></div>
                     <div id="examUsers" class="tab-content hidden"></div>
                     <div id="examAttempts" class="tab-content hidden"></div>
+                    <div id="examPractice" class="tab-content hidden"></div>
                     <div id="examQuestions" class="tab-content hidden"></div>
                 </div>
             </div>
@@ -42,6 +45,7 @@ export function renderExamsModule(container) {
 
                 if (tabId === 'users') loadUsers();
                 else if (tabId === 'attempts') loadAttempts();
+                else if (tabId === 'practice') loadPracticeProgress();
                 else if (tabId === 'questions') loadQuestions();
             });
         });
@@ -63,8 +67,9 @@ async function loadOverview() {
 
         if (!overviewRes.success) throw new Error('Failed to load overview');
 
-        const { stats, recentActivity } = overviewRes;
+        const { stats, recentActivity, practiceStats } = overviewRes;
         const scoreDistribution = scoreDistRes.success ? scoreDistRes.distribution : [];
+        const ps = practiceStats || {};
 
         container.innerHTML = `
             <div class="exam-stats-cards">
@@ -93,6 +98,28 @@ async function loadOverview() {
                     <p class="stat-value">${stats.avgScore}%</p>
                 </div>
             </div>
+
+            ${ps.practicingUsers !== undefined ? `
+            <div class="overview-section-title">Practice Stats</div>
+            <div class="exam-stats-cards">
+                <div class="stat-card">
+                    <h4>Practicing Users</h4>
+                    <p class="stat-value">${ps.practicingUsers}</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Total Answers</h4>
+                    <p class="stat-value">${ps.totalAnswers}</p>
+                </div>
+                <div class="stat-card success">
+                    <h4>Correct Answers</h4>
+                    <p class="stat-value">${ps.correctAnswers}</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Accuracy</h4>
+                    <p class="stat-value">${ps.totalAnswers > 0 ? Math.round((ps.correctAnswers / ps.totalAnswers) * 100) : 0}%</p>
+                </div>
+            </div>
+            ` : ''}
 
             <div class="exam-charts">
                 <div class="chart-section">
@@ -301,6 +328,7 @@ function renderUserRows(users) {
             <td class="${u.last_result === 'PASS' ? 'status-pass' : u.last_result === 'FAIL' ? 'status-fail' : ''}">${u.last_result || '-'}</td>
             <td class="action-btns">
                 <button class="btn btn-sm view-attempts" data-user-id="${u.id}" data-email="${u.email}">View</button>
+                <button class="btn btn-sm btn-info view-practice" data-user-id="${u.id}" data-email="${u.email}">Practice</button>
                 <button class="btn btn-sm btn-warning reset-attempts" data-user-id="${u.id}" data-email="${u.email}">Reset</button>
                 <button class="btn btn-sm btn-danger delete-user" data-user-id="${u.id}" data-email="${u.email}">Delete</button>
             </td>
@@ -334,6 +362,20 @@ function attachUserActions(container) {
             document.querySelector('.tab-btn[data-tab="attempts"]').classList.add('active');
             document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
             document.getElementById('examAttempts').classList.remove('hidden');
+        });
+    });
+
+    // View practice progress
+    container.querySelectorAll('.view-practice').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const userId = btn.dataset.userId;
+            const email = btn.dataset.email;
+            loadPracticeProgress(userId, email);
+
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.tab-btn[data-tab="practice"]').classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            document.getElementById('examPractice').classList.remove('hidden');
         });
     });
 
@@ -829,6 +871,111 @@ async function saveQuestion() {
         console.error('Save question error:', err);
         alert('Failed to save question');
     }
+}
+
+async function loadPracticeProgress(filterUserId = null, filterEmail = null) {
+    const container = document.getElementById('examPractice');
+    container.innerHTML = '<div class="loading">Loading...</div>';
+
+    try {
+        const res = await window.api('/api/exam/admin/practice-progress');
+        if (!res.success) throw new Error('Failed to load practice progress');
+
+        allPracticeProgress = res.progress;
+
+        const headerText = filterEmail ? `Practice Progress for ${filterEmail}` : 'All Practice Progress';
+        const clearFilter = filterUserId ? `<button class="btn btn-sm clear-practice-filter">Show All</button>` : '';
+
+        // Group by user
+        let grouped = {};
+        allPracticeProgress.forEach(p => {
+            if (filterUserId && String(p.user_id) !== String(filterUserId)) return;
+            if (!grouped[p.user_id]) {
+                grouped[p.user_id] = { email: p.email, categories: {} };
+            }
+            grouped[p.user_id].categories[p.category] = {
+                answered: p.answered,
+                correct: Number(p.correct),
+                language: p.language
+            };
+        });
+
+        const userEntries = Object.entries(grouped);
+
+        if (!userEntries.length) {
+            container.innerHTML = `
+                <div class="attempts-header">
+                    <h3>${headerText}</h3>
+                    ${clearFilter}
+                </div>
+                <div class="empty">No practice progress found</div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="attempts-header">
+                <h3>${headerText}</h3>
+                <div class="header-actions">${clearFilter}</div>
+            </div>
+            <div class="exam-toolbar">
+                <div class="search-box">
+                    <input type="text" id="practiceSearch" placeholder="Search by email..." class="search-input">
+                </div>
+            </div>
+            <div class="practice-admin-list" id="practiceAdminList">
+                ${renderPracticeUsers(userEntries)}
+            </div>
+        `;
+
+        container.querySelector('.clear-practice-filter')?.addEventListener('click', () => {
+            loadPracticeProgress();
+        });
+
+        document.getElementById('practiceSearch')?.addEventListener('input', (e) => {
+            const search = e.target.value.toLowerCase();
+            const filtered = userEntries.filter(([, data]) => data.email.toLowerCase().includes(search));
+            document.getElementById('practiceAdminList').innerHTML = renderPracticeUsers(filtered);
+        });
+
+    } catch (err) {
+        console.error('Practice progress error:', err);
+        container.innerHTML = '<div class="error">Failed to load practice progress</div>';
+    }
+}
+
+function renderPracticeUsers(userEntries) {
+    return userEntries.map(([userId, data]) => {
+        const categories = Object.entries(data.categories);
+        const totalAnswered = categories.reduce((sum, [, c]) => sum + c.answered, 0);
+        const totalCorrect = categories.reduce((sum, [, c]) => sum + c.correct, 0);
+        const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+
+        return `
+            <div class="practice-user-card">
+                <div class="practice-user-header">
+                    <div>
+                        <strong>${data.email}</strong>
+                        <span class="practice-user-stats">${totalAnswered} answered, ${totalCorrect} correct (${accuracy}%)</span>
+                    </div>
+                </div>
+                <div class="practice-user-categories">
+                    ${categories.map(([cat, info]) => {
+                        const catAccuracy = info.answered > 0 ? Math.round((info.correct / info.answered) * 100) : 0;
+                        return `
+                            <div class="practice-cat-item">
+                                <span class="practice-cat-name">${cat}</span>
+                                <div class="practice-cat-bar-wrap">
+                                    <div class="practice-cat-bar" style="width: ${catAccuracy}%"></div>
+                                </div>
+                                <span class="practice-cat-stats">${info.correct}/${info.answered} (${catAccuracy}%)</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function formatDate(dateStr) {

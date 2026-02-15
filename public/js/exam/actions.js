@@ -49,6 +49,26 @@ export function selectAnswer(index) {
         dom.nextBtn.disabled = false;
         updateProgressBar();
         updateNavigationPanel();
+
+        // Save practice answer to server
+        if (state.sessionUser) {
+            fetch("/api/exam/practice/answer", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    question_number: q.qNumber,
+                    category: state.selectedCategory,
+                    language: state.language,
+                    selected_answer: index,
+                    is_correct: index === q.answer ? 1 : 0
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) console.error("Save practice answer failed:", data);
+            })
+            .catch(err => console.error("Failed to save practice answer", err));
+        }
         return;
     }
 
@@ -116,7 +136,7 @@ export function confirmAnswer() {
 
     if (selected === q.answer) {
         state.score += 1;
-        dom.liveScoreEl.textContent = state.score.toFixed(1);
+        if (dom.liveScoreEl) dom.liveScoreEl.textContent = state.score.toFixed(1);
     }
 
     state.currentQuestionIndex++;
@@ -143,12 +163,13 @@ export function submitExamEarly() {
         if (!confirm) return;
     }
 
-    // Calculate score for all answered questions
-    state.questions.forEach((q, i) => {
-        if (state.userAnswers[i] === q.answer && !state.answeredCorrectly?.[i]) {
+    // Score remaining questions that weren't confirmed yet
+    // confirmAnswer() already scored questions before currentQuestionIndex
+    for (let i = state.currentQuestionIndex; i < state.questions.length; i++) {
+        if (state.userAnswers[i] === state.questions[i].answer) {
             state.score += 1;
         }
-    });
+    }
 
     stopTimer();
     finishExam();
@@ -167,7 +188,6 @@ async function finishExam() {
     const navSection = document.getElementById("questionNavSection");
     if (navSection) navSection.style.display = "none";
 
-    const email = sessionStorage.getItem("examEmail");
     const score = state.score;
     const total = state.questions.length;
     const passed = score >= 9;
@@ -189,7 +209,7 @@ async function finishExam() {
 
     document.getElementById("final-score").textContent = score.toFixed(0);
     document.getElementById("final-total").textContent = total;
-    document.getElementById("result-email").textContent = email;
+    document.getElementById("result-email").textContent = state.sessionUser?.email || "";
 
     document.getElementById("result-pass").classList.toggle("hidden", !passed);
     document.getElementById("result-fail").classList.toggle("hidden", passed);
@@ -244,7 +264,6 @@ async function finishExam() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                email,
                 score,
                 total_questions: total
             })

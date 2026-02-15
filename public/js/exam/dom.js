@@ -9,5 +9,7 @@ export const dom = {
     },
 
     nextBtn: document.getElementById("next-btn"),
-    liveScoreEl: document.getElementById("live-score")
+    get liveScoreEl() {
+        return document.getElementById("live-score");
+    }
 };

@@ -29,6 +29,11 @@ export function renderQuestion() {
         dom.nextBtn.disabled = false;
     }
 
+    // If previously answered in practice mode, enable next
+    if (state.mode === "practice" && state.userAnswers[state.currentQuestionIndex] !== null && state.userAnswers[state.currentQuestionIndex] !== undefined) {
+        dom.nextBtn.disabled = false;
+    }
+
     // Question text
     dom.questionText.innerHTML = `
         ${q.image ? `<img src="${q.image}" alt="" class="question-image">` : ""}
@@ -116,9 +121,12 @@ export function updateNavigationPanel() {
         const isAnswered = state.userAnswers[i] !== null && state.userAnswers[i] !== undefined;
         const isMarked = isMarkedForReview(i);
 
+        const isPreviouslyAnswered = state.mode === "practice" && isAnswered && state.practiceProgress[state.questions[i]?.qNumber];
+
         let statusClass = "nav-btn";
         if (isCurrent) statusClass += " current";
         if (isAnswered) statusClass += " answered";
+        if (isPreviouslyAnswered) statusClass += " previously-answered";
         if (isMarked) statusClass += " marked";
 
         return `<button class="${statusClass}" data-index="${i}" title="Question ${i + 1}${isMarked ? ' (Marked for Review)' : ''}">${i + 1}</button>`;
@@ -145,11 +153,12 @@ export function updateMarkForReviewBtn() {
 }
 
 export function renderNavigationLegend() {
+    const isPractice = state.mode === "practice";
     return `
         <div class="nav-legend">
             <span class="legend-item"><span class="legend-dot current"></span> Current</span>
             <span class="legend-item"><span class="legend-dot answered"></span> Answered</span>
-            <span class="legend-item"><span class="legend-dot marked"></span> Marked</span>
+            ${isPractice ? '<span class="legend-item"><span class="legend-dot previously-answered"></span> Previously Done</span>' : '<span class="legend-item"><span class="legend-dot marked"></span> Marked</span>'}
             <span class="legend-item"><span class="legend-dot"></span> Not Visited</span>
         </div>
     `;

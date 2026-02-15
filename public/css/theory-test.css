@@ -57,6 +57,8 @@ body {
     background: #f9fbff;
     border-right: 1px solid #dde3ea;
     padding: 16px;
+    display: flex;
+    flex-direction: column;
 }
 
 .sidebar-list {
@@ -359,8 +361,7 @@ body {
 /* =====================================
    PRACTICE MODE – HIDE TOP BAR
 ===================================== */
-.practice-mode .rto-header,
-.practice-mode .candidate-bar {
+.practice-mode .rto-header {
     display: none !important;
 }
 
@@ -976,5 +977,635 @@ body {
 
     .result-stats-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ==================================================
+   SIDEBAR USER INFO & LOGOUT
+================================================== */
+.sidebar-user-info {
+    padding: 16px;
+    border-top: 1px solid #e5eaf0;
+    margin-top: auto;
+}
+
+#sidebarUserEmail {
+    font-size: 13px;
+    color: #6b7280;
+    word-break: break-all;
+    margin-bottom: 10px;
+}
+
+.logout-btn {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ef4444;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #ef4444;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.logout-btn:hover {
+    background: #fef2f2;
+}
+
+/* ==================================================
+   DASHBOARD SECTION
+================================================== */
+.dashboard-section {
+    padding: 20px;
+}
+
+.dashboard-section h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: #1f2937;
+}
+
+.dashboard-section .dashboard-subtitle {
+    color: #6b7280;
+    font-size: 14px;
+    margin: 0 0 24px;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.dashboard-card {
+    padding: 28px 24px;
+    background: #ffffff;
+    border: 1px solid #e5eaf0;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    border-color: #1a73e8;
+}
+
+.dashboard-card .dash-card-icon {
+    font-size: 40px;
+    margin-bottom: 14px;
+}
+
+.dashboard-card h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    color: #1f2937;
+}
+
+.dashboard-card p {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* ==================================================
+   PREVIOUSLY ANSWERED NAV BUTTON
+================================================== */
+.nav-btn.previously-answered {
+    background: #6366f1;
+    color: #ffffff;
+    border-color: #6366f1;
+}
+
+.legend-dot.previously-answered {
+    background: #6366f1;
+    border-color: #6366f1;
+}
+
+/* ==================================================
+   PRACTICE CARD PROGRESS
+================================================== */
+.practice-card-progress {
+    margin-top: 10px;
+}
+
+.mini-progress-bar {
+    height: 6px;
+    background: #e5eaf0;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.mini-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #1a73e8, #10b981);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.practice-card-stats {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* ==================================================
+   PROGRESS MONITOR
+================================================== */
+.progress-section {
+    padding: 20px;
+}
+
+.loading-progress {
+    text-align: center;
+    padding: 40px;
+    color: #6b7280;
+    font-size: 15px;
+}
+
+.error-msg {
+    text-align: center;
+    padding: 40px;
+    color: #ef4444;
+    font-size: 15px;
+}
+
+.empty-msg {
+    text-align: center;
+    padding: 24px;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+/* Progress Overview Cards */
+.progress-overview {
+    margin-bottom: 28px;
+}
+
+.progress-stat-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.progress-stat-card {
+    background: #ffffff;
+    border: 1px solid #e5eaf0;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+}
+
+.progress-stat-card h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.progress-stat-card .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.progress-stat-card .stat-value.pass-text {
+    color: #10b981;
+}
+
+.progress-stat-card .stat-value.fail-text {
+    color: #ef4444;
+}
+
+/* Progress Section Block */
+.progress-section-block {
+    margin-bottom: 28px;
+}
+
+.progress-section-block h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 16px;
+    color: #1f2937;
+}
+
+/* Mock History Table */
+.progress-table-wrap {
+    overflow-x: auto;
+}
+
+.progress-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.progress-table th,
+.progress-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #e5eaf0;
+}
+
+.progress-table th {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #374151;
+    font-size: 13px;
+}
+
+.progress-table tr:hover td {
+    background: #f9fbff;
+}
+
+.result-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.result-badge.pass {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.result-badge.fail {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+/* Practice Progress Grid */
+.practice-progress-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.practice-progress-card {
+    background: #ffffff;
+    border: 1px solid #e5eaf0;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.practice-progress-card h4 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.progress-bar-container {
+    height: 8px;
+    background: #e5eaf0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #1a73e8, #10b981);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.practice-progress-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.practice-progress-stats .accuracy {
+    font-weight: 600;
+    color: #1a73e8;
+}
+
+/* ==================================================
+   PRIMARY BUTTON
+================================================== */
+.primary-btn {
+    background: #1a73e8;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 32px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.primary-btn:hover {
+    background: #1558b0;
+}
+
+/* ==================================================
+   RESPONSIVE - DASHBOARD & PROGRESS
+================================================== */
+@media (max-width: 900px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .progress-stat-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .practice-progress-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar-user-info {
+        padding: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .progress-stat-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-card {
+        padding: 20px 16px;
+    }
+}
+
+/* ==================================================
+   EXAM INTRO CARD (ENHANCED)
+================================================== */
+.exam-intro-badge {
+    display: inline-block;
+    background: #ecfdf5;
+    color: #047857;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+}
+
+.exam-features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.exam-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e5eaf0;
+}
+
+.exam-feature .feature-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.exam-feature strong {
+    display: block;
+    font-size: 14px;
+    color: #1f2937;
+    margin-bottom: 2px;
+}
+
+.exam-feature span {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.exam-trust-signals {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: #047857;
+    margin-top: 12px;
+}
+
+.exam-trust-signals span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ==================================================
+   FAQ SECTION
+================================================== */
+.exam-faq-section {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid #e5eaf0;
+}
+
+.exam-faq-section h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 16px;
+    color: #1f2937;
+}
+
+.faq-item {
+    border: 1px solid #e5eaf0;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.faq-item summary {
+    padding: 14px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    background: #f9fbff;
+    transition: background 0.2s;
+    list-style: none;
+}
+
+.faq-item summary::-webkit-details-marker {
+    display: none;
+}
+
+.faq-item summary::before {
+    content: "+";
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #e5eaf0;
+    font-size: 14px;
+    font-weight: 700;
+    margin-right: 10px;
+    flex-shrink: 0;
+    transition: 0.2s;
+}
+
+.faq-item[open] summary::before {
+    content: "\2212";
+    background: #1a73e8;
+    color: #ffffff;
+}
+
+.faq-item summary:hover {
+    background: #eef5ff;
+}
+
+.faq-item p {
+    padding: 0 16px 14px;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #6b7280;
+}
+
+/* ==================================================
+   SUBMIT EXAM BUTTON
+================================================== */
+.submit-exam-btn {
+    padding: 10px 16px;
+    border: 1px solid #ef4444;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #ef4444;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.submit-exam-btn:hover {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #dc2626;
+}
+
+/* ==================================================
+   WEAK AREAS
+================================================== */
+.weak-areas-block {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 28px;
+}
+
+.weak-areas-block h3 {
+    color: #92400e;
+}
+
+.weak-areas-hint {
+    font-size: 13px;
+    color: #92400e;
+    margin: 0 0 16px;
+}
+
+.weak-areas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.weak-area-card {
+    background: #ffffff;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    padding: 14px;
+}
+
+.weak-area-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.weak-area-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.weak-area-accuracy {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ef4444;
+}
+
+.progress-bar-fill.weak {
+    background: linear-gradient(90deg, #ef4444, #f59e0b);
+}
+
+.weak-area-detail {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+    display: block;
+}
+
+/* ==================================================
+   MOCK MODE - SELECTED OPTION HIGHLIGHT
+================================================== */
+.mock-mode .options-list li.selected {
+    border-color: #1a73e8;
+    background: #eef5ff;
+}
+
+.mock-mode .options-list li.selected label {
+    font-weight: 500;
+}
+
+/* ==================================================
+   RESPONSIVE - NEW COMPONENTS
+================================================== */
+@media (max-width: 900px) {
+    .exam-features-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .exam-trust-signals {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .weak-areas-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .practice-mode-header {
+        flex-direction: column;
+        gap: 8px;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .exam-feature {
+        padding: 10px;
+    }
+
+    .faq-item summary {
+        font-size: 13px;
+        padding: 12px;
     }
 }

@@ -11,7 +11,10 @@ export const state = {
     selectedCategory: null,
     language: "en",
     examStartTime: null,
-    examEndTime: null
+    examEndTime: null,
+    sessionUser: null,
+    activeView: 'login',
+    practiceProgress: {}
 };
 
 export function resetState() {
@@ -23,6 +26,7 @@ export function resetState() {
     state.timeLeft = 48;
     state.examStartTime = null;
     state.examEndTime = null;
+    state.practiceProgress = {};
 }
 
 export function toggleMarkForReview(index) {

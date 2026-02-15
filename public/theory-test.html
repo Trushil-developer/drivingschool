@@ -29,6 +29,24 @@
     <meta property="og:image" content="https://dwarkeshdrivingschool.com/images/logo.png">
     <meta property="og:url" content="https://dwarkeshdrivingschool.com/theory-test.html">
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Dwarkesh Motor Driving School">
+    <meta property="og:locale" content="en_IN">
+
+    <!-- =========================================================
+         TWITTER CARD
+    ========================================================= -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="RTO Learner Licence Theory Test | Mock Exam & Practice">
+    <meta name="twitter:description"
+        content="Free online RTO Learner Licence theory test with mock exam, category-wise practice & instant results. Prepare for your LL test now.">
+    <meta name="twitter:image" content="https://dwarkeshdrivingschool.com/images/logo.png">
+
+    <!-- =========================================================
+         LANGUAGE ALTERNATES
+    ========================================================= -->
+    <link rel="alternate" hreflang="en" href="https://dwarkeshdrivingschool.com/theory-test.html">
+    <link rel="alternate" hreflang="gu" href="https://dwarkeshdrivingschool.com/theory-test.html?lang=gu">
+    <link rel="alternate" hreflang="x-default" href="https://dwarkeshdrivingschool.com/theory-test.html">
 
     <!-- =========================================================
          CSS
@@ -42,7 +60,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati&display=swap" rel="stylesheet">
 
     <!-- =========================================================
-         STRUCTURED DATA – WEBPAGE
+         STRUCTURED DATA - WEBPAGE
     ========================================================= -->
     <script type="application/ld+json">
     {
@@ -60,7 +78,7 @@
     </script>
 
     <!-- =========================================================
-         STRUCTURED DATA – EDUCATIONAL SERVICE
+         STRUCTURED DATA - EDUCATIONAL SERVICE
     ========================================================= -->
     <script type="application/ld+json">
     {
@@ -77,7 +95,75 @@
     </script>
 
     <!-- =========================================================
-         GOOGLE ANALYTICS (OPTIONAL – SAME PROPERTY)
+         STRUCTURED DATA - FAQ
+    ========================================================= -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": "How many questions are in the RTO Learner Licence theory test?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "The RTO Learner Licence theory test consists of 15 multiple-choice questions (MCQs). Each question has 3 options (A, B, C) and you get 48 seconds per question. You need to score at least 9 out of 15 to pass."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "What is the pass mark for the RTO LL theory exam?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "You need to correctly answer at least 9 out of 15 questions (60%) to pass the RTO Learner Licence theory test."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "What topics are covered in the RTO theory test?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "The test covers Traffic Rules, Road Signs, Vehicle Knowledge, First Aid, Road Safety, and Motor Vehicle Act regulations. Questions are based on the official RTO syllabus for Light Motor Vehicle (LMV) category."
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "Can I practice RTO theory test questions before the exam?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes. Our platform offers category-wise practice questions where you can study at your own pace with instant feedback. You can also take timed mock tests that simulate the real RTO exam experience."
+                }
+            }
+        ]
+    }
+    </script>
+
+    <!-- =========================================================
+         STRUCTURED DATA - BREADCRUMB
+    ========================================================= -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://dwarkeshdrivingschool.com"
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "RTO Theory Test",
+                "item": "https://dwarkeshdrivingschool.com/theory-test.html"
+            }
+        ]
+    }
+    </script>
+
+    <!-- =========================================================
+         GOOGLE ANALYTICS
     ========================================================= -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-HRGDQJKW55"></script>
     <script>
@@ -103,58 +189,121 @@
         <div class="exam-layout">
 
             <!-- ================= SIDEBAR ================= -->
-            <aside class="exam-sidebar">
+            <aside class="exam-sidebar" id="examSidebar" style="display:none;">
                 <!-- LANGUAGE SELECTOR -->
                 <div class="sidebar-language-select">
-                    <label for="languageSelect">🌐 Language</label>
+                    <label for="languageSelect">Language</label>
                     <select id="languageSelect">
                         <option value="en">English</option>
-                        <option value="gu">ગુજરાતી</option>
+                        <option value="gu">Gujarati</option>
                     </select>
                 </div>
 
                 <ul class="sidebar-list">
-                    <li id="mockTestBtn" class="sidebar-item active">
-                        📝 Mock Test (Real Exam)
+                    <li id="dashboardBtn" class="sidebar-item active">
+                        Dashboard
+                    </li>
+                    <li id="mockTestBtn" class="sidebar-item">
+                        Mock Test (Real Exam)
                     </li>
                     <li id="practiceMenuBtn" class="sidebar-item">
-                        📘 Practice Revision Questions
+                        Practice Revision Questions
+                    </li>
+                    <li id="progressMonitorBtn" class="sidebar-item">
+                        Progress Monitor
                     </li>
                 </ul>
+
+                <div class="sidebar-user-info" id="sidebarUserInfo">
+                    <span id="sidebarUserEmail"></span>
+                    <button id="examLogoutBtn" class="logout-btn">Logout</button>
+                </div>
             </aside>
 
 
             <!-- ================= MAIN CONTENT ================= -->
             <section class="exam-content">
 
-                <!-- ================= EMAIL + OTP ================= -->
+                <!-- ================= LOGIN (EMAIL + OTP) ================= -->
                 <section class="test-auth-section" id="authSection">
                     <div class="otp-gate" id="otp-gate">
 
                         <!-- ================= EXAM INFO ================= -->
                         <div class="exam-intro-card">
-                            <h1>Car Driver – RTO Theory Exam</h1>
+                            <h1>RTO Learner Licence Theory Test - LMV</h1>
+                            <p class="exam-intro-badge">Based on official RTO exam pattern</p>
 
                             <p class="exam-intro-text">
-                                During this <strong>Car Theory Test</strong>, you will be asked
-                                <strong>15 multiple-choice questions</strong>.
-                                You will have <strong>48 seconds</strong> to choose the correct answer
-                                for each question.
+                                Prepare for your <strong>RTO Learner Licence (LL) theory exam</strong> with
+                                our online mock tests and category-wise practice questions. This platform
+                                simulates the <strong>real computer-based test</strong> at the RTO office
+                                &mdash; same format, same time limit, same pass criteria.
                             </p>
 
-                            <ul class="exam-rules">
-                                <li>✅ Minimum <strong>9 correct answers</strong> required to pass</li>
-                                <li>⏱️ Time is limited for each question</li>
-                                <li>📊 Live score will be shown during the test</li>
-                                <li>📘 At the end, you will see correct and wrong answers with explanations</li>
-                            </ul>
+                            <div class="exam-features-grid">
+                                <div class="exam-feature">
+                                    <span class="feature-icon">&#128221;</span>
+                                    <div>
+                                        <strong>Mock Test</strong>
+                                        <span>15 MCQs, 48 sec each, pass: 9/15</span>
+                                    </div>
+                                </div>
+                                <div class="exam-feature">
+                                    <span class="feature-icon">&#128218;</span>
+                                    <div>
+                                        <strong>Practice by Category</strong>
+                                        <span>Traffic Rules, Road Signs, First Aid & more</span>
+                                    </div>
+                                </div>
+                                <div class="exam-feature">
+                                    <span class="feature-icon">&#128200;</span>
+                                    <div>
+                                        <strong>Track Progress</strong>
+                                        <span>View scores, weak areas & improvement</span>
+                                    </div>
+                                </div>
+                                <div class="exam-feature">
+                                    <span class="feature-icon">&#127760;</span>
+                                    <div>
+                                        <strong>English & Gujarati</strong>
+                                        <span>Practice in your preferred language</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="exam-trust-signals">
+                                <span>&#9989; Free to use</span>
+                                <span>&#9989; No app download needed</span>
+                                <span>&#9989; Progress saved automatically</span>
+                            </div>
+                        </div>
+
+                        <!-- ================= FAQ (VISIBLE) ================= -->
+                        <div class="exam-faq-section">
+                            <h2>Frequently Asked Questions</h2>
+                            <details class="faq-item">
+                                <summary>How many questions are in the RTO theory test?</summary>
+                                <p>The RTO Learner Licence theory test has <strong>15 multiple-choice questions</strong>. Each question has 3 options (A, B, C). You get <strong>48 seconds</strong> per question and need at least <strong>9 correct answers</strong> to pass.</p>
+                            </details>
+                            <details class="faq-item">
+                                <summary>What topics are covered?</summary>
+                                <p>Questions cover <strong>Traffic Rules, Road Signs, Vehicle Knowledge, First Aid, Road Safety</strong>, and <strong>Motor Vehicle Act</strong> regulations. All questions are based on the official RTO syllabus for LMV category.</p>
+                            </details>
+                            <details class="faq-item">
+                                <summary>Is this the same as the real RTO exam?</summary>
+                                <p>This mock test follows the <strong>same format, time limit and pass criteria</strong> as the actual computer-based test at the RTO office. Questions are sourced from the official RTO question bank to give you the most realistic preparation.</p>
+                            </details>
+                            <details class="faq-item">
+                                <summary>Do I need to create an account?</summary>
+                                <p>Just enter your email and verify with a one-time code. No password needed. Your mock test results and practice progress are automatically saved to your account.</p>
+                            </details>
                         </div>
 
                         <!-- ================= EMAIL VERIFICATION ================= -->
-                        <h2 class="auth-title">Verify Email to Start Test</h2>
+                        <h2 class="auth-title">Login to Continue</h2>
 
                         <p class="auth-intro">
-                            Please verify your <b>Email ID</b> before starting the test.
+                            Verify your <b>Email ID</b> to access the theory test platform.
                         </p>
 
                         <div class="form-row">
@@ -168,7 +317,7 @@
 
                         <!-- ================= OTP BOX ================= -->
                         <div id="gate-otp-box" class="otp-card" style="display:none;">
-                            <p class="otp-title">🔐 Verify Email</p>
+                            <p class="otp-title">Verify Email</p>
                             <p class="otp-sub">
                                 Enter the 4-digit code sent to <b id="otpTarget"></b>
                             </p>
@@ -186,16 +335,44 @@
                                 <button id="resendOtpBtn" disabled>Resend</button>
                             </div>
                         </div>
-
-                        <button id="startTestBtn" class="primary-btn" disabled>
-                            Start Test →
-                        </button>
                     </div>
                 </section>
 
+                <!-- ================= DASHBOARD ================= -->
+                <section id="dashboardSection" style="display:none;">
+                    <h2 class="section-title">Theory Test Dashboard</h2>
+                    <div class="dashboard-grid">
+                        <div class="dashboard-card" id="dashMockCard">
+                            <div class="dash-card-icon">&#128221;</div>
+                            <h3>Mock Test</h3>
+                            <p>15 random questions, 48s per question.<br>Pass mark: 9/15</p>
+                            <button class="primary-btn" id="startMockFromDash">Start Mock Test</button>
+                        </div>
+                        <div class="dashboard-card" id="dashPracticeCard">
+                            <div class="dash-card-icon">&#128218;</div>
+                            <h3>Practice Questions</h3>
+                            <p>Practice by category at your own pace.<br>Progress is saved automatically.</p>
+                            <button class="primary-btn" id="goToPracticeFromDash">Practice Now</button>
+                        </div>
+                        <div class="dashboard-card" id="dashProgressCard">
+                            <div class="dash-card-icon">&#128200;</div>
+                            <h3>Progress Monitor</h3>
+                            <p>View your mock test history<br>and practice progress.</p>
+                            <button class="primary-btn" id="goToProgressFromDash">View Progress</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= PRACTICE CATEGORIES ================= -->
                 <section id="practiceSection" style="display:none;">
                     <h2 class="practice-title">Practice Categories</h2>
                     <div id="practiceCategoryGrid" class="practice-grid"></div>
+                </section>
+
+                <!-- ================= PROGRESS MONITOR ================= -->
+                <section id="progressSection" style="display:none;">
+                    <h2 class="section-title">Progress Monitor</h2>
+                    <div id="progressContent"></div>
                 </section>
 
                 <!-- ================= TEST ================= -->
@@ -204,6 +381,14 @@
                     <header class="rto-header" id="rtoHeader">
                         Screen Test Aid For Learner Licence
                     </header>
+
+                    <!-- Practice Mode Header (shown only in practice) -->
+                    <div class="practice-mode-header" id="practiceModeHeader" style="display:none;">
+                        <button type="button" id="backToCategoriesBtn2" class="nav-action-btn">
+                            &#8592; Back to Categories
+                        </button>
+                        <span class="practice-category-label" id="practiceCategoryLabel"></span>
+                    </div>
 
                     <!-- Progress Bar -->
                     <div class="exam-progress-container">
@@ -267,11 +452,11 @@
 
                                 <div class="exam-actions">
                                     <div class="action-left">
-                                        <button type="button" id="prevQuestionBtn" class="nav-action-btn" title="Previous Question (←)">
-                                            ← Previous
+                                        <button type="button" id="prevQuestionBtn" class="nav-action-btn" title="Previous Question">
+                                            &#8592; Previous
                                         </button>
                                         <button type="button" id="markForReviewBtn" class="mark-review-btn" title="Mark for Review (M)">
-                                            <span class="mark-icon">☆</span> Mark for Review
+                                            <span class="mark-icon">&#9734;</span> Mark for Review
                                         </button>
                                     </div>
                                     <div class="action-center">
@@ -280,8 +465,11 @@
                                         </button>
                                     </div>
                                     <div class="action-right">
-                                        <button type="button" id="skipQuestionBtn" class="nav-action-btn" title="Skip Question (→)">
-                                            Skip →
+                                        <button type="button" id="skipQuestionBtn" class="nav-action-btn" title="Skip Question">
+                                            Skip &#8594;
+                                        </button>
+                                        <button type="button" id="submitExamBtn" class="submit-exam-btn" title="Submit Exam">
+                                            Submit Exam
                                         </button>
                                     </div>
                                 </div>
@@ -306,10 +494,10 @@
                         <div class="ll-result-card">
                             <div class="ll-status">
                                 <div id="result-pass" class="status pass hidden">
-                                    ✔ PASS
+                                    &#10004; PASS
                                 </div>
                                 <div id="result-fail" class="status fail hidden">
-                                    ✖ FAIL
+                                    &#10006; FAIL
                                 </div>
                             </div>
 
@@ -335,10 +523,10 @@
 
                             <div class="ll-actions">
                                 <button id="reviewAnswersBtn" class="primary-btn">
-                                    📋 Review Your Answers
+                                    Review Your Answers
                                 </button>
                                 <button id="restartMockBtn" class="restart-btn">
-                                    ⟳ Start New Mock Test
+                                    Start New Mock Test
                                 </button>
                             </div>
                         </div>
@@ -348,7 +536,7 @@
 
                         <div class="review-header">
                             <button id="backToResultBtn" class="back-btn">
-                                ← Back to Result
+                                &#8592; Back to Result
                             </button>
                             <h2>Answer Review</h2>
                         </div>

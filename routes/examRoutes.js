@@ -1,5 +1,5 @@
 import express from "express";
-import { dbPool, requireAdmin } from "../server.js";
+import { dbPool, requireAdmin, requireExamUser } from "../server.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -31,25 +31,15 @@ const writeQuestions = (questions, lang = 'en') => {
 /* =========================
    START EXAM ATTEMPT
 ========================= */
-router.post("/attempt/start", async (req, res) => {
-    const { email, exam_type = "car" } = req.body;
-    if (!email) return res.status(400).json({ success: false });
+router.post("/attempt/start", requireExamUser, async (req, res) => {
+    const userId = req.session.examUser.id;
 
     try {
-        const [user] = await dbPool.query(
-            "SELECT id FROM exam_users WHERE email=? LIMIT 1",
-            [email]
-        );
-
-        if (!user.length) {
-            return res.status(404).json({ success: false, error: "User not verified" });
-        }
-
         const [existing] = await dbPool.query(
             `SELECT id FROM exam_attempts
              WHERE user_id=? AND status='started'
              ORDER BY id DESC LIMIT 1`,
-            [user[0].id]
+            [userId]
         );
 
         if (existing.length) {
@@ -58,8 +48,8 @@ router.post("/attempt/start", async (req, res) => {
 
         const [result] = await dbPool.query(
             `INSERT INTO exam_attempts (user_id, mode, started_at, status)
-            VALUES (?, ?, NOW(), 'started')`,
-            [user[0].id, exam_type]  
+            VALUES (?, 'mock', NOW(), 'started')`,
+            [userId]
         );
 
         res.json({ success: true, attempt_id: result.insertId });
@@ -73,27 +63,20 @@ router.post("/attempt/start", async (req, res) => {
 /* =========================
    FINISH EXAM ATTEMPT
 ========================= */
-router.post("/attempt/finish", async (req, res) => {
-    const { email, score, total_questions } = req.body;
-    if (!email) return res.status(400).json({ success: false });
+router.post("/attempt/finish", requireExamUser, async (req, res) => {
+    const userId = req.session.examUser.id;
+    const { score, total_questions } = req.body;
 
     try {
-        const [user] = await dbPool.query(
-            "SELECT id FROM exam_users WHERE email=? LIMIT 1",
-            [email]
-        );
-
-        if (!user.length) return res.status(404).json({ success: false });
-
         const result = score >= 9 ? "PASS" : "FAIL";
 
         await dbPool.query(
             `UPDATE exam_attempts
-             SET score=?, total_questions=?, result=?,
+             SET score=?, total_questions=?, correct_answers=?, result=?,
                  finished_at=NOW(), status='completed'
              WHERE user_id=? AND status='started'
              ORDER BY id DESC LIMIT 1`,
-            [score, total_questions, result, user[0].id]
+            [score, total_questions, score, result, userId]
         );
 
         await dbPool.query(
@@ -102,13 +85,147 @@ router.post("/attempt/finish", async (req, res) => {
                  last_score = ?, last_result = ?,
                  best_score = GREATEST(best_score, ?)
              WHERE id=?`,
-            [score, result, score, user[0].id]
+            [score, result, score, userId]
         );
 
         res.json({ success: true });
 
     } catch (err) {
         console.error("FINISH EXAM ERROR:", err);
+        res.status(500).json({ success: false });
+    }
+});
+
+/* =========================
+   PRACTICE: SAVE ANSWER
+========================= */
+router.post("/practice/answer", requireExamUser, async (req, res) => {
+    const userId = req.session.examUser.id;
+    const { question_number, category, language = 'en', selected_answer, is_correct } = req.body;
+
+    if (!question_number || !category || selected_answer === undefined) {
+        return res.status(400).json({ success: false, error: "Missing fields" });
+    }
+
+    try {
+        await dbPool.query(`
+            INSERT INTO practice_progress
+                (user_id, question_number, category, language, selected_answer, is_correct, answered_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE
+                selected_answer = VALUES(selected_answer),
+                is_correct = VALUES(is_correct),
+                answered_at = NOW()
+        `, [userId, question_number, category, language, selected_answer, is_correct ? 1 : 0]);
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error("SAVE PRACTICE ANSWER ERROR:", err);
+        res.status(500).json({ success: false });
+    }
+});
+
+/* =========================
+   PRACTICE: GET PROGRESS
+========================= */
+router.get("/practice/progress", requireExamUser, async (req, res) => {
+    const userId = req.session.examUser.id;
+    const { category, language = 'en' } = req.query;
+
+    try {
+        let query = `
+            SELECT question_number, selected_answer, is_correct, answered_at
+            FROM practice_progress
+            WHERE user_id = ? AND language = ?
+        `;
+        const params = [userId, language];
+
+        if (category) {
+            query += " AND category = ?";
+            params.push(category);
+        }
+
+        const [rows] = await dbPool.query(query, params);
+
+        const progressMap = {};
+        rows.forEach(r => {
+            progressMap[r.question_number] = {
+                selected_answer: r.selected_answer,
+                is_correct: r.is_correct,
+                answered_at: r.answered_at
+            };
+        });
+
+        res.json({ success: true, progress: progressMap });
+    } catch (err) {
+        console.error("GET PRACTICE PROGRESS ERROR:", err);
+        res.status(500).json({ success: false });
+    }
+});
+
+/* =========================
+   PRACTICE: GET SUMMARY
+========================= */
+router.get("/practice/summary", requireExamUser, async (req, res) => {
+    const userId = req.session.examUser.id;
+    const { language = 'en' } = req.query;
+
+    try {
+        const [rows] = await dbPool.query(`
+            SELECT
+                category,
+                COUNT(*) AS answered,
+                SUM(is_correct) AS correct
+            FROM practice_progress
+            WHERE user_id = ? AND language = ?
+            GROUP BY category
+        `, [userId, language]);
+
+        res.json({ success: true, summary: rows });
+    } catch (err) {
+        console.error("PRACTICE SUMMARY ERROR:", err);
+        res.status(500).json({ success: false });
+    }
+});
+
+/* =========================
+   PROGRESS MONITOR
+========================= */
+router.get("/progress", requireExamUser, async (req, res) => {
+    const userId = req.session.examUser.id;
+
+    try {
+        const [attempts] = await dbPool.query(`
+            SELECT id, score, total_questions, result, started_at, finished_at, status
+            FROM exam_attempts
+            WHERE user_id = ? AND status = 'completed'
+            ORDER BY finished_at DESC
+        `, [userId]);
+
+        const [practiceSummary] = await dbPool.query(`
+            SELECT
+                category,
+                COUNT(*) AS answered,
+                SUM(is_correct) AS correct
+            FROM practice_progress
+            WHERE user_id = ?
+            GROUP BY category
+        `, [userId]);
+
+        const [[userStats]] = await dbPool.query(`
+            SELECT total_attempts, best_score, last_score, last_result
+            FROM exam_users
+            WHERE id = ?
+        `, [userId]);
+
+        res.json({
+            success: true,
+            mockHistory: attempts,
+            practiceSummary,
+            userStats: userStats || { total_attempts: 0, best_score: 0, last_score: 0, last_result: null }
+        });
+    } catch (err) {
+        console.error("PROGRESS MONITOR ERROR:", err);
         res.status(500).json({ success: false });
     }
 });
@@ -198,6 +315,14 @@ router.get("/admin/overview", requireAdmin, async (req, res) => {
             ORDER BY date ASC
         `);
 
+        const [[practiceStats]] = await dbPool.query(`
+            SELECT
+                COUNT(DISTINCT user_id) AS practicingUsers,
+                COUNT(*) AS totalPracticeAnswers,
+                SUM(is_correct) AS correctPracticeAnswers
+            FROM practice_progress
+        `);
+
         res.json({
             success: true,
             stats: {
@@ -210,6 +335,11 @@ router.get("/admin/overview", requireAdmin, async (req, res) => {
                 passRate: attemptStats.passed && (attemptStats.passed + attemptStats.failed) > 0
                     ? Math.round((attemptStats.passed / (attemptStats.passed + attemptStats.failed)) * 100)
                     : 0
+            },
+            practiceStats: {
+                practicingUsers: practiceStats.practicingUsers || 0,
+                totalAnswers: practiceStats.totalPracticeAnswers || 0,
+                correctAnswers: Number(practiceStats.correctPracticeAnswers) || 0
             },
             recentActivity
         });
@@ -290,6 +420,41 @@ router.get("/admin/attempts-trends", requireAdmin, async (req, res) => {
 });
 
 /* =========================
+   ADMIN: PRACTICE PROGRESS
+========================= */
+router.get("/admin/practice-progress", requireAdmin, async (req, res) => {
+    const { user_id } = req.query;
+
+    try {
+        let query = `
+            SELECT
+                pp.user_id,
+                eu.email,
+                pp.category,
+                COUNT(*) AS answered,
+                SUM(pp.is_correct) AS correct,
+                MAX(pp.answered_at) AS last_activity
+            FROM practice_progress pp
+            JOIN exam_users eu ON pp.user_id = eu.id
+        `;
+        const params = [];
+
+        if (user_id) {
+            query += " WHERE pp.user_id = ?";
+            params.push(user_id);
+        }
+
+        query += " GROUP BY pp.user_id, eu.email, pp.category ORDER BY last_activity DESC";
+
+        const [rows] = await dbPool.query(query, params);
+        res.json({ success: true, progress: rows });
+    } catch (err) {
+        console.error("ADMIN PRACTICE PROGRESS ERROR:", err);
+        res.status(500).json({ success: false });
+    }
+});
+
+/* =========================
    ADMIN: RESET USER ATTEMPTS
 ========================= */
 router.delete("/admin/users/:id/attempts", requireAdmin, async (req, res) => {
@@ -297,6 +462,7 @@ router.delete("/admin/users/:id/attempts", requireAdmin, async (req, res) => {
         const { id } = req.params;
 
         await dbPool.query(`DELETE FROM exam_attempts WHERE user_id = ?`, [id]);
+        await dbPool.query(`DELETE FROM practice_progress WHERE user_id = ?`, [id]);
         await dbPool.query(`
             UPDATE exam_users
             SET total_attempts = 0, best_score = 0, last_score = NULL, last_result = NULL
@@ -317,6 +483,7 @@ router.delete("/admin/users/:id", requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
 
+        await dbPool.query(`DELETE FROM practice_progress WHERE user_id = ?`, [id]);
         await dbPool.query(`DELETE FROM exam_attempts WHERE user_id = ?`, [id]);
         await dbPool.query(`DELETE FROM exam_users WHERE id = ?`, [id]);
 
