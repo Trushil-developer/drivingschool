@@ -177,7 +177,7 @@
                     Share your details below and we’ll help you choose the right option for your needs.
                 </p>
 
-                <form id="enquiryForm" aria-label="Driving School Enquiry Form">
+                <form id="enquiryForm" aria-label="Driving School Enquiry Form" novalidate>
 
                     <!-- STEP INDICATOR -->
                     <div class="step-indicator">
@@ -207,11 +207,11 @@
                             <input type="email" id="email" placeholder="Enter email address" required>
                         </div>
 
+                        <!-- EMAIL VERIFICATION - COMMENTED OUT (not needed right now)
                         <p class="verify-note">
-                            🔐 We’ll send a <b>4-digit verification code</b> to your email address.
+                            🔐 We'll send a <b>4-digit verification code</b> to your email address.
                         </p>
 
-                        <!-- VERIFY METHOD -->
                         <div class="form-row">
                             <label>Verification Method<span class="required">*</span></label>
 
@@ -221,12 +221,6 @@
                                     <span class="verify-title">Email</span>
                                     <span class="verify-desc">Receive code on your email</span>
                                 </button>
-
-                                <!-- <button type="button" class="verify-card" data-method="mobile">
-                                    <span class="verify-icon">📱</span>
-                                    <span class="verify-title">Mobile</span>
-                                    <span class="verify-desc">SMS / WhatsApp verification</span>
-                                </button> -->
                             </div>
                         </div>
 
@@ -254,6 +248,7 @@
                                 <button type="button" id="resendOtpBtn" disabled>Resend</button>
                             </div>
                         </div>
+                        END EMAIL VERIFICATION -->
 
                         <div class="nav-buttons">
                             <span></span>
