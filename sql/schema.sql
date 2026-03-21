@@ -1893,3 +1893,43 @@ SET @sql := IF(@idx_exists=0,
     'CREATE INDEX idx_practice_progress_category ON practice_progress (user_id, category, language);',
     'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- ENQUIRY STATUS COLUMN
+-- =====================================
+SET @col_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiries'
+      AND column_name='status'
+);
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE enquiries ADD COLUMN status ENUM("New","Called","Interested","Not Interested","Converted","Follow Up") DEFAULT "New";',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- ENQUIRY ACTIONS TABLE
+-- =====================================
+CREATE TABLE IF NOT EXISTS enquiry_actions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    enquiry_id INT NOT NULL,
+    action_type ENUM('Call','Note','Email','Meeting','WhatsApp','Other') DEFAULT 'Call',
+    note TEXT NOT NULL,
+    action_by VARCHAR(100) NOT NULL,
+    action_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_enquiry_actions_enquiry FOREIGN KEY (enquiry_id) REFERENCES enquiries(id) ON DELETE CASCADE
+);
+
+-- Index for fast lookup by enquiry
+SET @idx_exists := (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE table_schema='drivingschool'
+      AND table_name='enquiry_actions'
+      AND index_name='idx_enquiry_actions_enquiry'
+);
+SET @sql := IF(@idx_exists=0,
+    'CREATE INDEX idx_enquiry_actions_enquiry ON enquiry_actions (enquiry_id);',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

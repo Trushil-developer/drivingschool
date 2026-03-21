@@ -9,7 +9,7 @@ const router = express.Router();
 router.get("/", requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
-      SELECT 
+      SELECT
         e.id,
         e.full_name,
         e.email,
@@ -17,12 +17,16 @@ router.get("/", requireAdmin, async (req, res, next) => {
         e.has_licence,
         e.hear_about,
         e.message,
+        e.status,
         e.created_at,
         b.branch_name,
-        c.course_name
+        c.course_name,
+        COUNT(a.id) AS action_count
       FROM enquiries e
       LEFT JOIN branches b ON e.branch_id = b.id
       LEFT JOIN courses c ON e.course_id = c.id
+      LEFT JOIN enquiry_actions a ON a.enquiry_id = e.id
+      GROUP BY e.id
       ORDER BY e.id DESC
     `);
 
@@ -199,6 +203,30 @@ router.put("/:id", requireAdmin, async (req, res, next) => {
 });
 
 /* =============================
+   UPDATE ENQUIRY STATUS (Admin)
+============================= */
+router.patch("/:id/status", requireAdmin, async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    if (!status) return res.json({ success: false, message: "Status is required" });
+
+    const [result] = await dbPool.query(
+      `UPDATE enquiries SET status = ? WHERE id = ?`,
+      [status, req.params.id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Enquiry not found" });
+    }
+
+    res.json({ success: true, message: "Status updated" });
+  } catch (err) {
+    console.error("ENQUIRY STATUS UPDATE ERROR:", err);
+    next(err);
+  }
+});
+
+/* =============================
    DELETE ENQUIRY (Admin)
 ============================= */
 router.delete("/:id", requireAdmin, async (req, res, next) => {
@@ -221,6 +249,76 @@ router.delete("/:id", requireAdmin, async (req, res, next) => {
     });
   } catch (err) {
     console.error("ENQUIRY DELETE ERROR:", err);
+    next(err);
+  }
+});
+
+/* =============================
+   GET ACTIONS FOR ENQUIRY
+============================= */
+router.get("/:id/actions", requireAdmin, async (req, res, next) => {
+  try {
+    const [rows] = await dbPool.query(
+      `SELECT * FROM enquiry_actions WHERE enquiry_id = ? ORDER BY action_date DESC`,
+      [req.params.id]
+    );
+    res.json({ success: true, actions: rows });
+  } catch (err) {
+    console.error("ENQUIRY ACTIONS FETCH ERROR:", err);
+    next(err);
+  }
+});
+
+/* =============================
+   ADD ACTION TO ENQUIRY
+============================= */
+router.post("/:id/actions", requireAdmin, async (req, res, next) => {
+  try {
+    const { action_type, note, action_by, action_date } = req.body;
+
+    if (!note || !action_by) {
+      return res.status(400).json({ success: false, message: "Note and action_by are required" });
+    }
+
+    const [result] = await dbPool.query(
+      `INSERT INTO enquiry_actions (enquiry_id, action_type, note, action_by, action_date)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        req.params.id,
+        action_type || "Call",
+        note.trim(),
+        action_by.trim(),
+        action_date || new Date()
+      ]
+    );
+
+    // Also update enquiry status if provided
+    if (req.body.status) {
+      await dbPool.query(
+        `UPDATE enquiries SET status = ? WHERE id = ?`,
+        [req.body.status, req.params.id]
+      );
+    }
+
+    res.json({ success: true, message: "Action added", id: result.insertId });
+  } catch (err) {
+    console.error("ENQUIRY ACTION ADD ERROR:", err);
+    next(err);
+  }
+});
+
+/* =============================
+   DELETE ACTION
+============================= */
+router.delete("/:id/actions/:actionId", requireAdmin, async (req, res, next) => {
+  try {
+    await dbPool.query(
+      `DELETE FROM enquiry_actions WHERE id = ? AND enquiry_id = ?`,
+      [req.params.actionId, req.params.id]
+    );
+    res.json({ success: true, message: "Action deleted" });
+  } catch (err) {
+    console.error("ENQUIRY ACTION DELETE ERROR:", err);
     next(err);
   }
 });
