@@ -419,6 +419,18 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 hideLoading();
             }
         },
+        expenses: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderExpensesModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Expenses module not loaded</div>';
+                    return;
+                }
+                await window.renderExpensesModule(tableWrap);
+            } finally {
+                hideLoading();
+            }
+        },
     };
 
     attachFilterListeners(tabRenderers, () => currentTab);
@@ -437,7 +449,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
             }
         }
 
-        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams') {
+        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams' || tab === 'expenses') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
         } else if (tab === 'trainingDays' || tab === 'courses' || tab === 'packages') {

@@ -125,7 +125,19 @@ window.renderScheduleModule = function(tableWrap) {
 
                         const start = new Date(b.starting_from);
                         const end = new Date(start);
-                        end.setDate(start.getDate() + 29);
+
+                        const totalSessions = Number(b.training_days) || 15;
+                        const doneSessions = Number(b.present_days) || 0;
+                        const remaining = totalSessions - doneSessions;
+
+                        if (remaining < totalSessions / 2) {
+                            // Smart blocking: only block enough days for remaining sessions + 3 day buffer
+                            end.setTime(currentDate.getTime());
+                            end.setDate(end.getDate() + remaining + 3);
+                        } else {
+                            end.setDate(start.getDate() + 29);
+                        }
+
                         const selectedTime = currentDate.getTime();
 
                         return (

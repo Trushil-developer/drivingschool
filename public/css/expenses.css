@@ -1,0 +1,465 @@
+.expenses-wrap {
+    padding: 4px 0 20px;
+}
+
+/* ── Tabs ── */
+.exp-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 2px solid #E5E7EB;
+    padding-bottom: 0;
+}
+
+.exp-tab {
+    padding: 10px 24px;
+    border: none;
+    background: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6B7280;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.15s, border-color 0.15s;
+    border-radius: 6px 6px 0 0;
+}
+
+.exp-tab:hover {
+    color: #374151;
+    background: #F9FAFB;
+}
+
+.exp-tab.active {
+    color: #3B82F6;
+    border-bottom-color: #3B82F6;
+    background: none;
+}
+
+/* ── Add Expense Card ── */
+.exp-card {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 820px;
+}
+
+.exp-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #F3F4F6;
+}
+
+.exp-card-icon {
+    width: 36px;
+    height: 36px;
+    background: #EFF6FF;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.exp-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.exp-card-subtitle {
+    font-size: 12px;
+    color: #9CA3AF;
+    margin: 2px 0 0;
+}
+
+/* ── Form Grid ── */
+.exp-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.exp-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.exp-field-full {
+    grid-column: 1 / -1;
+}
+
+.exp-field label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    letter-spacing: 0.01em;
+}
+
+.exp-field input,
+.exp-field select,
+.exp-field textarea {
+    padding: 9px 12px;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    font-size: 13px;
+    width: 100%;
+    box-sizing: border-box;
+    background: #fff;
+    color: #111827;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+}
+
+.exp-field input:focus,
+.exp-field select:focus,
+.exp-field textarea:focus {
+    border-color: #93C5FD;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+}
+
+.exp-field textarea {
+    resize: vertical;
+    min-height: 72px;
+}
+
+/* ── Inline Input + Button ── */
+.exp-inline {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.exp-inline select {
+    flex: 1;
+}
+
+.btn-exp-create {
+    padding: 9px 13px;
+    background: #F3F4F6;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    color: #374151;
+    transition: background 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+}
+
+.btn-exp-create:hover {
+    background: #E5E7EB;
+    border-color: #9CA3AF;
+}
+
+/* ── Form Footer ── */
+.exp-form-footer {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #F3F4F6;
+}
+
+.btn-exp-submit {
+    padding: 11px 32px;
+    background: #3B82F6;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.btn-exp-submit:hover {
+    background: #2563EB;
+    transform: translateY(-1px);
+}
+
+.btn-exp-submit:active {
+    transform: translateY(0);
+}
+
+.btn-exp-submit:disabled {
+    background: #93C5FD;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.exp-form-msg {
+    font-size: 13px;
+}
+
+.exp-form-msg.success {
+    color: #059669;
+    background: #ECFDF5;
+    border: 1px solid #A7F3D0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.exp-form-msg.error {
+    color: #DC2626;
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    padding: 8px 12px;
+    border-radius: 6px;
+}
+
+/* ── History ── */
+.exp-history-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Summary strip */
+.exp-summary-strip {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.exp-summary-card {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 14px 20px;
+    min-width: 140px;
+    flex: 1;
+}
+
+.exp-summary-card .label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #9CA3AF;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.exp-summary-card .value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.exp-summary-card .value.blue { color: #3B82F6; }
+.exp-summary-card .value.green { color: #059669; }
+
+/* Chart card */
+.exp-chart-section {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.exp-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.exp-chart-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.exp-chart-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.exp-chart-filters select {
+    padding: 7px 10px;
+    border: 1px solid #D1D5DB;
+    border-radius: 7px;
+    font-size: 12px;
+    color: #374151;
+    outline: none;
+    background: #fff;
+    transition: border-color 0.15s;
+}
+
+.exp-chart-filters select:focus {
+    border-color: #93C5FD;
+}
+
+/* Table section */
+.exp-table-section {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.exp-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #E5E7EB;
+    background: #F9FAFB;
+}
+
+.exp-table-header h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.exp-table-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.exp-table-filters select,
+.exp-table-filters input {
+    padding: 7px 10px;
+    border: 1px solid #D1D5DB;
+    border-radius: 7px;
+    font-size: 12px;
+    color: #374151;
+    outline: none;
+    background: #fff;
+    transition: border-color 0.15s;
+}
+
+.exp-table-filters select:focus,
+.exp-table-filters input:focus {
+    border-color: #93C5FD;
+}
+
+/* Table */
+.expenses-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.expenses-table th {
+    background: #F9FAFB;
+    border-bottom: 1px solid #E5E7EB;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #6B7280;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.expenses-table td {
+    border-bottom: 1px solid #F3F4F6;
+    padding: 10px 12px;
+    color: #111827;
+    vertical-align: top;
+}
+
+.expenses-table tr:last-child td {
+    border-bottom: none;
+}
+
+.expenses-table tr:hover td {
+    background: #F9FAFB;
+}
+
+.exp-slip-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #EFF6FF;
+    color: #3B82F6;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.exp-amount-cell {
+    font-weight: 600;
+    color: #DC2626;
+}
+
+.exp-table-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 16px;
+    border-top: 1px solid #E5E7EB;
+    background: #F9FAFB;
+    font-size: 13px;
+    color: #374151;
+}
+
+.exp-table-footer strong {
+    color: #111827;
+}
+
+.btn-exp-delete {
+    padding: 4px 10px;
+    background: #FEF2F2;
+    color: #B91C1C;
+    border: 1px solid #FECACA;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.15s;
+}
+
+.btn-exp-delete:hover {
+    background: #FEE2E2;
+}
+
+.exp-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #9CA3AF;
+    font-size: 14px;
+}
+
+@media (max-width: 640px) {
+    .exp-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .exp-card {
+        padding: 16px;
+    }
+
+    .exp-chart-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .exp-summary-card {
+        min-width: 120px;
+    }
+
+    .exp-table-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

@@ -1,6 +1,69 @@
 USE drivingschool;
 
 -- =====================================
+-- EXPENSE CATEGORIES TABLE
+-- school_id = 0 → global defaults (shared across all schools)
+-- school_id > 0 → custom category belonging to that school
+-- =====================================
+CREATE TABLE IF NOT EXISTS expense_categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    is_car_related TINYINT(1) NOT NULL DEFAULT 0,
+    is_custom TINYINT(1) NOT NULL DEFAULT 0,
+    school_id INT NOT NULL DEFAULT 0
+);
+
+INSERT IGNORE INTO expense_categories (id, name, is_car_related, is_custom, school_id) VALUES
+(1,  'Car Fuel (CNG)',           1, 0, 0),
+(2,  'Car Fuel (Petrol)',        1, 0, 0),
+(3,  'Light Bill',               0, 0, 0),
+(4,  'Office Maintenance',       0, 0, 0),
+(5,  'Stationary',               0, 0, 0),
+(6,  'Car Repair Slip',          1, 0, 0),
+(7,  'Salary Withdrawal Slip',   0, 0, 0),
+(8,  'Car Wash',                 1, 0, 0),
+(9,  'AMC Bill',                 1, 0, 0),
+(10, 'Others',                   0, 0, 0);
+
+-- =====================================
+-- PAYMENT MODES TABLE
+-- school_id = 0 → global defaults
+-- school_id > 0 → custom mode for that school
+-- =====================================
+CREATE TABLE IF NOT EXISTS payment_modes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    is_custom TINYINT(1) NOT NULL DEFAULT 0,
+    school_id INT NOT NULL DEFAULT 0
+);
+
+INSERT IGNORE INTO payment_modes (id, name, is_custom, school_id) VALUES
+(1, 'Cash',            0, 0),
+(2, 'UPI',             0, 0),
+(3, 'Bank Transfer',   0, 0),
+(4, 'Cheque',          0, 0);
+
+-- =====================================
+-- EXPENSES TABLE
+-- school_id → which driving school owns this record
+-- =====================================
+CREATE TABLE IF NOT EXISTS expenses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id INT NOT NULL DEFAULT 1,
+    branch VARCHAR(100) NOT NULL,
+    debitor VARCHAR(150) NOT NULL,
+    category_id INT NOT NULL,
+    car_id INT NULL,
+    amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    payment_mode_id INT NOT NULL,
+    note TEXT NULL,
+    expense_date DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES expense_categories(id),
+    FOREIGN KEY (payment_mode_id) REFERENCES payment_modes(id)
+);
+
+-- =====================================
 -- CARS TABLE
 -- =====================================
 

@@ -94,6 +94,27 @@ export function renderDashboardModule(container) {
             <canvas id="attendanceChart"></canvas>
           </div>
 
+          <!-- Expense Trends -->
+          <div class="dashboard-section dashboard-section-wide">
+            <div class="chart-header">
+              <h3>Expense Trends</h3>
+              <div class="chart-filters">
+                <select id="expenseBranchFilter" class="chart-filter-select">
+                  <option value="">All Branches</option>
+                </select>
+                <select id="expenseCategoryFilter" class="chart-filter-select">
+                  <option value="">All Categories</option>
+                </select>
+                <select id="expenseGranularity" class="chart-filter-select">
+                  <option value="day" selected>By Day</option>
+                  <option value="month">By Month</option>
+                  <option value="year">By Year</option>
+                </select>
+              </div>
+            </div>
+            <canvas id="expenseDashboardChart"></canvas>
+          </div>
+
           <div class="dashboard-section">
             <h3>Theory Exam Performance</h3>
             <canvas id="examChart"></canvas>
@@ -142,6 +163,10 @@ export function renderDashboardModule(container) {
 
     document.getElementById("attendanceBranchFilter").addEventListener("change", loadAttendanceChart);
     document.getElementById("attendanceGranularity").addEventListener("change", loadAttendanceChart);
+
+    document.getElementById("expenseBranchFilter").addEventListener("change", loadExpenseChart);
+    document.getElementById("expenseCategoryFilter").addEventListener("change", loadExpenseChart);
+    document.getElementById("expenseGranularity").addEventListener("change", loadExpenseChart);
 
     // Revenue unlock logic
     document.addEventListener("click", async (e) => {
@@ -222,7 +247,8 @@ async function loadBranches() {
     document.getElementById("branchFilter"),
     document.getElementById("enquiryBranchFilter"),
     document.getElementById("enrollmentBranchFilter"),
-    document.getElementById("attendanceBranchFilter")
+    document.getElementById("attendanceBranchFilter"),
+    document.getElementById("expenseBranchFilter")
   ];
 
   branchSelects.forEach(select => {
@@ -274,6 +300,7 @@ async function loadAllCharts(query = "") {
     loadEnquiryChart(),
     loadEnrollmentChart(),
     loadAttendanceChart(),
+    loadExpenseChart(),
     loadExamChart(),
     loadPackageChart(query),
     loadInstructorChart(query)
@@ -524,6 +551,110 @@ function formatPeriodLabel(period, granularity) {
     // month format: YYYY-MM
     const [year, month] = period.split('-');
     return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  }
+}
+
+async function loadExpenseChart() {
+  try {
+    const branch      = document.getElementById('expenseBranchFilter')?.value || '';
+    const granularity = document.getElementById('expenseGranularity')?.value || 'month';
+
+    const res = await window.api('/api/expenses');
+    if (!res.success) return;
+
+    // Populate category filter on first load
+    const catSelect = document.getElementById('expenseCategoryFilter');
+    const allCategories = [...new Set(res.expenses.map(e => e.category).filter(Boolean))].sort();
+    if (catSelect && catSelect.options.length === 1) {
+      allCategories.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        catSelect.appendChild(opt);
+      });
+    }
+
+    const categoryFilter = catSelect?.value || '';
+
+    // Apply filters
+    let data = res.expenses;
+    if (branch)         data = data.filter(e => e.branch === branch);
+    if (categoryFilter) data = data.filter(e => e.category === categoryFilter);
+
+    // Determine which categories to show as stacked segments
+    const visibleCategories = categoryFilter
+      ? [categoryFilter]
+      : [...new Set(data.map(e => e.category).filter(Boolean))].sort();
+
+    // Build period → category → total map
+    const periodMap = {};
+    data.forEach(e => {
+      if (!e.expense_date) return;
+      const d = new Date(e.expense_date);
+      let period;
+      if (granularity === 'day')       period = e.expense_date.split('T')[0];
+      else if (granularity === 'year') period = String(d.getFullYear());
+      else                             period = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+
+      if (!periodMap[period]) periodMap[period] = {};
+      const cat = e.category || 'Other';
+      periodMap[period][cat] = (periodMap[period][cat] || 0) + Number(e.amount || 0);
+    });
+
+    const labels = Object.keys(periodMap).sort();
+
+    // Color palette for categories
+    const palette = [
+      COLORS.danger, COLORS.primary, COLORS.warning, COLORS.success,
+      COLORS.purple, COLORS.cyan, COLORS.indigo, COLORS.pink,
+      '#f97316', '#14b8a6'
+    ];
+
+    const datasets = visibleCategories.map((cat, i) => ({
+      label: cat,
+      data: labels.map(p => periodMap[p]?.[cat] || 0),
+      backgroundColor: palette[i % palette.length],
+      borderRadius: i === visibleCategories.length - 1 ? 5 : 0,
+      borderSkipped: false
+    }));
+
+    const ctx = document.getElementById('expenseDashboardChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (chartInstances.expense) chartInstances.expense.destroy();
+
+    chartInstances.expense = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'bottom',
+            labels: { boxWidth: 12, font: { size: 11 }, padding: 12 }
+          },
+          datalabels: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.dataset.label}: Rs.${Number(ctx.raw).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+            }
+          }
+        },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            grid: { color: '#F3F4F6' },
+            ticks: { callback: v => 'Rs.' + v.toLocaleString('en-IN'), font: { size: 11 } }
+          }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Expense chart error:", err);
   }
 }
 
