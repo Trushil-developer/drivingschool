@@ -5,62 +5,118 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="robots" content="noindex, nofollow">
-    <title>Admin Login · Driving School</title>
+    <title>Admin Login · Dwarkesh Motor Driving School</title>
     <link rel="stylesheet" href="css/login.css">
 </head>
 
 <body>
-    <main class="login-container">
-        <h1>Admin Login</h1>
-        <form id="loginForm">
-            <div class="field">
-                <label for="username">Username</label>
-                <input type="text" name="username" id="username" required>
+    <div class="login-bg">
+        <main class="login-card">
+
+            <div class="login-brand">
+                <div class="login-lock-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 1C9.24 1 7 3.24 7 6v2H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6c0-2.76-2.24-5-5-5zm0 2c1.65 0 3 1.35 3 3v2H9V6c0-1.65 1.35-3 3-3zm0 9a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/>
+                    </svg>
+                </div>
+                <h1>Admin Portal</h1>
+                <p class="login-school-name">Dwarkesh Motor Driving School</p>
+                <span class="login-badge">Restricted Access</span>
             </div>
-            <div class="field">
-                <label for="password">Password</label>
-                <input type="password" name="password" id="password" required>
+
+            <form id="loginForm" autocomplete="off">
+                <div class="field">
+                    <label for="username">Username</label>
+                    <div class="input-wrap">
+                        <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 12c2.7 0 5-2.3 5-5S14.7 2 12 2 7 4.3 7 7s2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v1h20v-1c0-3.3-6.7-5-10-5z"/>
+                        </svg>
+                        <input type="text" name="username" id="username" placeholder="Enter username" required autocomplete="off">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="password">Password</label>
+                    <div class="input-wrap">
+                        <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 1C9.24 1 7 3.24 7 6v2H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6c0-2.76-2.24-5-5-5zm0 2c1.65 0 3 1.35 3 3v2H9V6c0-1.65 1.35-3 3-3zm0 9a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/>
+                        </svg>
+                        <input type="password" name="password" id="password" placeholder="Enter password" required>
+                        <button type="button" class="toggle-pw" id="togglePw" tabindex="-1">
+                            <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12.5a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login" id="loginBtn">
+                    <span id="btnText">Sign In</span>
+                </button>
+
+                <div id="error" class="error-msg"></div>
+            </form>
+
+            <div class="login-footer">
+                <a href="index.html">&larr; Back to Website</a>
             </div>
-            <button type="submit" class="btn btn-primary">Login</button>
-            <div id="error" class="error"></div>
-        </form>
-    </main>
+        </main>
+    </div>
 
     <script>
         const form = document.getElementById('loginForm');
         const errorDiv = document.getElementById('error');
+        const loginBtn = document.getElementById('loginBtn');
+        const btnText = document.getElementById('btnText');
+        const togglePw = document.getElementById('togglePw');
+        const pwInput = document.getElementById('password');
+
+        togglePw.addEventListener('click', () => {
+            const isText = pwInput.type === 'text';
+            pwInput.type = isText ? 'password' : 'text';
+        });
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            errorDiv.textContent = '';
+            loginBtn.disabled = true;
+            btnText.textContent = 'Signing in...';
+
             const fd = Object.fromEntries(new FormData(form).entries());
 
             try {
                 const res = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'same-origin', // important for session cookie
+                    credentials: 'same-origin',
                     body: JSON.stringify(fd)
                 });
 
                 if (res.status === 401) {
-                    errorDiv.textContent = 'Unauthorized';
+                    showError('Invalid credentials. Access denied.');
                     return;
                 }
 
                 const j = await res.json();
 
                 if (j.success) {
-                    // login success → redirect to admin
+                    btnText.textContent = 'Redirecting...';
                     window.location.href = 'admin.html';
                 } else {
-                    errorDiv.textContent = j.error || 'Login failed';
+                    showError(j.error || 'Login failed. Please try again.');
                 }
-
             } catch (err) {
-                console.error(err);
-                errorDiv.textContent = 'Login error';
+                showError('Connection error. Please try again.');
+            } finally {
+                loginBtn.disabled = false;
+                if (btnText.textContent === 'Signing in...') btnText.textContent = 'Sign In';
             }
         });
+
+        function showError(msg) {
+            errorDiv.textContent = msg;
+            loginBtn.disabled = false;
+            btnText.textContent = 'Sign In';
+        }
     </script>
 </body>
 

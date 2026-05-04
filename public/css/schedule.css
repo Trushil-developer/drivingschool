@@ -103,13 +103,75 @@
 }
 
 /* ==============================
+   DAY NAV WRAPPER
+================================ */
+#scheduleTabWrapper .day-nav-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+#scheduleTabWrapper .print-btn {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #374151;
+    border-radius: 8px;
+    transition: background 0.15s;
+    white-space: nowrap;
+    margin-left: auto;
+}
+
+#scheduleTabWrapper .print-btn:hover {
+    background: #e2e8f0;
+}
+
+#scheduleTabWrapper #slotStats {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#scheduleTabWrapper #slotStats span {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+#scheduleTabWrapper .active-slots {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+#scheduleTabWrapper .available-slots {
+    background: #dcfce7;
+    color: #166534;
+}
+
+/* ==============================
    SCHEDULE TABLE
 ================================ */
+
+/* Horizontal scroll wrapper for mobile */
+#scheduleTabWrapper #scheduleTableWrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+}
+
 #scheduleTabWrapper .schedule-table {
     width: 100%;
+    min-width: 480px; /* prevents squishing below readable size */
     border-collapse: collapse;
     font-size: 13px;
-    margin-top: 16px;
+    margin-top: 0;
     border-radius: 8px;
     overflow: hidden;
 }
@@ -119,6 +181,7 @@
     padding: 8px 10px;
     border: 1px solid #e2e8f0;
     text-align: center;
+    white-space: nowrap;
 }
 
 #scheduleTabWrapper .schedule-table th {
@@ -128,12 +191,25 @@
     text-transform: uppercase;
     font-size: 12px;
     letter-spacing: 0.05em;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 #scheduleTabWrapper .time-col {
     font-weight: 600;
     background: #f8fafc;
     color: #0f172a;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-width: 70px;
+}
+
+#scheduleTabWrapper .schedule-table th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 3;
 }
 
 #scheduleTabWrapper .slot {
@@ -244,83 +320,56 @@
 /* ==============================
    RESPONSIVE
 ================================ */
-@media (max-width: 1024px) {
-    #scheduleTabWrapper .branch-tabs {
-        justify-content: center;
-    }
-
-    #scheduleTabWrapper .branch-tab {
-        font-size: 13px;
-        padding: 8px 16px;
-        min-width: 100px;
-    }
-
-    #scheduleTabWrapper .day-nav button {
-        font-size: 12px;
-        padding: 6px 12px;
-    }
-
-    #scheduleTabWrapper .schedule-table th,
-    #scheduleTabWrapper .schedule-table td {
-        font-size: 11px;
-        padding: 6px 8px;
-    }
-
-    #scheduleTabWrapper .slot {
-        height: 28px;
-    }
-}
-
 @media (max-width: 768px) {
     #scheduleTabWrapper .branch-tabs {
         padding: 6px;
         gap: 6px;
+        justify-content: flex-start;
     }
 
     #scheduleTabWrapper .branch-tab {
         font-size: 12px;
-        padding: 6px 12px;
-        min-width: 80px;
+        padding: 7px 12px;
+        min-width: 0;
     }
 
     #scheduleTabWrapper .branch-content {
-        padding: 14px;
+        padding: 12px;
     }
 
-    #scheduleTabWrapper .day-nav button {
-        font-size: 11px;
-        padding: 5px 10px;
+    #scheduleTabWrapper .day-nav-wrapper {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
-    #scheduleTabWrapper #currentDay {
-        font-size: 13px;
+    #scheduleTabWrapper .day-nav {
+        width: 100%;
+        justify-content: space-between;
     }
 
-    #scheduleTabWrapper .schedule-table th,
-    #scheduleTabWrapper .schedule-table td {
-        font-size: 10px;
-        padding: 4px 6px;
+    #scheduleTabWrapper #slotStats {
+        margin-left: 0;
+        width: 100%;
     }
 
-    #scheduleTabWrapper .slot {
-        height: 24px;
+    #scheduleTabWrapper .print-btn {
+        width: 100%;
+        text-align: center;
     }
 }
 
 @media (max-width: 480px) {
     #scheduleTabWrapper .branch-tab {
         font-size: 11px;
-        padding: 5px 10px;
-        min-width: 70px;
+        padding: 6px 10px;
     }
 
-    #scheduleTabWrapper .schedule-table th,
-    #scheduleTabWrapper .schedule-table td {
-        font-size: 9px;
-        padding: 3px 4px;
+    #scheduleTabWrapper .day-nav button {
+        font-size: 12px;
+        padding: 7px 12px;
     }
 
-    #scheduleTabWrapper .slot {
-        height: 20px;
+    #scheduleTabWrapper #currentDay {
+        font-size: 13px;
     }
 }

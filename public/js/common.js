@@ -45,13 +45,24 @@ window.CommonReady = (async () => {
     ===================================== */
     const hamburger = document.getElementById("hamburger");
     const navMenu = document.getElementById("nav-menu");
+    const navOverlay = document.getElementById("navOverlay");
+
+    function closeMenu() {
+        hamburger?.classList.remove("active");
+        navMenu?.classList.remove("open");
+        navOverlay?.classList.remove("open");
+    }
 
     if (hamburger && navMenu) {
         hamburger.addEventListener("click", () => {
-            hamburger.classList.toggle("active");
-            navMenu.classList.toggle("open");
+            const isOpen = navMenu.classList.toggle("open");
+            hamburger.classList.toggle("active", isOpen);
+            navOverlay?.classList.toggle("open", isOpen);
         });
     }
+
+    navOverlay?.addEventListener("click", closeMenu);
+    document.getElementById("navCloseBtn")?.addEventListener("click", closeMenu);
 
     /* =====================================
        CLOSE MOBILE MENU ON LINK CLICK (FIX)
@@ -59,11 +70,7 @@ window.CommonReady = (async () => {
     document.addEventListener("click", (e) => {
         const navLink = e.target.closest(".header-nav a");
         if (!navLink) return;
-
-        if (window.innerWidth <= 768) {
-            hamburger?.classList.remove("active");
-            navMenu?.classList.remove("open");
-        }
+        if (window.innerWidth <= 768) closeMenu();
     });
 
     /* =====================================
