@@ -5,6 +5,7 @@ import cors from 'cors';
 import path from 'path';
 import session from 'express-session';
 import bcrypt from 'bcrypt';
+import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import MySQLStoreImport from 'express-mysql-session';
@@ -70,6 +71,10 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+if (!process.env.SESSION_SECRET) {
+  console.warn('WARNING: SESSION_SECRET env var not set. Using insecure fallback. Set it in .env before going to production.');
+}
+
 app.use(
   session({
     key: 'session_cookie',
@@ -78,11 +83,21 @@ app.use(
     saveUninitialized: false,
     store: sessionStore,
     cookie: {
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'strict',
       maxAge: 24 * 60 * 60 * 1000,
     },
   })
 );
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,                   // max 10 attempts per window
+  message: { success: false, error: 'Too many login attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // ---------- Helpers ----------
 export function computeAttendanceStatus(booking) {
@@ -156,7 +171,7 @@ function normalizeSlots(selectedSlots = []) {
 
 
 // ---------- AUTH ----------
-app.post('/api/login', async (req, res, next) => {
+app.post('/api/login', loginLimiter, async (req, res, next) => {
   const { username, password } = req.body;
   try {
     const [rows] = await dbPool.query('SELECT * FROM admins WHERE username = ? LIMIT 1', [username]);
@@ -322,19 +337,42 @@ app.get('/api/bookings/availability', async (req, res, next) => {
 
 app.get('/api/bookings', requireAdmin, async (req, res, next) => {
   try {
-    const [rows] = await dbPool.query(`
-      SELECT
-        id, branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
-        sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
-        occupation, ref, allotted_time, allotted_time2, allotted_time3, allotted_time4, duration_minutes, starting_from, total_fees, advance,
-        car_name, instructor_name,
-        ac_facility, pickup_drop, has_licence,
-        present_days, hold_status, attendance_status, certificate_url,
-        created_at
-      FROM bookings
-      ORDER BY id DESC
-    `);
-    res.json({ success: true, bookings: rows });
+    const page = req.query.page ? parseInt(req.query.page) : null;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const search = (req.query.search || '').trim();
+    const branch = (req.query.branch || '').trim();
+    const status = (req.query.status || '').trim();
+
+    const conditions = [];
+    const params = [];
+
+    if (search) {
+      conditions.push('(customer_name LIKE ? OR mobile_no LIKE ? OR whatsapp_no LIKE ? OR branch LIKE ? OR car_name LIKE ? OR instructor_name LIKE ?)');
+      const s = `%${search}%`;
+      params.push(s, s, s, s, s, s);
+    }
+    if (branch) { conditions.push('branch = ?'); params.push(branch); }
+    if (status) { conditions.push('attendance_status = ?'); params.push(status); }
+
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const selectCols = `
+      id, branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
+      sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
+      occupation, ref, allotted_time, allotted_time2, allotted_time3, allotted_time4, duration_minutes, starting_from, total_fees, advance,
+      car_name, instructor_name,
+      ac_facility, pickup_drop, has_licence,
+      present_days, hold_status, attendance_status, certificate_url,
+      created_at`;
+
+    if (page !== null) {
+      const offset = (page - 1) * limit;
+      const [[{ total }]] = await dbPool.query(`SELECT COUNT(*) as total FROM bookings ${where}`, params);
+      const [rows] = await dbPool.query(`SELECT ${selectCols} FROM bookings ${where} ORDER BY id DESC LIMIT ? OFFSET ?`, [...params, limit, offset]);
+      res.json({ success: true, bookings: rows, total, page, limit });
+    } else {
+      const [rows] = await dbPool.query(`SELECT ${selectCols} FROM bookings ${where} ORDER BY id DESC`, params);
+      res.json({ success: true, bookings: rows });
+    }
   } catch (err) {
     console.error('BOOKINGS LIST ERROR:', err);
     next(err);

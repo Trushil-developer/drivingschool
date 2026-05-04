@@ -226,74 +226,99 @@ window.renderExpensesModule = async function (tableWrap) {
     // =====================
     // HISTORY TAB
     // =====================
-    async function renderHistoryTab() {
+    let expFilterBranch = '';
+    let expFilterCategory = '';
+    let expFilterMonth = '';
+    let expCategoriesCache = null;
+    let expBranchesCache = null;
+
+    async function renderHistoryTab(page = 1) {
         tabContent.innerHTML = `<div class="loading-overlay">Loading...</div>`;
 
-        const [resExpenses, resCategories, resBranches] = await Promise.all([
-            window.api('/api/expenses'),
-            window.api('/api/expenses/categories'),
-            window.api('/api/branches')
-        ]);
+        // Load filter options once
+        if (!expCategoriesCache || !expBranchesCache) {
+            const [resCategories, resBranches] = await Promise.all([
+                window.api('/api/expenses/categories'),
+                window.api('/api/branches')
+            ]);
+            expCategoriesCache = resCategories?.success ? resCategories.categories : [];
+            expBranchesCache = resBranches?.success ? resBranches.branches : [];
+        }
 
-        const expenses   = resExpenses?.success   ? resExpenses.expenses      : [];
-        const categories = resCategories?.success  ? resCategories.categories  : [];
-        const branches   = resBranches?.success    ? resBranches.branches      : [];
+        const params = new URLSearchParams({ page, limit: 50 });
+        if (expFilterBranch) params.set('branch', expFilterBranch);
+        if (expFilterCategory) params.set('category', expFilterCategory);
+        if (expFilterMonth) params.set('month', expFilterMonth);
 
-        const totalAmt   = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+        const resExpenses = await window.api(`/api/expenses?${params}`);
+        const expenses = resExpenses?.success ? resExpenses.expenses : [];
+        const total = resExpenses?.total || 0;
+        const limit = resExpenses?.limit || 50;
+        const totalPages = Math.ceil(total / limit);
+        const pageAmt = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+
+        const paginationHTML = totalPages > 1
+            ? `<div class="pagination-bar">
+                <button class="pg-btn" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''}>← Prev</button>
+                <span class="pg-info">Page ${page} of ${totalPages} (${total} total)</span>
+                <button class="pg-btn" data-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''}>Next →</button>
+               </div>`
+            : `<div class="pg-info-only">Showing ${expenses.length} of ${total} record${total !== 1 ? 's' : ''}</div>`;
 
         tabContent.innerHTML = `
             <div class="exp-history-wrap">
-
-                <!-- Summary strip -->
                 <div class="exp-summary-strip">
                     <div class="exp-summary-card">
                         <div class="label">Total Entries</div>
-                        <div class="value blue">${expenses.length}</div>
+                        <div class="value blue">${total}</div>
                     </div>
                     <div class="exp-summary-card">
-                        <div class="label">Total Amount</div>
-                        <div class="value green">${fmtAmt(totalAmt)}</div>
+                        <div class="label">Page Amount</div>
+                        <div class="value green">${fmtAmt(pageAmt)}</div>
                     </div>
                 </div>
-
-                        <!-- Table Section -->
                 <div class="exp-table-section">
                     <div class="exp-table-header">
                         <h4>Expense Records</h4>
                         <div class="exp-table-filters">
                             <select id="filterBranchTable">
                                 <option value="">All Branches</option>
-                                ${branches.map(b => `<option value="${b.branch_name}">${b.branch_name}</option>`).join('')}
+                                ${expBranchesCache.map(b => `<option value="${b.branch_name}" ${expFilterBranch === b.branch_name ? 'selected' : ''}>${b.branch_name}</option>`).join('')}
                             </select>
                             <select id="filterCategoryTable">
                                 <option value="">All Categories</option>
-                                ${categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('')}
+                                ${expCategoriesCache.map(c => `<option value="${c.name}" ${expFilterCategory === c.name ? 'selected' : ''}>${c.name}</option>`).join('')}
                             </select>
-                            <input type="month" id="filterMonth" title="Filter by month" />
+                            <input type="month" id="filterMonth" title="Filter by month" value="${expFilterMonth}" />
                         </div>
                     </div>
                     <div id="expTableWrap"></div>
+                    ${paginationHTML}
                 </div>
-
             </div>
         `;
 
-        function applyFilters() {
-            const branch   = document.getElementById('filterBranchTable').value;
-            const category = document.getElementById('filterCategoryTable').value;
-            const month    = document.getElementById('filterMonth').value;
-            let filtered = expenses;
-            if (branch)   filtered = filtered.filter(e => e.branch === branch);
-            if (category) filtered = filtered.filter(e => e.category === category);
-            if (month)    filtered = filtered.filter(e => e.expense_date?.startsWith(month));
-            renderTable(filtered);
-        }
-
-        document.getElementById('filterBranchTable').addEventListener('change', applyFilters);
-        document.getElementById('filterCategoryTable').addEventListener('change', applyFilters);
-        document.getElementById('filterMonth').addEventListener('change', applyFilters);
-
         renderTable(expenses);
+
+        document.getElementById('filterBranchTable').addEventListener('change', e => {
+            expFilterBranch = e.target.value;
+            renderHistoryTab(1);
+        });
+        document.getElementById('filterCategoryTable').addEventListener('change', e => {
+            expFilterCategory = e.target.value;
+            renderHistoryTab(1);
+        });
+        document.getElementById('filterMonth').addEventListener('change', e => {
+            expFilterMonth = e.target.value;
+            renderHistoryTab(1);
+        });
+
+        tabContent.querySelectorAll('.pg-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const p = parseInt(btn.dataset.page);
+                if (p >= 1 && p <= totalPages) renderHistoryTab(p);
+            });
+        });
 
         document.getElementById('expTableWrap').addEventListener('click', async e => {
             if (!e.target.classList.contains('btn-exp-delete')) return;
@@ -303,7 +328,7 @@ window.renderExpensesModule = async function (tableWrap) {
             if (pwd !== '1234') return alert('Incorrect password!');
             const res = await window.api(`/api/expenses/${id}`, { method: 'DELETE' });
             if (!res.success) return alert(res.error || 'Delete failed');
-            await renderHistoryTab();
+            await renderHistoryTab(page);
         });
     }
 
@@ -314,7 +339,7 @@ window.renderExpensesModule = async function (tableWrap) {
             return;
         }
 
-        const total = data.reduce((s, e) => s + Number(e.amount || 0), 0);
+        const pageTotal = data.reduce((s, e) => s + Number(e.amount || 0), 0);
 
         wrap.innerHTML = `
             <div style="overflow-x:auto;">
@@ -352,7 +377,7 @@ window.renderExpensesModule = async function (tableWrap) {
             </table>
             </div>
             <div class="exp-table-footer">
-                Total: <strong style="margin-left:6px;">${fmtAmt(total)}</strong>
+                Page Total: <strong style="margin-left:6px;">${fmtAmt(pageTotal)}</strong>
             </div>
         `;
     }

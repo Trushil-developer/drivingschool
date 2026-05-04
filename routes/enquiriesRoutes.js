@@ -8,29 +8,46 @@ const router = express.Router();
 ============================= */
 router.get("/", requireAdmin, async (req, res, next) => {
   try {
-    const [rows] = await dbPool.query(`
-      SELECT
-        e.id,
-        e.full_name,
-        e.email,
-        e.phone,
-        e.has_licence,
-        e.hear_about,
-        e.message,
-        e.status,
-        e.created_at,
-        b.branch_name,
-        c.course_name,
-        COUNT(a.id) AS action_count
+    const page = req.query.page ? parseInt(req.query.page) : null;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const search = (req.query.search || '').trim();
+    const branch = (req.query.branch || '').trim();
+    const status = (req.query.status || '').trim();
+
+    const conditions = [];
+    const params = [];
+
+    if (search) {
+      conditions.push('(e.full_name LIKE ? OR e.phone LIKE ? OR e.email LIKE ?)');
+      const s = `%${search}%`;
+      params.push(s, s, s);
+    }
+    if (branch) { conditions.push('b.branch_name = ?'); params.push(branch); }
+    if (status) { conditions.push('e.status = ?'); params.push(status); }
+
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    const baseQuery = `
       FROM enquiries e
       LEFT JOIN branches b ON e.branch_id = b.id
       LEFT JOIN courses c ON e.course_id = c.id
       LEFT JOIN enquiry_actions a ON a.enquiry_id = e.id
-      GROUP BY e.id
-      ORDER BY e.id DESC
-    `);
+      ${where}
+      GROUP BY e.id`;
 
-    res.json({ success: true, enquiries: rows });
+    const selectCols = `
+      e.id, e.full_name, e.email, e.phone, e.has_licence, e.hear_about, e.message,
+      e.status, e.created_at, b.branch_name, c.course_name, COUNT(a.id) AS action_count`;
+
+    if (page !== null) {
+      const offset = (page - 1) * limit;
+      const [[{ total }]] = await dbPool.query(`SELECT COUNT(DISTINCT e.id) as total FROM enquiries e LEFT JOIN branches b ON e.branch_id = b.id ${where}`, params);
+      const [rows] = await dbPool.query(`SELECT ${selectCols} ${baseQuery} ORDER BY e.id DESC LIMIT ? OFFSET ?`, [...params, limit, offset]);
+      res.json({ success: true, enquiries: rows, total, page, limit });
+    } else {
+      const [rows] = await dbPool.query(`SELECT ${selectCols} ${baseQuery} ORDER BY e.id DESC`, params);
+      res.json({ success: true, enquiries: rows });
+    }
   } catch (err) {
     console.error("ENQUIRIES LIST ERROR:", err);
     next(err);

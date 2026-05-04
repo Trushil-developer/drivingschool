@@ -245,33 +245,53 @@ window.renderEnquiryModule = async function (tableWrap) {
     }
 
     // ===================== FETCH + BUILD TABLE =====================
-    async function fetchEnquiries() {
+    let enquiryFilterBranch = '';
+    let enquiryFilterStatus = '';
+    let enquirySearchText = '';
+    let enquiryBranchOptions = null; // cached branch list
+
+    async function fetchEnquiries(page = 1) {
         showLoading();
 
         try {
-            const res = await window.api("/api/enquiries");
+            const params = new URLSearchParams({ page, limit: 50 });
+            if (enquirySearchText) params.set('search', enquirySearchText);
+            if (enquiryFilterBranch) params.set('branch', enquiryFilterBranch);
+            if (enquiryFilterStatus) params.set('status', enquiryFilterStatus);
+
+            const res = await window.api(`/api/enquiries?${params}`);
             if (!res.success) throw new Error(res.error || "Failed to fetch enquiries");
 
-            let enquiries = res.enquiries || [];
+            const enquiries = res.enquiries || [];
+            const total = res.total || 0;
+            const limit = res.limit || 50;
+            const totalPages = Math.ceil(total / limit);
 
-            if (!enquiries.length) {
-                tableWrap.innerHTML = `<div class="empty">No enquiries found</div>`;
-                return;
+            // Load branches once
+            if (!enquiryBranchOptions) {
+                try {
+                    const branchRes = await window.api("/api/branches");
+                    enquiryBranchOptions = branchRes.success ? branchRes.branches : [];
+                } catch (_) { enquiryBranchOptions = []; }
             }
 
             const branchFilterHTML = `
                 <div class="filter-bar" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+                    <input id="enquirySearchInput" type="text" placeholder="Search name, phone, email..."
+                        value="${enquirySearchText}"
+                        style="padding:5px 10px;border:1px solid #D1D5DB;border-radius:6px;font-size:13px;min-width:200px;" />
                     <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
                         Branch:
                         <select id="enquiryBranchFilter" style="padding:5px 8px;border:1px solid #D1D5DB;border-radius:6px;font-size:13px;">
                             <option value="">All</option>
+                            ${enquiryBranchOptions.map(b => `<option value="${b.branch_name}" ${enquiryFilterBranch === b.branch_name ? 'selected' : ''}>${b.branch_name}</option>`).join("")}
                         </select>
                     </label>
                     <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
                         Status:
                         <select id="enquiryStatusFilter" style="padding:5px 8px;border:1px solid #D1D5DB;border-radius:6px;font-size:13px;">
                             <option value="">All</option>
-                            ${STATUS_OPTIONS.map(s => `<option value="${s}">${s}</option>`).join("")}
+                            ${STATUS_OPTIONS.map(s => `<option value="${s}" ${enquiryFilterStatus === s ? 'selected' : ''}>${s}</option>`).join("")}
                         </select>
                     </label>
                 </div>
@@ -298,39 +318,47 @@ window.renderEnquiryModule = async function (tableWrap) {
                 </table>
             `;
 
-            tableWrap.innerHTML = branchFilterHTML + tableHTML;
+            const paginationHTML = totalPages > 1
+                ? `<div class="pagination-bar">
+                    <button class="pg-btn" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''}>← Prev</button>
+                    <span class="pg-info">Page ${page} of ${totalPages} (${total} total)</span>
+                    <button class="pg-btn" data-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''}>Next →</button>
+                   </div>`
+                : `<div class="pg-info-only">Showing ${enquiries.length} of ${total} enquir${total !== 1 ? 'ies' : 'y'}</div>`;
 
-            const branchSelect = document.getElementById("enquiryBranchFilter");
-            const statusSelect = document.getElementById("enquiryStatusFilter");
+            tableWrap.innerHTML = branchFilterHTML + tableHTML + paginationHTML;
 
-            // Populate branch filter
-            try {
-                const branchRes = await window.api("/api/branches");
-                if (branchRes.success && branchRes.branches) {
-                    branchRes.branches.forEach(b => {
-                        const opt = document.createElement("option");
-                        opt.value = b.branch_name;
-                        opt.textContent = b.branch_name;
-                        branchSelect.appendChild(opt);
-                    });
-                }
-            } catch (err) {
-                console.error("Failed to load branches", err);
+            if (!enquiries.length) {
+                tableWrap.querySelector("tbody").innerHTML = `<tr><td colspan="11" class="empty">No enquiries found</td></tr>`;
+            } else {
+                renderEnquiryRows(enquiries);
             }
 
-            function applyFilters() {
-                const branch = branchSelect.value;
-                const status = statusSelect.value;
-                let filtered = enquiries;
-                if (branch) filtered = filtered.filter(e => e.branch_name === branch);
-                if (status) filtered = filtered.filter(e => (e.status || "New") === status);
-                renderEnquiryRows(filtered);
-            }
+            // Filter listeners
+            let searchTimer;
+            document.getElementById("enquirySearchInput")?.addEventListener("input", e => {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(() => {
+                    enquirySearchText = e.target.value.trim();
+                    fetchEnquiries(1);
+                }, 350);
+            });
+            document.getElementById("enquiryBranchFilter")?.addEventListener("change", e => {
+                enquiryFilterBranch = e.target.value;
+                fetchEnquiries(1);
+            });
+            document.getElementById("enquiryStatusFilter")?.addEventListener("change", e => {
+                enquiryFilterStatus = e.target.value;
+                fetchEnquiries(1);
+            });
 
-            renderEnquiryRows(enquiries);
-
-            branchSelect?.addEventListener("change", applyFilters);
-            statusSelect?.addEventListener("change", applyFilters);
+            // Pagination listeners
+            tableWrap.querySelectorAll(".pg-btn").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const p = parseInt(btn.dataset.page);
+                    if (p >= 1 && p <= totalPages) fetchEnquiries(p);
+                });
+            });
 
         } catch (err) {
             console.error(err);

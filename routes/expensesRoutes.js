@@ -117,27 +117,47 @@ router.delete("/payment-modes/:id", requireAdmin, async (req, res, next) => {
 router.get("/", requireAdmin, async (req, res, next) => {
     const schoolId = getSchoolId(req);
     try {
-        const [rows] = await dbPool.query(`
-            SELECT
-                e.id,
-                e.branch,
-                e.debitor,
-                ec.name  AS category,
-                ec.is_car_related,
-                c.car_name,
-                e.amount,
-                pm.name  AS payment_mode,
-                e.note,
-                e.expense_date,
-                e.created_at
-            FROM expenses e
+        const page = req.query.page ? parseInt(req.query.page) : null;
+        const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+        const branch = (req.query.branch || '').trim();
+        const category = (req.query.category || '').trim();
+        const month = (req.query.month || '').trim(); // format: YYYY-MM
+
+        const conditions = ['e.school_id = ?'];
+        const params = [schoolId];
+
+        if (branch) { conditions.push('e.branch = ?'); params.push(branch); }
+        if (category) { conditions.push('ec.name = ?'); params.push(category); }
+        if (month) { conditions.push('DATE_FORMAT(e.expense_date, \'%Y-%m\') = ?'); params.push(month); }
+
+        const where = 'WHERE ' + conditions.join(' AND ');
+        const selectCols = `
+            e.id, e.branch, e.debitor,
+            ec.name AS category, ec.is_car_related,
+            c.car_name, e.amount,
+            pm.name AS payment_mode,
+            e.note, e.expense_date, e.created_at`;
+        const joins = `
             LEFT JOIN expense_categories ec ON e.category_id = ec.id
             LEFT JOIN cars c ON e.car_id = c.id
-            LEFT JOIN payment_modes pm ON e.payment_mode_id = pm.id
-            WHERE e.school_id = ?
-            ORDER BY e.id DESC
-        `, [schoolId]);
-        res.json({ success: true, expenses: rows });
+            LEFT JOIN payment_modes pm ON e.payment_mode_id = pm.id`;
+
+        if (page !== null) {
+            const offset = (page - 1) * limit;
+            const [[{ total }]] = await dbPool.query(
+                `SELECT COUNT(*) as total FROM expenses e ${joins} ${where}`, params
+            );
+            const [rows] = await dbPool.query(
+                `SELECT ${selectCols} FROM expenses e ${joins} ${where} ORDER BY e.id DESC LIMIT ? OFFSET ?`,
+                [...params, limit, offset]
+            );
+            res.json({ success: true, expenses: rows, total, page, limit });
+        } else {
+            const [rows] = await dbPool.query(
+                `SELECT ${selectCols} FROM expenses e ${joins} ${where} ORDER BY e.id DESC`, params
+            );
+            res.json({ success: true, expenses: rows });
+        }
     } catch (err) {
         next(err);
     }

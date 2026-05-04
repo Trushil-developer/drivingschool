@@ -116,14 +116,23 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 hideLoading();
             }
         },
-        bookings: async () => {
+        bookings: async (page = 1) => {
             showLoading();
             try {
-                const res = await window.api('/api/bookings');
-                 console.log(res)
+                const filterBranch = document.getElementById('filterBranch');
+                const filterStatus = document.getElementById('filterStatus');
+                const params = new URLSearchParams({ page, limit: 50 });
+                if (lastSearch) params.set('search', lastSearch);
+                if (filterBranch?.value) params.set('branch', filterBranch.value);
+                if (filterStatus?.value) params.set('status', filterStatus.value);
+
+                const res = await window.api(`/api/bookings?${params}`);
                 if (!res.success) throw new Error(res.error || 'Failed to fetch bookings');
 
-                const rows = filterData('bookings', res.bookings, lastSearch);
+                const rows = res.bookings;
+                const total = res.total || 0;
+                const limit = res.limit || 50;
+                const totalPages = Math.ceil(total / limit);
 
                 if (!rows.length) {
                     tableWrap.innerHTML = '<div class="empty">No bookings found</div>';
@@ -131,9 +140,8 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 }
 
                 const scrollTop = window.scrollY || document.documentElement.scrollTop;
-               
 
-                const html = `
+                const tableHtml = `
                     <table class="bookings-table">
                         <thead>
                             <tr>
@@ -163,7 +171,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                                     <td>${b.instructor_name || '-'}</td>
                                     <td>${b.branch || '-'}</td>
                                     <td>${b.present_days || 0}/${b.training_days || '-'}</td>
-                                    <td class="status-${b.attendance_status.toLowerCase()}">${b.attendance_status || '-'}</td>
+                                    <td class="status-${(b.attendance_status || '').toLowerCase()}">${b.attendance_status || '-'}</td>
                                     <td>${b.advance || 0}/${b.total_fees || 0}</td>
                                     <td>${b.starting_from ? formatDate(b.starting_from) : '-'}</td>
                                     <td>
@@ -184,8 +192,23 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                     </table>
                 `;
 
-                tableWrap.innerHTML = html;
+                const paginationHtml = totalPages > 1
+                    ? `<div class="pagination-bar">
+                        <button class="pg-btn" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''}>← Prev</button>
+                        <span class="pg-info">Page ${page} of ${totalPages} (${total} total)</span>
+                        <button class="pg-btn" data-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''}>Next →</button>
+                       </div>`
+                    : `<div class="pg-info-only">Showing ${rows.length} of ${total} booking${total !== 1 ? 's' : ''}</div>`;
+
+                tableWrap.innerHTML = tableHtml + paginationHtml;
                 window.scrollTo(0, scrollTop);
+
+                tableWrap.querySelectorAll('.pg-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const p = parseInt(btn.dataset.page);
+                        if (p >= 1 && p <= totalPages) tabRenderers.bookings(p);
+                    });
+                });
             } catch (err) {
                 console.error(err);
                 tableWrap.innerHTML = `<div class="error">${err.message}</div>`;

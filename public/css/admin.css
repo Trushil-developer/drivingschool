@@ -1065,3 +1065,49 @@ body {
     color: var(--primary-hover);
     text-decoration: underline;
 }
+
+/* ========================================
+   Pagination Bar
+======================================== */
+.pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px 0 8px;
+    flex-wrap: wrap;
+}
+
+.pg-btn {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 16px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+}
+
+.pg-btn:hover:not(:disabled) {
+    background: var(--primary-hover);
+}
+
+.pg-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pg-info {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.pg-info-only {
+    text-align: center;
+    padding: 10px 0 4px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
