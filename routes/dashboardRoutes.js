@@ -224,23 +224,24 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     });
     const availableSlots = totalSlots - activeSlots;
 
-    // Count students present today
-    let studentsQuery = "SELECT COUNT(*) AS count FROM attendance WHERE date = CURDATE() AND present = 1";
+    // Count students present today + total slots attended
+    let studentsQuery = "SELECT COUNT(*) AS count, COALESCE(SUM(present), 0) AS total_slots FROM attendance WHERE date = CURDATE() AND present >= 1";
     let params = [];
     if (branch) {
       studentsQuery = `
-        SELECT COUNT(a.id) AS count 
+        SELECT COUNT(a.id) AS count, COALESCE(SUM(a.present), 0) AS total_slots
         FROM attendance a
         JOIN bookings b ON a.booking_id = b.id
-        WHERE DATE(a.date) = CURDATE() AND a.present = 1 AND TRIM(LOWER(b.branch)) = ?
+        WHERE DATE(a.date) = CURDATE() AND a.present >= 1 AND TRIM(LOWER(b.branch)) = ?
       `;
       params.push(branch.toLowerCase());
     }
 
     const [studentsRow] = await dbPool.query(studentsQuery, params);
     const studentsPresent = studentsRow[0]?.count || 0;
+    const totalSlotsToday = studentsRow[0]?.total_slots || 0;
 
-    res.json({ success: true, activeSlots, availableSlots, studentsPresent });
+    res.json({ success: true, activeSlots, availableSlots, studentsPresent, totalSlotsToday });
 
   } catch (err) {
     console.error("TODAY SLOT STATS ERROR:", err);
@@ -536,7 +537,8 @@ router.get("/attendance-trends", requireAdmin, async (req, res) => {
     const [rows] = await dbPool.query(`
       SELECT
         ${granularity === 'year' ? 'YEAR(a.date)' : (granularity === 'day' ? 'DATE(a.date)' : "DATE_FORMAT(a.date, '%Y-%m')")} AS period,
-        SUM(CASE WHEN a.present = 1 THEN 1 ELSE 0 END) AS present_count,
+        SUM(CASE WHEN a.present >= 1 THEN 1 ELSE 0 END) AS present_count,
+        SUM(a.present) AS total_slots,
         SUM(CASE WHEN a.present = 0 THEN 1 ELSE 0 END) AS absent_count,
         COUNT(*) AS total
       FROM attendance a

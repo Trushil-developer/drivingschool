@@ -213,6 +213,7 @@ async function loadDashboardData(query = "") {
     const slotsRes = await window.api(`/api/dashboard/today-slots?${query}`);
     const activeSlots = slotsRes.success ? slotsRes.activeSlots : 0;
     const studentsPresent = slotsRes.success ? slotsRes.studentsPresent : 0;
+    const totalSlotsToday = slotsRes.success ? slotsRes.totalSlotsToday : 0;
 
     // Render dashboard cards
     document.getElementById("dashboardCards").innerHTML = `
@@ -223,8 +224,9 @@ async function loadDashboardData(query = "") {
       <div class="card expired"><h4>Expired</h4><p>${s.expired}</p></div>
       <div class="card today"><h4>Joined Today</h4><p>${s.todayBookings}</p></div>
       <div class="card slots">
-          <h4>Today's Slots</h4>
-          <p>Present: ${studentsPresent}</p>
+          <h4>Today's Attendance</h4>
+          <p>${totalSlotsToday} / ${activeSlots} Slots</p>
+          <p style="font-size:0.82em;color:#64748b;margin-top:4px;">Students: ${studentsPresent}</p>
       </div>
       <div class="card revenue">
           <h4>Total Revenue</h4>
@@ -511,15 +513,15 @@ async function loadAttendanceChart() {
         labels,
         datasets: [
           {
-            label: 'Present',
+            label: 'Students Present',
             data: res.data.map(d => d.present_count),
             backgroundColor: COLORS.success,
             borderRadius: 4
           },
           {
-            label: 'Absent',
-            data: res.data.map(d => d.absent_count),
-            backgroundColor: COLORS.danger,
+            label: 'Total Slots Attended',
+            data: res.data.map(d => d.total_slots),
+            backgroundColor: 'rgba(59,130,246,0.5)',
             borderRadius: 4
           }
         ]
@@ -528,11 +530,21 @@ async function loadAttendanceChart() {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom' }
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              afterBody: (items) => {
+                const idx = items[0]?.dataIndex;
+                const d = res.data[idx];
+                if (d && d.absent_count > 0) return [`Marked Absent: ${d.absent_count}`];
+                return [];
+              }
+            }
+          }
         },
         scales: {
-          x: { stacked: true },
-          y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+          x: { stacked: false },
+          y: { beginAtZero: true, ticks: { stepSize: 1 } }
         }
       }
     });

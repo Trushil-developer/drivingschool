@@ -228,7 +228,8 @@ window.renderExpensesModule = async function (tableWrap) {
     // =====================
     let expFilterBranch = '';
     let expFilterCategory = '';
-    let expFilterMonth = '';
+    const _now = new Date();
+    let expFilterMonth = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}`;
     let expCategoriesCache = null;
     let expBranchesCache = null;
 
