@@ -213,7 +213,7 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     });
 
     // Count active and available slots
-    const totalSlots = cars.length * 32; // 6:00 - 22:00 = 32 slots per car
+    const totalSlots = cars.length * 33; 
     let activeSlots = 0;
     cars.forEach(c => {
       const car = c.car_name;
