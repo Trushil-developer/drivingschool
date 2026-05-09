@@ -229,20 +229,39 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       return today <= end;
     });
 
-    // Build bookedSlots per car
     const bookedSlots = {};
     bookings.forEach(b => {
-      const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4].filter(Boolean);
-      if (!bookedSlots[b.car_name]) bookedSlots[b.car_name] = [];
-      bookedSlots[b.car_name].push(...slots);
+      if (!b.car_name || !b.allotted_time) return;
+      const car = b.car_name.trim();
+      if (!bookedSlots[car]) bookedSlots[car] = {};
+
+      const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
+        .filter(Boolean).sort();
+      const mins = slots.map(s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; });
+
+      let group = [mins[0]];
+      const groups = [];
+      for (let i = 1; i < mins.length; i++) {
+        if (mins[i] === mins[i - 1] + 30) { group.push(mins[i]); }
+        else { groups.push(group); group = [mins[i]]; }
+      }
+      groups.push(group);
+
+      groups.forEach(g => {
+        g.forEach((min, idx) => {
+          const key = `${String(Math.floor(min/60)).padStart(2,'0')}:${String(min%60).padStart(2,'0')}`;
+          bookedSlots[car][key] = idx === 0 ? true : 'skip';
+        });
+      });
     });
 
-    // Count active and available slots
-    const totalSlots = cars.length * 32; 
+    const totalSlots = cars.length * 33;
     let activeSlots = 0;
     cars.forEach(c => {
-      const car = c.car_name;
-      if (bookedSlots[car]) activeSlots += bookedSlots[car].length;
+      const car = c.car_name.trim();
+      if (bookedSlots[car]) {
+        activeSlots += Object.values(bookedSlots[car]).filter(v => v !== 'skip').length;
+      }
     });
     const availableSlots = totalSlots - activeSlots;
 
