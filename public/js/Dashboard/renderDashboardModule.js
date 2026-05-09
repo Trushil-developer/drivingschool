@@ -211,9 +211,15 @@ async function loadDashboardData(query = "") {
 
     // Fetch today's slots + students present
     const slotsRes = await window.api(`/api/dashboard/today-slots?${query}`);
-    const activeSlots = slotsRes.success ? slotsRes.activeSlots : 0;
+    const branchStats = slotsRes.success ? (slotsRes.branchStats || []) : [];
     const studentsPresent = slotsRes.success ? slotsRes.studentsPresent : 0;
-    const totalSlotsToday = slotsRes.success ? slotsRes.totalSlotsToday : 0;
+
+    const branchRowsHtml = branchStats.map(b =>
+      `<div class="branch-slot-row">
+        <span class="branch-slot-name">${b.branch}</span>
+        <span class="branch-slot-count">${b.present} / ${b.activeSlots}</span>
+      </div>`
+    ).join('');
 
     // Render dashboard cards
     document.getElementById("dashboardCards").innerHTML = `
@@ -225,8 +231,8 @@ async function loadDashboardData(query = "") {
       <div class="card today"><h4>Joined Today</h4><p>${s.todayBookings}</p></div>
       <div class="card slots">
           <h4>Today's Attendance</h4>
-          <p>${totalSlotsToday} / ${activeSlots} Slots</p>
-          <p style="font-size:0.82em;color:#64748b;margin-top:4px;">Students: ${studentsPresent}</p>
+          <div class="branch-slots-list">${branchRowsHtml}</div>
+          <p class="slots-total">Total Students: ${studentsPresent}</p>
       </div>
       <div class="card revenue">
           <h4>Total Revenue</h4>

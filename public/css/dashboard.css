@@ -131,6 +131,37 @@
     background: #10b981;
 }
 
+.dashboard-cards .card.slots .branch-slots-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 8px;
+}
+
+.dashboard-cards .card.slots .branch-slot-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+}
+
+.dashboard-cards .card.slots .branch-slot-name {
+    color: #475569;
+    font-weight: 500;
+}
+
+.dashboard-cards .card.slots .branch-slot-count {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 14px;
+}
+
+.dashboard-cards .card.slots .slots-total {
+    margin: 4px 0 0;
+    font-size: 11px;
+    color: #94a3b8;
+}
+
 .dashboard-cards .card h4 {
     margin: 0;
     font-size: 12px;

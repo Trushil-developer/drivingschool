@@ -177,28 +177,27 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
   try {
     const { branch } = req.query;
 
-    // Fetch all cars
-    const [cars] = await dbPool.query(
+    // Fetch all cars with their branch
+    const [allCars] = await dbPool.query(
       branch
-        ? "SELECT car_name FROM cars WHERE TRIM(LOWER(branch)) = ?"
-        : "SELECT car_name FROM cars",
+        ? "SELECT car_name, branch FROM cars WHERE TRIM(LOWER(branch)) = ?"
+        : "SELECT car_name, branch FROM cars",
       branch ? [branch.toLowerCase()] : []
     );
 
-    if (cars.length === 0) return res.json({ success: true, activeSlots: 0, availableSlots: 0, studentsPresent: 0 });
+    if (allCars.length === 0) return res.json({ success: true, activeSlots: 0, availableSlots: 0, studentsPresent: 0, branchStats: [] });
 
-    // Fetch candidate bookings — same base filter as schedule
+    // Fetch candidate bookings with branch
     const bookingParams = [];
     let bookingWhere = `attendance_status IN ('Active','Pending')
       AND starting_from IS NOT NULL AND car_name IS NOT NULL AND car_name != ''`;
-
     if (branch) {
       bookingWhere += ` AND TRIM(LOWER(branch)) = ?`;
       bookingParams.push(branch.toLowerCase());
     }
 
     const [rawBookings] = await dbPool.query(
-      `SELECT car_name, allotted_time, allotted_time2, allotted_time3, allotted_time4,
+      `SELECT branch, car_name, allotted_time, allotted_time2, allotted_time3, allotted_time4,
               starting_from, training_days, present_days
        FROM bookings WHERE ${bookingWhere}`,
       bookingParams
@@ -212,11 +211,9 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       const start = new Date(b.starting_from);
       start.setHours(0, 0, 0, 0);
       if (today < start) return false;
-
       const totalSessions = Number(b.training_days) || 15;
       const doneSessions  = Number(b.present_days)  || 0;
       const remaining     = totalSessions - doneSessions;
-
       let end;
       if (remaining < totalSessions / 2) {
         end = new Date(today);
@@ -225,20 +222,18 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
         end = new Date(start);
         end.setDate(end.getDate() + 29);
       }
-
       return today <= end;
     });
 
+    // Build bookedSlots map keyed by car
     const bookedSlots = {};
     bookings.forEach(b => {
       if (!b.car_name || !b.allotted_time) return;
       const car = b.car_name.trim();
       if (!bookedSlots[car]) bookedSlots[car] = {};
-
       const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
         .filter(Boolean).sort();
       const mins = slots.map(s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; });
-
       let group = [mins[0]];
       const groups = [];
       for (let i = 1; i < mins.length; i++) {
@@ -246,7 +241,6 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
         else { groups.push(group); group = [mins[i]]; }
       }
       groups.push(group);
-
       groups.forEach(g => {
         g.forEach((min, idx) => {
           const key = `${String(Math.floor(min/60)).padStart(2,'0')}:${String(min%60).padStart(2,'0')}`;
@@ -255,34 +249,54 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       });
     });
 
-    const totalSlots = cars.length * 33;
-    let activeSlots = 0;
-    cars.forEach(c => {
-      const car = c.car_name.trim();
-      if (bookedSlots[car]) {
-        activeSlots += Object.values(bookedSlots[car]).filter(v => v !== 'skip').length;
-      }
+    // Group cars by branch
+    const carsByBranch = {};
+    allCars.forEach(c => {
+      const b = (c.branch || '').trim();
+      if (!carsByBranch[b]) carsByBranch[b] = [];
+      carsByBranch[b].push(c.car_name.trim());
     });
-    const availableSlots = totalSlots - activeSlots;
 
-    // Count students present today + total slots attended
-    let studentsQuery = "SELECT COUNT(*) AS count, COALESCE(SUM(present), 0) AS total_slots FROM attendance WHERE date = CURDATE() AND present >= 1";
-    let params = [];
-    if (branch) {
-      studentsQuery = `
-        SELECT COUNT(a.id) AS count, COALESCE(SUM(a.present), 0) AS total_slots
-        FROM attendance a
-        JOIN bookings b ON a.booking_id = b.id
-        WHERE DATE(a.date) = CURDATE() AND a.present >= 1 AND TRIM(LOWER(b.branch)) = ?
-      `;
-      params.push(branch.toLowerCase());
-    }
+    // Attendance per branch today
+    const [attendanceRows] = await dbPool.query(`
+      SELECT TRIM(b.branch) AS branch, COUNT(a.id) AS present
+      FROM attendance a
+      JOIN bookings b ON a.booking_id = b.id
+      WHERE DATE(a.date) = CURDATE() AND a.present >= 1
+      ${branch ? 'AND TRIM(LOWER(b.branch)) = ?' : ''}
+      GROUP BY TRIM(b.branch)
+    `, branch ? [branch.toLowerCase()] : []);
 
-    const [studentsRow] = await dbPool.query(studentsQuery, params);
-    const studentsPresent = studentsRow[0]?.count || 0;
-    const totalSlotsToday = studentsRow[0]?.total_slots || 0;
+    const presentByBranch = {};
+    attendanceRows.forEach(r => { presentByBranch[r.branch] = Number(r.present); });
 
-    res.json({ success: true, activeSlots, availableSlots, studentsPresent, totalSlotsToday });
+    // Compute per-branch stats
+    let totalActiveSlots = 0;
+    let totalSlots = 0;
+    let totalPresent = 0;
+    const branchStats = Object.keys(carsByBranch).sort().map(branchName => {
+      const cars = carsByBranch[branchName];
+      let active = 0;
+      cars.forEach(car => {
+        if (bookedSlots[car]) {
+          active += Object.values(bookedSlots[car]).filter(v => v !== 'skip').length;
+        }
+      });
+      const total = cars.length * 33;
+      const present = presentByBranch[branchName] || 0;
+      totalActiveSlots += active;
+      totalSlots += total;
+      totalPresent += present;
+      return { branch: branchName, activeSlots: active, totalSlots: total, present };
+    });
+
+    res.json({
+      success: true,
+      activeSlots: totalActiveSlots,
+      availableSlots: totalSlots - totalActiveSlots,
+      studentsPresent: totalPresent,
+      branchStats
+    });
 
   } catch (err) {
     console.error("TODAY SLOT STATS ERROR:", err);
