@@ -75,8 +75,8 @@ window.renderExpensesModule = async function (tableWrap) {
                     </div>
 
                     <div class="exp-field">
-                        <label>Debitor (Name) *</label>
-                        <input type="text" id="expDebitor" placeholder="Who is paying this expense..." />
+                        <label>Paid By (Name) *</label>
+                        <input type="text" id="expDebitor" placeholder="Enter name of person paying this expense..." />
                     </div>
 
                     <div class="exp-field">
@@ -215,7 +215,7 @@ window.renderExpensesModule = async function (tableWrap) {
             msg.textContent = '';
 
             if (!branch)                         return showErr(msg, 'Please select a branch.');
-            if (!debitor)                         return showErr(msg, 'Please enter debitor name.');
+            if (!debitor)                         return showErr(msg, 'Please enter the name of person paying this expense.');
             if (!category_id)                     return showErr(msg, 'Please select a category.');
             if (!amount || Number(amount) <= 0)   return showErr(msg, 'Please enter a valid amount.');
             if (!payment_mode_id)                 return showErr(msg, 'Please select a payment mode.');
@@ -386,7 +386,7 @@ window.renderExpensesModule = async function (tableWrap) {
                         <th>Slip</th>
                         <th>Date</th>
                         <th>Branch</th>
-                        <th>Debitor</th>
+                        <th>Paid By</th>
                         <th>Employee</th>
                         <th>Category</th>
                         <th>Car</th>
