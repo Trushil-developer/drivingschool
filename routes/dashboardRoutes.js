@@ -187,29 +187,26 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
 
     if (cars.length === 0) return res.json({ success: true, activeSlots: 0, availableSlots: 0, studentsPresent: 0 });
 
-    // Fetch active or pending bookings
-    const [bookings] = await dbPool.query(
-      `SELECT id, branch, car_name, allotted_time, allotted_time2, allotted_time3, allotted_time4, starting_from, training_days, present_days, attendance_status
-       FROM bookings
-       WHERE attendance_status IN ('Active','Pending')`
-    );
+    // Fetch active or pending bookings that are in training range today (SQL handles date logic)
+    const bookingParams = [];
+    let bookingWhere = `attendance_status IN ('Active','Pending')
+      AND starting_from IS NOT NULL AND car_name IS NOT NULL AND car_name != ''
+      AND CURDATE() BETWEEN DATE(starting_from) AND DATE_ADD(DATE(starting_from), INTERVAL IFNULL(training_days, 15) DAY)`;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    if (branch) {
+      bookingWhere += ` AND TRIM(LOWER(branch)) = ?`;
+      bookingParams.push(branch.toLowerCase());
+    }
+
+    const [bookings] = await dbPool.query(
+      `SELECT car_name, allotted_time, allotted_time2, allotted_time3, allotted_time4
+       FROM bookings WHERE ${bookingWhere}`,
+      bookingParams
+    );
 
     // Build bookedSlots per car
     const bookedSlots = {};
-
     bookings.forEach(b => {
-      if (!b.starting_from || !b.car_name) return;
-
-      const start = new Date(b.starting_from);
-      const end = new Date(start);
-      end.setDate(start.getDate() + (b.training_days || 15));
-
-      if (today.getTime() < start.getTime() || today.getTime() > end.getTime()) return;
-      if (branch && b.branch.trim().toLowerCase() !== branch.trim().toLowerCase()) return;
-
       const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4].filter(Boolean);
       if (!bookedSlots[b.car_name]) bookedSlots[b.car_name] = [];
       bookedSlots[b.car_name].push(...slots);

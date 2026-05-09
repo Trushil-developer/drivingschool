@@ -8,12 +8,18 @@ const router = express.Router();
 */
 router.get('/', async (req, res) => {
   try {
+    const role = (req.query.role || '').trim();
+    const conditions = role ? ['role = ?'] : [];
+    const params = role ? [role] : [];
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+
     const [rows] = await dbPool.query(`
-      SELECT id, employee_no, instructor_name, email, mobile_no, branch, 
+      SELECT id, employee_no, role, instructor_name, email, mobile_no, branch,
              drivers_license, adhar_no, address, is_active
       FROM instructors
+      ${where}
       ORDER BY id DESC
-    `);
+    `, params);
     res.json({ success: true, instructors: rows });
   } catch (err) {
     console.error('INSTRUCTORS LIST ERROR:', err);
@@ -25,18 +31,22 @@ router.get('/', async (req, res) => {
   ADD new instructor
 */
 router.post('/', requireAdmin, async (req, res) => {
-  const { instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address } = req.body;
+  const { instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address, role } = req.body;
 
-  if (!instructor_name) return res.json({ success: false, error: 'Instructor name is required' });
+  if (!instructor_name) return res.json({ success: false, error: 'Employee name is required' });
 
   try {
     const [result] = await dbPool.query(`
-      INSERT INTO instructors 
-      (instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '']);
+      INSERT INTO instructors
+      (instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address, role, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '', role || 'Instructor']);
 
-    res.json({ success: true, instructor_id: result.insertId });
+    const newId = result.insertId;
+    const employee_no = `EMP${String(newId).padStart(3, '0')}`;
+    await dbPool.query(`UPDATE instructors SET employee_no = ? WHERE id = ?`, [employee_no, newId]);
+
+    res.json({ success: true, instructor_id: newId, employee_no });
   } catch (err) {
     console.error('INSTRUCTOR CREATE ERROR:', err);
     res.status(500).json({ success: false, error: 'Internal error' });
@@ -48,16 +58,16 @@ router.post('/', requireAdmin, async (req, res) => {
 */
 router.put('/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address } = req.body;
+  const { instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address, role } = req.body;
 
-  if (!instructor_name) return res.json({ success: false, error: 'Instructor name is required' });
+  if (!instructor_name) return res.json({ success: false, error: 'Employee name is required' });
 
   try {
     await dbPool.query(`
       UPDATE instructors SET
-        instructor_name=?, email=?, mobile_no=?, branch=?, drivers_license=?, adhar_no=?, address=?
+        instructor_name=?, email=?, mobile_no=?, branch=?, drivers_license=?, adhar_no=?, address=?, role=?
       WHERE id=?
-    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '', id]);
+    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '', role || 'Instructor', id]);
 
     res.json({ success: true });
   } catch (err) {

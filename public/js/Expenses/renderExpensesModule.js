@@ -98,6 +98,13 @@ window.renderExpensesModule = async function (tableWrap) {
                         </select>
                     </div>
 
+                    <div class="exp-field" id="expEmployeeField" style="display:none;">
+                        <label>Employee *</label>
+                        <select id="expEmployee">
+                            <option value="">Select employee...</option>
+                        </select>
+                    </div>
+
                     <div class="exp-field">
                         <label>Amount (Rs.) *</label>
                         <input type="number" id="expAmount" placeholder="0.00" min="0" step="0.01" />
@@ -133,13 +140,38 @@ window.renderExpensesModule = async function (tableWrap) {
             </div>
         `;
 
-        // Show/hide car field based on category
-        document.getElementById('expCategory').addEventListener('change', function () {
+        // Show/hide car/employee fields based on category
+        document.getElementById('expCategory').addEventListener('change', async function () {
             const opt = this.options[this.selectedIndex];
             const isCarRelated = opt?.dataset.car === '1';
+            const isSalary = opt?.text === 'Salary Withdrawal Slip';
+
             document.getElementById('expCarField').style.display = isCarRelated ? '' : 'none';
             if (!isCarRelated) document.getElementById('expCar').value = '';
+
+            const empField = document.getElementById('expEmployeeField');
+            const empSelect = document.getElementById('expEmployee');
+
+            if (isSalary) {
+                empField.style.display = '';
+                empSelect.innerHTML = '<option value="">Loading...</option>';
+                empSelect.disabled = true;
+                try {
+                    const res = await window.api('/api/instructors');
+                    const employees = res?.success ? res.instructors.filter(i => i.is_active) : [];
+                    empSelect.innerHTML = '<option value="">Select employee...</option>' +
+                        employees.map(e => `<option value="${e.instructor_name}">${e.instructor_name}${e.role && e.role !== 'Instructor' ? ' (' + e.role + ')' : ''}</option>`).join('');
+                    empSelect.disabled = false;
+                } catch {
+                    empSelect.innerHTML = '<option value="">Failed to load</option>';
+                }
+            } else {
+                empField.style.display = 'none';
+                empSelect.value = '';
+            }
         });
+
+        // No auto-fill — Debitor and Employee are independent fields
 
         // New Category
         document.getElementById('btnNewCategory').addEventListener('click', async () => {
@@ -170,6 +202,7 @@ window.renderExpensesModule = async function (tableWrap) {
         document.getElementById('btnSubmitExpense').addEventListener('click', async () => {
             const branch          = document.getElementById('expBranch').value;
             const debitor         = document.getElementById('expDebitor').value.trim();
+            const employee_name   = document.getElementById('expEmployee').value || null;
             const category_id     = document.getElementById('expCategory').value;
             const car_id          = document.getElementById('expCar').value || null;
             const amount          = document.getElementById('expAmount').value;
@@ -190,6 +223,8 @@ window.renderExpensesModule = async function (tableWrap) {
 
             const catOpt = document.getElementById('expCategory').options[document.getElementById('expCategory').selectedIndex];
             if (catOpt?.dataset.car === '1' && !car_id) return showErr(msg, 'Please select a car for this category.');
+            if (catOpt?.text === 'Salary Withdrawal Slip' && !document.getElementById('expEmployee').value)
+                return showErr(msg, 'Please select an employee for salary withdrawal.');
 
             const btn = document.getElementById('btnSubmitExpense');
             btn.disabled = true;
@@ -197,7 +232,7 @@ window.renderExpensesModule = async function (tableWrap) {
 
             const res = await window.api('/api/expenses', {
                 method: 'POST',
-                body: JSON.stringify({ branch, debitor, category_id, car_id, amount, payment_mode_id, note, expense_date })
+                body: JSON.stringify({ branch, debitor, employee_name, category_id, car_id, amount, payment_mode_id, note, expense_date })
             });
 
             btn.disabled = false;
@@ -209,11 +244,12 @@ window.renderExpensesModule = async function (tableWrap) {
             msg.innerHTML = `Expense saved! Slip No: <strong>#${res.slip_no}</strong>`;
 
             // Reset
-            ['expBranch','expDebitor','expCategory','expCar','expAmount','expPayMode','expNote'].forEach(id => {
+            ['expBranch','expDebitor','expCategory','expCar','expAmount','expPayMode','expNote','expEmployee'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
             document.getElementById('expCarField').style.display = 'none';
+            document.getElementById('expEmployeeField').style.display = 'none';
             document.getElementById('expDate').value = new Date().toISOString().split('T')[0];
         });
     }
@@ -351,6 +387,7 @@ window.renderExpensesModule = async function (tableWrap) {
                         <th>Date</th>
                         <th>Branch</th>
                         <th>Debitor</th>
+                        <th>Employee</th>
                         <th>Category</th>
                         <th>Car</th>
                         <th>Amount</th>
@@ -366,6 +403,7 @@ window.renderExpensesModule = async function (tableWrap) {
                             <td>${formatDate(e.expense_date)}</td>
                             <td>${e.branch || '-'}</td>
                             <td>${e.debitor || '-'}</td>
+                            <td>${e.employee_name || '-'}</td>
                             <td>${e.category || '-'}</td>
                             <td>${e.car_name || '-'}</td>
                             <td class="exp-amount-cell">${fmtAmt(e.amount)}</td>

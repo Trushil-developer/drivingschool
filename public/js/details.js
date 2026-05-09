@@ -228,7 +228,7 @@ import {
             const [branchRes, carRes, instructorRes] = await Promise.all([
                 window.api("/api/branches"),
                 window.api("/api/cars"),
-                window.api("/api/instructors") 
+                window.api("/api/instructors?role=Instructor")
             ]);
 
             const allBranches = branchRes.branches || [];

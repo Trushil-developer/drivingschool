@@ -1,3 +1,5 @@
+process.env.TZ = 'Asia/Kolkata'; // Force IST across all Date operations
+
 import express from 'express';
 import mysql from 'mysql2/promise';
 import bodyParser from 'body-parser';
@@ -50,6 +52,13 @@ export const dbPool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  timezone: '+05:30',
+});
+
+// Force IST on every MySQL connection so CURDATE(), NOW() etc. always return IST
+// regardless of where the server is hosted (EC2 UTC, etc.)
+dbPool.pool.on('connection', (connection) => {
+  connection.query("SET time_zone = '+05:30'");
 });
 
 (async () => {

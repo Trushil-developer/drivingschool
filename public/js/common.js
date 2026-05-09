@@ -98,6 +98,21 @@ window.CommonReady = (async () => {
     await loadHTML('#sidebar', '/includes/sidebar.html');
     await loadHTML('#attendanceModalContainer', '/includes/attendance-modal.html');
 
+    // IST Clock — runs after topbar HTML is injected into DOM
+    (function startISTClock() {
+        const dateEl = document.getElementById('ist-date');
+        const timeEl = document.getElementById('ist-time');
+        if (!dateEl || !timeEl) return;
+        function tick() {
+            const now = new Date();
+            const opts = { timeZone: 'Asia/Kolkata' };
+            dateEl.textContent = now.toLocaleDateString('en-IN', { ...opts, weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+            timeEl.textContent = now.toLocaleTimeString('en-IN', { ...opts, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        }
+        tick();
+        setInterval(tick, 1000);
+    })();
+
     /* =====================================
        LOGOUT
     ===================================== */

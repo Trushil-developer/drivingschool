@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadInstructors(selectedBranch) {
         try {
-            const res = await fetch("/api/instructors");
+            const res = await fetch("/api/instructors?role=Instructor");
             const data = await res.json();
             if (!data.success) throw new Error("Failed to fetch instructors");
 

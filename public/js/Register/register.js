@@ -867,7 +867,7 @@ function getTrainingDaysFromProps() {
 
 async function loadInstructors() {
     try {
-        const res = await fetch("/api/instructors");
+        const res = await fetch("/api/instructors?role=Instructor");
         const data = await res.json();
 
         const filtered = data.instructors.filter(i => i.branch === state.branch && i.is_active);

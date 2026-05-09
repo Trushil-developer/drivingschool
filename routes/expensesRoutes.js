@@ -132,7 +132,7 @@ router.get("/", requireAdmin, async (req, res, next) => {
 
         const where = 'WHERE ' + conditions.join(' AND ');
         const selectCols = `
-            e.id, e.branch, e.debitor,
+            e.id, e.branch, e.debitor, e.employee_name,
             ec.name AS category, ec.is_car_related,
             c.car_name, e.amount,
             pm.name AS payment_mode,
@@ -165,7 +165,7 @@ router.get("/", requireAdmin, async (req, res, next) => {
 
 router.post("/", requireAdmin, async (req, res, next) => {
     const schoolId = getSchoolId(req);
-    const { branch, debitor, category_id, car_id, amount, payment_mode_id, note, expense_date } = req.body;
+    const { branch, debitor, employee_name, category_id, car_id, amount, payment_mode_id, note, expense_date } = req.body;
 
     if (!branch || !debitor || !category_id || !payment_mode_id || !expense_date) {
         return res.json({ success: false, error: "Missing required fields" });
@@ -173,9 +173,9 @@ router.post("/", requireAdmin, async (req, res, next) => {
 
     try {
         const [result] = await dbPool.query(
-            `INSERT INTO expenses (school_id, branch, debitor, category_id, car_id, amount, payment_mode_id, note, expense_date)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [schoolId, branch, debitor.trim(), category_id, car_id || null, amount || 0, payment_mode_id, note || null, expense_date]
+            `INSERT INTO expenses (school_id, branch, debitor, employee_name, category_id, car_id, amount, payment_mode_id, note, expense_date)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [schoolId, branch, debitor.trim(), employee_name?.trim() || null, category_id, car_id || null, amount || 0, payment_mode_id, note || null, expense_date]
         );
         res.json({ success: true, id: result.insertId, slip_no: result.insertId });
     } catch (err) {

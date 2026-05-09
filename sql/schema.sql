@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS expenses (
     school_id INT NOT NULL DEFAULT 1,
     branch VARCHAR(100) NOT NULL,
     debitor VARCHAR(150) NOT NULL,
+    employee_name VARCHAR(150) NULL,
     category_id INT NOT NULL,
     car_id INT NULL,
     amount DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -62,6 +63,16 @@ CREATE TABLE IF NOT EXISTS expenses (
     FOREIGN KEY (category_id) REFERENCES expense_categories(id),
     FOREIGN KEY (payment_mode_id) REFERENCES payment_modes(id)
 );
+
+-- Ensure employee_name column exists (for existing databases)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE table_schema='drivingschool'
+                      AND table_name='expenses'
+                      AND column_name='employee_name');
+SET @sql := IF(@col_exists=0,
+               'ALTER TABLE expenses ADD COLUMN employee_name VARCHAR(150) NULL AFTER debitor;',
+               'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- CARS TABLE
@@ -336,97 +347,31 @@ DEALLOCATE PREPARE stmt;
 -- INSTRUCTORS TABLE
 -- =====================================
 CREATE TABLE IF NOT EXISTS instructors (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    instructor_name VARCHAR(100) NOT NULL
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    employee_no   VARCHAR(10),
+    instructor_name VARCHAR(100) NOT NULL,
+    role          VARCHAR(50) NOT NULL DEFAULT 'Instructor',
+    email         VARCHAR(100),
+    mobile_no     VARCHAR(20),
+    branch        VARCHAR(50),
+    drivers_license VARCHAR(30),
+    adhar_no      VARCHAR(20),
+    address       TEXT,
+    is_active     TINYINT(1) DEFAULT 1
 );
 
--- Ensure employee_no exists
-SET @col_exists := (SELECT COUNT(*) 
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='instructors' 
-                      AND column_name='employee_no');
+-- Ensure role column exists (for existing databases where table was already created)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE table_schema='drivingschool'
+                      AND table_name='instructors'
+                      AND column_name='role');
 SET @sql := IF(@col_exists=0,
-               'ALTER TABLE instructors ADD COLUMN employee_no VARCHAR(10);',
+               "ALTER TABLE instructors ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'Instructor';",
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- Ensure drivers_license exists
-SET @col_exists := (SELECT COUNT(*) 
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='instructors' 
-                      AND column_name='drivers_license');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE instructors ADD COLUMN drivers_license VARCHAR(30);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Ensure adhar_no exists
-SET @col_exists := (SELECT COUNT(*) 
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='instructors' 
-                      AND column_name='adhar_no');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE instructors ADD COLUMN adhar_no VARCHAR(20);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Ensure address exists
-SET @col_exists := (SELECT COUNT(*) 
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='instructors' 
-                      AND column_name='address');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE instructors ADD COLUMN address TEXT;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Ensure branch exists
-SET @col_exists := (SELECT COUNT(*) 
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='instructors' 
-                      AND column_name='branch');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE instructors ADD COLUMN branch VARCHAR(50);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Ensure email exists
-SET @col_exists := (SELECT COUNT(*) 
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='instructors' 
-                      AND column_name='email');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE instructors ADD COLUMN email VARCHAR(100);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Ensure mobile_no exists
-SET @col_exists := (SELECT COUNT(*) 
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='instructors' 
-                      AND column_name='mobile_no');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE instructors ADD COLUMN mobile_no VARCHAR(20);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Ensure is_active exists
-SET @col_exists := (SELECT COUNT(*) 
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='instructors' 
-                      AND column_name='is_active');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE instructors ADD COLUMN is_active TINYINT(1) DEFAULT 1;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Backfill employee_no for any existing rows that have none
+UPDATE instructors SET employee_no = CONCAT('EMP', LPAD(id, 3, '0')) WHERE employee_no IS NULL OR employee_no = '';
 
 -- =====================================
 -- BOOKINGS TABLE

@@ -21,17 +21,24 @@ window.openInstructorAddModal = function(tabRenderers, currentTab) {
         }
 
         const formHTML = `
-            <h2>Add Instructor</h2>
+            <h2>Add Employee</h2>
             <div class="modal-content-form">
                 <label>Name</label><input id="ins_name" type="text" required>
-                <label>Email</label><input id="ins_email" type="email" required>
+                <label>Role</label>
+                <select id="ins_role" required>
+                    <option value="Instructor">Instructor</option>
+                    <option value="Office Staff">Office Staff</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Other">Other</option>
+                </select>
+                <label>Email</label><input id="ins_email" type="email">
                 <label>Mobile</label><input id="ins_mobile" type="text" required>
                 <label>Branch</label>
                 <select id="ins_branch" required>${branchOptions}</select>
-                <label>Driver Licence</label><input id="ins_license" type="text" required>
-                <label>Adhar No</label><input id="ins_adhar" type="text" required>
-                <label>Address</label><textarea id="ins_address" required></textarea>
-                <button id="saveInstructor" class="btn primary">Save Instructor</button>
+                <label>Driver Licence</label><input id="ins_license" type="text">
+                <label>Adhar No</label><input id="ins_adhar" type="text">
+                <label>Address</label><textarea id="ins_address"></textarea>
+                <button id="saveInstructor" class="btn primary">Save Employee</button>
             </div>
         `;
         window.Modal.setContent(formHTML);
@@ -41,6 +48,7 @@ window.openInstructorAddModal = function(tabRenderers, currentTab) {
             document.getElementById("saveInstructor").onclick = async () => {
                 const instructorData = {
                     instructor_name: document.getElementById("ins_name").value.trim(),
+                    role: document.getElementById("ins_role").value,
                     email: document.getElementById("ins_email").value.trim(),
                     mobile_no: document.getElementById("ins_mobile").value.trim(),
                     branch: document.getElementById("ins_branch").value.trim(),
@@ -49,9 +57,9 @@ window.openInstructorAddModal = function(tabRenderers, currentTab) {
                     address: document.getElementById("ins_address").value.trim(),
                 };
 
-                for (const [key, value] of Object.entries(instructorData)) {
-                    if (!value) return alert(`Please fill in ${key.replace('_', ' ')}`);
-                }
+                if (!instructorData.instructor_name) return alert("Please fill in name");
+                if (!instructorData.mobile_no) return alert("Please fill in mobile");
+                if (!instructorData.branch) return alert("Please select a branch");
 
                 try {
                     const res = await window.api("/api/instructors", {
@@ -59,8 +67,8 @@ window.openInstructorAddModal = function(tabRenderers, currentTab) {
                         body: JSON.stringify(instructorData),
                         headers: { "Content-Type": "application/json" }
                     });
-                    if (!res.success) throw new Error(res.error || "Failed to save instructor");
-                    alert("Instructor saved successfully!");
+                    if (!res.success) throw new Error(res.error || "Failed to save employee");
+                    alert("Employee saved successfully!");
                     window.Modal.hide();
                     if (tabRenderers[currentTab]) tabRenderers[currentTab]();
                 } catch(err) {
@@ -93,17 +101,22 @@ window.openInstructorEditModal = function(id, data, tabRenderers, currentTab) {
             console.error(err);
         }
 
+        const roles = ['Instructor', 'Office Staff', 'Manager', 'Other'];
         const formHTML = `
-            <h2>Edit Instructor</h2>
+            <h2>Edit Employee</h2>
             <div class="modal-content-form">
                 <label>Name</label><input id="ins_name" type="text" value="${data.instructor_name || ''}" required>
-                <label>Email</label><input id="ins_email" type="email" value="${data.email || ''}" required>
+                <label>Role</label>
+                <select id="ins_role" required>
+                    ${roles.map(r => `<option value="${r}" ${(data.role || 'Instructor') === r ? 'selected' : ''}>${r}</option>`).join('')}
+                </select>
+                <label>Email</label><input id="ins_email" type="email" value="${data.email || ''}">
                 <label>Mobile</label><input id="ins_mobile" type="text" value="${data.mobile_no || ''}" required>
                 <label>Branch</label>
                 <select id="ins_branch" required>${branchOptions}</select>
-                <label>Driver Licence</label><input id="ins_license" type="text" value="${data.drivers_license || ''}" required>
-                <label>Adhar No</label><input id="ins_adhar" type="text" value="${data.adhar_no || ''}" required>
-                <label>Address</label><textarea id="ins_address" required>${data.address || ''}</textarea>
+                <label>Driver Licence</label><input id="ins_license" type="text" value="${data.drivers_license || ''}">
+                <label>Adhar No</label><input id="ins_adhar" type="text" value="${data.adhar_no || ''}">
+                <label>Address</label><textarea id="ins_address">${data.address || ''}</textarea>
                 <button id="saveInstructor" class="btn primary">Save Changes</button>
             </div>
         `;
@@ -114,6 +127,7 @@ window.openInstructorEditModal = function(id, data, tabRenderers, currentTab) {
             document.getElementById("saveInstructor").onclick = async () => {
                 const instructorData = {
                     instructor_name: document.getElementById("ins_name").value.trim(),
+                    role: document.getElementById("ins_role").value,
                     email: document.getElementById("ins_email").value.trim(),
                     mobile_no: document.getElementById("ins_mobile").value.trim(),
                     branch: document.getElementById("ins_branch").value.trim(),
@@ -122,9 +136,9 @@ window.openInstructorEditModal = function(id, data, tabRenderers, currentTab) {
                     address: document.getElementById("ins_address").value.trim(),
                 };
 
-                for (const [key, value] of Object.entries(instructorData)) {
-                    if (!value) return alert(`Please fill in ${key.replace('_', ' ')}`);
-                }
+                if (!instructorData.instructor_name) return alert("Please fill in name");
+                if (!instructorData.mobile_no) return alert("Please fill in mobile");
+                if (!instructorData.branch) return alert("Please select a branch");
 
                 try {
                     const res = await window.api(`/api/instructors/${id}`, {
@@ -132,8 +146,8 @@ window.openInstructorEditModal = function(id, data, tabRenderers, currentTab) {
                         body: JSON.stringify(instructorData),
                         headers: { "Content-Type": "application/json" }
                     });
-                    if(!res.success) throw new Error(res.error || "Failed to update instructor");
-                    alert("Instructor updated successfully!");
+                    if(!res.success) throw new Error(res.error || "Failed to update employee");
+                    alert("Employee updated successfully!");
                     window.Modal.hide();
                     if(tabRenderers[currentTab]) tabRenderers[currentTab]();
                 } catch(err) {
