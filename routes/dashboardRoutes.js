@@ -187,11 +187,14 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
 
     if (cars.length === 0) return res.json({ success: true, activeSlots: 0, availableSlots: 0, studentsPresent: 0 });
 
-    // Fetch active or pending bookings that are in training range today (SQL handles date logic)
-    const bookingParams = [];
+      const bookingParams = [];
     let bookingWhere = `attendance_status IN ('Active','Pending')
       AND starting_from IS NOT NULL AND car_name IS NOT NULL AND car_name != ''
-      AND CURDATE() BETWEEN DATE(starting_from) AND DATE_ADD(DATE(starting_from), INTERVAL IFNULL(training_days, 15) DAY)`;
+      AND CURDATE() >= DATE(starting_from)
+      AND (
+        (IFNULL(training_days,15) - IFNULL(present_days,0)) < IFNULL(training_days,15) / 2
+        OR CURDATE() <= DATE_ADD(DATE(starting_from), INTERVAL 29 DAY)
+      )`;
 
     if (branch) {
       bookingWhere += ` AND TRIM(LOWER(branch)) = ?`;
