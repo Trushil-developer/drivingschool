@@ -187,25 +187,47 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
 
     if (cars.length === 0) return res.json({ success: true, activeSlots: 0, availableSlots: 0, studentsPresent: 0 });
 
-      const bookingParams = [];
+    // Fetch candidate bookings — same base filter as schedule
+    const bookingParams = [];
     let bookingWhere = `attendance_status IN ('Active','Pending')
-      AND starting_from IS NOT NULL AND car_name IS NOT NULL AND car_name != ''
-      AND CURDATE() >= DATE(starting_from)
-      AND (
-        (IFNULL(training_days,15) - IFNULL(present_days,0)) < IFNULL(training_days,15) / 2
-        OR CURDATE() <= DATE_ADD(DATE(starting_from), INTERVAL 29 DAY)
-      )`;
+      AND starting_from IS NOT NULL AND car_name IS NOT NULL AND car_name != ''`;
 
     if (branch) {
       bookingWhere += ` AND TRIM(LOWER(branch)) = ?`;
       bookingParams.push(branch.toLowerCase());
     }
 
-    const [bookings] = await dbPool.query(
-      `SELECT car_name, allotted_time, allotted_time2, allotted_time3, allotted_time4
+    const [rawBookings] = await dbPool.query(
+      `SELECT car_name, allotted_time, allotted_time2, allotted_time3, allotted_time4,
+              starting_from, training_days, present_days
        FROM bookings WHERE ${bookingWhere}`,
       bookingParams
     );
+
+    // Apply the exact same date filter the schedule JS uses
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const bookings = rawBookings.filter(b => {
+      const start = new Date(b.starting_from);
+      start.setHours(0, 0, 0, 0);
+      if (today < start) return false;
+
+      const totalSessions = Number(b.training_days) || 15;
+      const doneSessions  = Number(b.present_days)  || 0;
+      const remaining     = totalSessions - doneSessions;
+
+      let end;
+      if (remaining < totalSessions / 2) {
+        end = new Date(today);
+        end.setDate(end.getDate() + remaining + 3);
+      } else {
+        end = new Date(start);
+        end.setDate(end.getDate() + 29);
+      }
+
+      return today <= end;
+    });
 
     // Build bookedSlots per car
     const bookedSlots = {};
