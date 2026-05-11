@@ -5,6 +5,36 @@
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     }
 
+    // Render a locked counter (password required to edit)
+    function renderLockedCounter(counterDiv, dateStr, count, incrementMap) {
+        const countSpan = document.createElement("span");
+        countSpan.className = "attendance-count";
+        countSpan.textContent = count;
+
+        const lockBtn = document.createElement("button");
+        lockBtn.textContent = "🔒";
+        lockBtn.className = "btn btn-ghost btn-sm";
+        lockBtn.style.marginLeft = "6px";
+
+        lockBtn.addEventListener("click", () => {
+            const pw = prompt("Enter password");
+            if (pw === LOCK_PASSWORD) {
+                const currentCount = parseInt(countSpan.textContent || "0");
+                counterDiv.innerHTML = `
+                    <button class="decrement-btn" data-date="${dateStr}">-</button>
+                    <span class="attendance-count">${currentCount}</span>
+                    <button class="increment-btn" data-date="${dateStr}">+</button>
+                `;
+                attachCounterEvents(counterDiv, incrementMap);
+            } else {
+                alert("Incorrect password");
+            }
+        });
+
+        counterDiv.appendChild(countSpan);
+        counterDiv.appendChild(lockBtn);
+    }
+
     // Helper to attach increment/decrement events
     function attachCounterEvents(counterDiv, incrementMap) {
         const incBtn = counterDiv.querySelector(".increment-btn");
@@ -42,7 +72,7 @@
     }
 
     // Generate attendance rows
-    function generateAttendanceRows(startDate, existing, totalDays, isEditable, incrementMap) {
+    function generateAttendanceRows(startDate, existing, totalDays, isEditable, incrementMap, isCompleted) {
         const tbody = document.createElement('tbody');
         const todayStr = localDateStr(new Date());
 
@@ -63,7 +93,11 @@
 
             const counterDiv = row.querySelector(".attendance-counter");
 
-            if (dateStr === todayStr && isEditable) {
+            if (isCompleted) {
+                // Completed booking — all rows locked, editable via password
+                renderLockedCounter(counterDiv, dateStr, count, incrementMap);
+
+            } else if (dateStr === todayStr && isEditable) {
                 // Today's date editable
                 counterDiv.innerHTML = `
                     <button class="decrement-btn" data-date="${dateStr}">-</button>
@@ -74,32 +108,7 @@
 
             } else if (dateStr < todayStr && isEditable) {
                 // Past date → show count + lock
-                const countSpan = document.createElement("span");
-                countSpan.className = "attendance-count";
-                countSpan.textContent = count;
-
-                const lockBtn = document.createElement("button");
-                lockBtn.textContent = "🔒";
-                lockBtn.className = "btn btn-ghost btn-sm";
-                lockBtn.style.marginLeft = "6px";
-
-                lockBtn.addEventListener("click", () => {
-                    const pw = prompt("Enter password");
-                    if (pw === LOCK_PASSWORD) {
-                        const currentCount = parseInt(countSpan.textContent || "0");
-                        counterDiv.innerHTML = `
-                            <button class="decrement-btn" data-date="${dateStr}">-</button>
-                            <span class="attendance-count">${currentCount}</span>
-                            <button class="increment-btn" data-date="${dateStr}">+</button>
-                        `;
-                        attachCounterEvents(counterDiv, incrementMap);
-                    } else {
-                        alert("Incorrect password");
-                    }
-                });
-
-                counterDiv.appendChild(countSpan);
-                counterDiv.appendChild(lockBtn);
+                renderLockedCounter(counterDiv, dateStr, count, incrementMap);
 
             } else {
                 // Future date → just show count
@@ -139,10 +148,12 @@
         const res = await window.api(`/api/attendance/${booking.id}`);
         const existing = res.records || [];
 
-        const isEditable = booking.attendance_status.toLowerCase() === "active";
-        const incrementMap = {}; // Track increments
+        const status = booking.attendance_status.toLowerCase();
+        const isEditable = status === "active";
+        const isCompleted = status === "completed";
+        const incrementMap = {};
 
-        const newTbody = generateAttendanceRows(startDate, existing, totalDays, isEditable, incrementMap);
+        const newTbody = generateAttendanceRows(startDate, existing, totalDays, isEditable, incrementMap, isCompleted);
         tableBody.innerHTML = "";
         while (newTbody.firstChild) {
             tableBody.appendChild(newTbody.firstChild);

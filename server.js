@@ -665,6 +665,9 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
     if (!date || typeof value !== 'number') {
         return res.status(400).json({ success: false, error: 'Date and value required' });
     }
+    if (value > 4) {
+        return res.status(400).json({ success: false, error: 'Maximum 4 slots per day allowed' });
+    }
 
     const mysqlDate = date.split("T")[0];
     const conn = await dbPool.getConnection();
