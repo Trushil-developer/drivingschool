@@ -1,5 +1,9 @@
 (function () {
-    const LOCK_PASSWORD = "1234"; 
+    const LOCK_PASSWORD = "1234";
+
+    function localDateStr(d) {
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
 
     // Helper to attach increment/decrement events
     function attachCounterEvents(counterDiv, incrementMap) {
@@ -8,6 +12,11 @@
         const countSpan = counterDiv.querySelector(".attendance-count");
 
         if (!incBtn || !decBtn) return;
+
+        // Set initial disabled state based on current displayed value
+        const initCount = parseInt(countSpan.textContent || "0");
+        incBtn.disabled = initCount >= 4;
+        decBtn.disabled = initCount <= 0;
 
         incBtn.addEventListener("click", () => {
             let count = parseInt(countSpan.textContent || "0");
@@ -35,15 +44,18 @@
     // Generate attendance rows
     function generateAttendanceRows(startDate, existing, totalDays, isEditable, incrementMap) {
         const tbody = document.createElement('tbody');
-        const todayStr = new Date().toISOString().split("T")[0];
+        const todayStr = localDateStr(new Date());
 
         for (let i = 0; i < totalDays; i++) {
             const d = new Date(startDate);
             d.setDate(startDate.getDate() + i);
-            const dateStr = d.toISOString().split("T")[0];
+            const dateStr = localDateStr(d);
 
-            const existingRecord = existing.find(e => e.date.split('T')[0] === dateStr);
-            let count = existingRecord ? existingRecord.present : 0;
+            const existingRecord = existing.find(e => {
+                const recDate = e.date instanceof Date ? localDateStr(e.date) : e.date.split('T')[0];
+                return recDate === dateStr;
+            });
+            let count = existingRecord ? Math.max(0, existingRecord.present) : 0;
 
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -77,9 +89,10 @@
                 lockBtn.addEventListener("click", () => {
                     const pw = prompt("Enter password");
                     if (pw === LOCK_PASSWORD) {
+                        const currentCount = parseInt(countSpan.textContent || "0");
                         counterDiv.innerHTML = `
                             <button class="decrement-btn" data-date="${dateStr}">-</button>
-                            <span class="attendance-count">${count}</span>
+                            <span class="attendance-count">${currentCount}</span>
                             <button class="increment-btn" data-date="${dateStr}">+</button>
                         `;
                         attachCounterEvents(counterDiv, incrementMap);

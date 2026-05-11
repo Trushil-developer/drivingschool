@@ -672,16 +672,17 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
     try {
         await conn.beginTransaction();
 
-        // 1) Update existing attendance or insert if none
+        // 1) Update existing attendance or insert if none (clamp to 0 minimum)
         const [updateResult] = await conn.query(
-            `UPDATE attendance SET present = present + ? WHERE booking_id = ? AND date = ?`,
+            `UPDATE attendance SET present = GREATEST(0, present + ?) WHERE booking_id = ? AND date = ?`,
             [increment, booking_id, mysqlDate]
         );
 
         if (updateResult.affectedRows === 0) {
+            const safeValue = Math.max(0, increment);
             await conn.query(
                 `INSERT INTO attendance (booking_id, date, present) VALUES (?, ?, ?)`,
-                [booking_id, mysqlDate, increment]
+                [booking_id, mysqlDate, safeValue]
             );
         }
 
