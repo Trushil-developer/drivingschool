@@ -689,13 +689,18 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
             );
         }
 
-        // 2) Update present_days
+        // 2) Update present_days (clean up any stale negative rows first)
+        await conn.query(
+            `DELETE FROM attendance WHERE booking_id = ? AND present <= 0`,
+            [booking_id]
+        );
+
         const [presentSumRows] = await conn.query(
             `SELECT COALESCE(SUM(present),0) AS total_present FROM attendance WHERE booking_id = ?`,
             [booking_id]
         );
 
-        const totalPresent = presentSumRows[0].total_present;
+        const totalPresent = Math.max(0, presentSumRows[0].total_present);
 
         await conn.query(
             `UPDATE bookings SET present_days = ? WHERE id = ?`,
