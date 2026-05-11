@@ -51,10 +51,7 @@
             d.setDate(startDate.getDate() + i);
             const dateStr = localDateStr(d);
 
-            const existingRecord = existing.find(e => {
-                const recDate = e.date instanceof Date ? localDateStr(e.date) : e.date.split('T')[0];
-                return recDate === dateStr;
-            });
+            const existingRecord = existing.find(e => e.date === dateStr);
             let count = existingRecord ? Math.max(0, existingRecord.present) : 0;
 
             const row = document.createElement('tr');

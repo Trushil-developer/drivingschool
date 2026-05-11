@@ -632,7 +632,7 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
 app.get('/api/attendance-all', requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
-      SELECT booking_id, date, present 
+      SELECT booking_id, DATE_FORMAT(date, '%Y-%m-%d') AS date, present
       FROM attendance
       ORDER BY booking_id ASC, date ASC
     `);
@@ -648,7 +648,7 @@ app.get('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
   const booking_id = req.params.booking_id;
   try {
     const [rows] = await dbPool.query(
-      'SELECT date, present FROM attendance WHERE booking_id=? ORDER BY date ASC',
+      "SELECT DATE_FORMAT(date, '%Y-%m-%d') AS date, present FROM attendance WHERE booking_id=? ORDER BY date ASC",
       [booking_id]
     );
     res.json({ success: true, records: rows });
