@@ -161,10 +161,11 @@
 
         try {
             for (const [date, newCount] of updates) {
-                await window.api(`/api/attendance/${booking.id}`, {
+                const result = await window.api(`/api/attendance/${booking.id}`, {
                     method: "POST",
                     body: { date, value: newCount }
                 });
+                if (!result.success) throw new Error(result.error || 'Save failed');
             }
 
             alert("Attendance saved successfully!");
