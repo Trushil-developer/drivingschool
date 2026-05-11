@@ -161,16 +161,9 @@
 
         try {
             for (const [date, newCount] of updates) {
-                // Find existing count for this date
-                const existingRecord = existing.find(e => e.date.split('T')[0] === date);
-                const oldCount = existingRecord ? existingRecord.present : 0;
-                const diff = newCount - oldCount; // can be negative for decrement
-
-                if (diff === 0) continue; // skip if no change
-
                 await window.api(`/api/attendance/${booking.id}`, {
                     method: "POST",
-                    body: { date, increment: diff } // send difference
+                    body: { date, value: newCount }
                 });
             }
 

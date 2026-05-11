@@ -660,10 +660,10 @@ app.get('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
 
 app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
     const booking_id = req.params.booking_id;
-    const { date, increment } = req.body;
+    const { date, value } = req.body;
 
-    if (!date || typeof increment !== 'number') {
-        return res.status(400).json({ success: false, error: 'Date and increment required' });
+    if (!date || typeof value !== 'number') {
+        return res.status(400).json({ success: false, error: 'Date and value required' });
     }
 
     const mysqlDate = date.split("T")[0];
@@ -672,17 +672,17 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
     try {
         await conn.beginTransaction();
 
-        // 1) Update existing attendance or insert if none (clamp to 0 minimum)
-        const [updateResult] = await conn.query(
-            `UPDATE attendance SET present = GREATEST(0, present + ?) WHERE booking_id = ? AND date = ?`,
-            [increment, booking_id, mysqlDate]
-        );
-
-        if (updateResult.affectedRows === 0) {
-            const safeValue = Math.max(0, increment);
+        // 1) Set attendance to exact value — delete if 0, upsert otherwise
+        if (value <= 0) {
             await conn.query(
-                `INSERT INTO attendance (booking_id, date, present) VALUES (?, ?, ?)`,
-                [booking_id, mysqlDate, safeValue]
+                `DELETE FROM attendance WHERE booking_id = ? AND date = ?`,
+                [booking_id, mysqlDate]
+            );
+        } else {
+            await conn.query(
+                `INSERT INTO attendance (booking_id, date, present) VALUES (?, ?, ?)
+                 ON DUPLICATE KEY UPDATE present = ?`,
+                [booking_id, mysqlDate, value, value]
             );
         }
 
