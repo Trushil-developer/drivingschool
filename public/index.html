@@ -280,54 +280,55 @@
             clearInterval(autoScrollInterval);
         }
 
-        async function loadReviews(placeId) {
+        function loadReviews(placeId) {
             const reviewsDiv = document.getElementById("reviews");
             reviewsDiv.innerHTML = `<div class="loader">Loading Google Reviews...</div>`;
 
-            try {
-                const { Place } = await google.maps.importLibrary("places");
-                const place = new Place({ id: placeId, requestedLanguage: "en" });
-                await place.fetchFields({ fields: ["displayName", "rating", "userRatingCount", "reviews"] });
+            const service = new google.maps.places.PlacesService(document.createElement("div"));
+            service.getDetails(
+                { placeId: placeId, fields: ["name", "rating", "user_ratings_total", "reviews", "url"], language: "en" },
+                (place, status) => {
+                    if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
+                        console.error("Error loading reviews:", status);
+                        reviewsDiv.innerHTML = `<p>Error loading reviews. Check console for details.</p>`;
+                        return;
+                    }
 
-                document.getElementById("viewOnGoogle").href =
-                    `https://www.google.com/maps/place/?q=place_id:${placeId}`;
+                    document.getElementById("viewOnGoogle").href = place.url || `https://www.google.com/maps/place/?q=place_id:${placeId}`;
+                    document.getElementById("avgRating").textContent = place.rating ? place.rating.toFixed(1) : "5.0";
+                    document.getElementById("ratingStars").textContent = renderStars(place.rating || 5);
+                    document.getElementById("reviewCount").textContent = `(${place.user_ratings_total || 0} reviews)`;
 
-                document.getElementById("avgRating").textContent = place.rating ? place.rating.toFixed(1) : "5.0";
-                document.getElementById("ratingStars").textContent = renderStars(place.rating || 5);
-                document.getElementById("reviewCount").textContent = `(${place.userRatingCount || 0} reviews)`;
+                    reviewsDiv.innerHTML = "";
+                    currentIndex = 0;
 
-                reviewsDiv.innerHTML = "";
-                currentIndex = 0;
+                    if (!place.reviews?.length) {
+                        reviewsDiv.innerHTML = "<p>No reviews available for this location yet.</p>";
+                        return;
+                    }
 
-                if (!place.reviews?.length) {
-                    reviewsDiv.innerHTML = "<p>No reviews available for this location yet.</p>";
-                    return;
-                }
+                    place.reviews.slice(0, 8).forEach(r => {
+                        const authorName = r.author_name || "Google User";
+                        const reviewText = r.text || "No review text provided.";
+                        const initial = authorName.charAt(0).toUpperCase();
+                        const stars = "★".repeat(r.rating || 5) + "☆".repeat(5 - (r.rating || 5));
 
-                place.reviews.slice(0, 8).forEach(r => {
-                    const authorName = r.authorAttribution?.displayName || "Google User";
-                    const reviewText = typeof r.text === "object" ? r.text.text : r.text || "No review text provided.";
-                    const initial = authorName.charAt(0).toUpperCase();
-                    const stars = "★".repeat(r.rating || 5) + "☆".repeat(5 - (r.rating || 5));
-
-                    reviewsDiv.insertAdjacentHTML("beforeend",
-                        `<div class="review-card">
-                            <div class="review-header">
-                                <div class="review-avatar">${initial}</div>
-                                <div>
-                                    <div class="review-name">${authorName}</div>
-                                    <div class="review-stars">${stars}</div>
+                        reviewsDiv.insertAdjacentHTML("beforeend",
+                            `<div class="review-card">
+                                <div class="review-header">
+                                    <div class="review-avatar">${initial}</div>
+                                    <div>
+                                        <div class="review-name">${authorName}</div>
+                                        <div class="review-stars">${stars}</div>
+                                    </div>
                                 </div>
-                            </div>
-                            <p>${reviewText}</p>
-                        </div>`);
-                });
+                                <p>${reviewText}</p>
+                            </div>`);
+                    });
 
-                startAutoScroll();
-            } catch (err) {
-                console.error("Error loading reviews:", err);
-                reviewsDiv.innerHTML = `<p>Error loading reviews. Check console for details.</p>`;
-            }
+                    startAutoScroll();
+                }
+            );
         }
 
         function bookNow(trainingDays) {
