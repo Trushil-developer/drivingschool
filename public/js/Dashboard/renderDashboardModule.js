@@ -1,6 +1,25 @@
 // Store chart instances for cleanup
 let chartInstances = {};
 
+// Attendance date navigator state
+let attendanceDate = new Date();
+attendanceDate.setHours(0, 0, 0, 0);
+
+// Joined date navigator state
+let joinedDate = new Date();
+joinedDate.setHours(0, 0, 0, 0);
+
+function formatAttendanceDateParam(d) {
+  return d.toISOString().split('T')[0];
+}
+
+function formatAttendanceDateLabel(d) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (d.getTime() === today.getTime()) return 'Today';
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export function renderDashboardModule(container) {
   return async function renderDashboard() {
     // Destroy existing charts before re-rendering
@@ -105,6 +124,9 @@ export function renderDashboardModule(container) {
                 <select id="expenseCategoryFilter" class="chart-filter-select">
                   <option value="">All Categories</option>
                 </select>
+                <select id="expenseSubFilter" class="chart-filter-select" style="display:none">
+                  <option value="">All</option>
+                </select>
                 <select id="expenseGranularity" class="chart-filter-select">
                   <option value="day" selected>By Day</option>
                   <option value="month">By Month</option>
@@ -165,7 +187,12 @@ export function renderDashboardModule(container) {
     document.getElementById("attendanceGranularity").addEventListener("change", loadAttendanceChart);
 
     document.getElementById("expenseBranchFilter").addEventListener("change", loadExpenseChart);
-    document.getElementById("expenseCategoryFilter").addEventListener("change", loadExpenseChart);
+    document.getElementById("expenseCategoryFilter").addEventListener("change", () => {
+      const sub = document.getElementById("expenseSubFilter");
+      if (sub) { sub.innerHTML = '<option value="">All</option>'; sub.style.display = 'none'; }
+      loadExpenseChart();
+    });
+    document.getElementById("expenseSubFilter").addEventListener("change", loadExpenseChart);
     document.getElementById("expenseGranularity").addEventListener("change", loadExpenseChart);
 
     // Revenue unlock logic
@@ -204,15 +231,26 @@ export function renderDashboardModule(container) {
 
 async function loadDashboardData(query = "") {
   try {
-    // Fetch main stats
-    const statsRes = await window.api(`/api/dashboard/stats?${query}`);
+    // Fetch main stats (with joinDate for "Joined" card)
+    const joinDateParam = formatAttendanceDateParam(joinedDate);
+    const statsQuery = query ? `${query}&joinDate=${joinDateParam}` : `joinDate=${joinDateParam}`;
+    const statsRes = await window.api(`/api/dashboard/stats?${statsQuery}`);
     if (!statsRes.success) return;
     const s = statsRes.stats;
 
-    // Fetch today's slots + students present
-    const slotsRes = await window.api(`/api/dashboard/today-slots?${query}`);
+    // Fetch slots + students present for selected attendance date
+    const attendanceDateParam = formatAttendanceDateParam(attendanceDate);
+    const slotsQuery = query ? `${query}&date=${attendanceDateParam}` : `date=${attendanceDateParam}`;
+    const slotsRes = await window.api(`/api/dashboard/today-slots?${slotsQuery}`);
     const branchStats = slotsRes.success ? (slotsRes.branchStats || []) : [];
     const studentsPresent = slotsRes.success ? slotsRes.studentsPresent : 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isToday = attendanceDate.getTime() === today.getTime();
+    const dateLabel = formatAttendanceDateLabel(attendanceDate);
+    const isJoinedToday = joinedDate.getTime() === today.getTime();
+    const joinedDateLabel = formatAttendanceDateLabel(joinedDate);
 
     const branchRowsHtml = branchStats.map(b =>
       `<div class="branch-slot-row">
@@ -228,9 +266,22 @@ async function loadDashboardData(query = "") {
       <div class="card completed"><h4>Completed</h4><p>${s.completed}</p></div>
       <div class="card hold"><h4>On Hold</h4><p>${s.hold}</p></div>
       <div class="card expired"><h4>Expired</h4><p>${s.expired}</p></div>
-      <div class="card today"><h4>Joined Today</h4><p>${s.todayBookings}</p></div>
+      <div class="card today">
+          <h4>Joined</h4>
+          <div class="attendance-date-nav">
+            <button class="att-nav-btn" id="joinPrevBtn">&#8249;</button>
+            <span class="att-date-label">${joinedDateLabel}</span>
+            ${isJoinedToday ? '' : '<button class="att-nav-btn" id="joinNextBtn">&#8250;</button>'}
+          </div>
+          <p>${s.todayBookings}</p>
+      </div>
       <div class="card slots">
-          <h4>Today's Attendance</h4>
+          <h4>Attendance</h4>
+          <div class="attendance-date-nav">
+            <button class="att-nav-btn" id="attPrevBtn">&#8249;</button>
+            <span class="att-date-label">${dateLabel}</span>
+            ${isToday ? '' : '<button class="att-nav-btn" id="attNextBtn">&#8250;</button>'}
+          </div>
           <div class="branch-slots-list">${branchRowsHtml}</div>
           <p class="slots-total">Total Students: ${studentsPresent}</p>
       </div>
@@ -239,6 +290,28 @@ async function loadDashboardData(query = "") {
           <p id="revenueValue">🔒 Locked</p>
       </div>
     `;
+
+    // Wire up attendance date navigation
+    const currentQuery = query;
+    document.getElementById("attPrevBtn")?.addEventListener("click", () => {
+      attendanceDate.setDate(attendanceDate.getDate() - 1);
+      loadDashboardData(currentQuery);
+    });
+    document.getElementById("attNextBtn")?.addEventListener("click", () => {
+      attendanceDate.setDate(attendanceDate.getDate() + 1);
+      loadDashboardData(currentQuery);
+    });
+
+    // Wire up joined date navigation
+    document.getElementById("joinPrevBtn")?.addEventListener("click", () => {
+      joinedDate.setDate(joinedDate.getDate() - 1);
+      loadDashboardData(currentQuery);
+    });
+    document.getElementById("joinNextBtn")?.addEventListener("click", () => {
+      joinedDate.setDate(joinedDate.getDate() + 1);
+      loadDashboardData(currentQuery);
+    });
+
   } catch (err) {
     console.error("LOAD DASHBOARD DATA ERROR:", err);
     document.getElementById("dashboardCards").innerHTML = `<div class="card loading">Error loading data</div>`;
@@ -598,6 +671,33 @@ async function loadExpenseChart() {
     let data = res.expenses;
     if (branch)         data = data.filter(e => e.branch === branch);
     if (categoryFilter) data = data.filter(e => e.category === categoryFilter);
+
+    // Sub-filter: car (for car-related categories) or employee name
+    const subFilterSelect = document.getElementById('expenseSubFilter');
+    const currentSubValue = subFilterSelect?.value || '';
+    const isCarRelated = categoryFilter && res.expenses.find(e => e.category === categoryFilter)?.is_car_related;
+    const hasEmployeeNames = categoryFilter && data.some(e => e.employee_name);
+
+    if (categoryFilter && isCarRelated) {
+      const cars = [...new Set(data.map(e => e.car_name).filter(Boolean))].sort();
+      if (subFilterSelect && cars.length > 0) {
+        subFilterSelect.innerHTML = `<option value="">All Cars</option>` +
+          cars.map(c => `<option value="${c}"${c === currentSubValue ? ' selected' : ''}>${c}</option>`).join('');
+        subFilterSelect.style.display = '';
+      }
+      if (currentSubValue) data = data.filter(e => e.car_name === currentSubValue);
+    } else if (categoryFilter && hasEmployeeNames) {
+      const employees = [...new Set(data.map(e => e.employee_name).filter(Boolean))].sort();
+      if (subFilterSelect && employees.length > 0) {
+        subFilterSelect.innerHTML = `<option value="">All Employees</option>` +
+          employees.map(emp => `<option value="${emp}"${emp === currentSubValue ? ' selected' : ''}>${emp}</option>`).join('');
+        subFilterSelect.style.display = '';
+      }
+      if (currentSubValue) data = data.filter(e => e.employee_name === currentSubValue);
+    } else if (subFilterSelect) {
+      subFilterSelect.innerHTML = '<option value="">All</option>';
+      subFilterSelect.style.display = 'none';
+    }
 
     // Determine which categories to show as stacked segments
     const visibleCategories = categoryFilter

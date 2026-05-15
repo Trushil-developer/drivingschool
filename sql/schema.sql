@@ -9,21 +9,22 @@ CREATE TABLE IF NOT EXISTS expense_categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     is_car_related TINYINT(1) NOT NULL DEFAULT 0,
+    extra_field VARCHAR(20) DEFAULT NULL,
     is_custom TINYINT(1) NOT NULL DEFAULT 0,
     school_id INT NOT NULL DEFAULT 0
 );
 
-INSERT IGNORE INTO expense_categories (id, name, is_car_related, is_custom, school_id) VALUES
-(1,  'Car Fuel (CNG)',           1, 0, 0),
-(2,  'Car Fuel (Petrol)',        1, 0, 0),
-(3,  'Light Bill',               0, 0, 0),
-(4,  'Office Maintenance',       0, 0, 0),
-(5,  'Stationary',               0, 0, 0),
-(6,  'Car Repair Slip',          1, 0, 0),
-(7,  'Salary Withdrawal Slip',   0, 0, 0),
-(8,  'Car Wash',                 1, 0, 0),
-(9,  'AMC Bill',                 1, 0, 0),
-(10, 'Others',                   0, 0, 0);
+INSERT IGNORE INTO expense_categories (id, name, is_car_related, extra_field, is_custom, school_id) VALUES
+(1,  'Car Fuel (CNG)',           1, 'car',      0, 0),
+(2,  'Car Fuel (Petrol)',        1, 'car',      0, 0),
+(3,  'Light Bill',               0, NULL,       0, 0),
+(4,  'Office Maintenance',       0, NULL,       0, 0),
+(5,  'Stationary',               0, NULL,       0, 0),
+(6,  'Car Repair Slip',          1, 'car',      0, 0),
+(7,  'Salary Withdrawal Slip',   0, 'employee', 0, 0),
+(8,  'Car Wash',                 1, 'car',      0, 0),
+(9,  'AMC Bill',                 1, 'car',      0, 0),
+(10, 'Others',                   0, NULL,       0, 0);
 
 -- =====================================
 -- PAYMENT MODES TABLE

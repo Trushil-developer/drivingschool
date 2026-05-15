@@ -611,6 +611,23 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
     }
 });
 
+// ---------- EXPENSE CATEGORIES MIGRATION ----------
+(async () => {
+  try {
+    const [cols] = await dbPool.query(
+      `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'expense_categories' AND COLUMN_NAME = 'extra_field'`
+    );
+    if (cols[0].cnt === 0) {
+      await dbPool.query(`ALTER TABLE expense_categories ADD COLUMN extra_field VARCHAR(20) DEFAULT NULL`);
+      await dbPool.query(`UPDATE expense_categories SET extra_field = 'car' WHERE is_car_related = 1`);
+      console.log('[Migration] expense_categories.extra_field column added and backfilled.');
+    }
+  } catch (err) {
+    console.error('expense_categories migration error:', err);
+  }
+})();
+
 // ---------- ATTENDANCE TABLE ----------
 (async () => {
   try {

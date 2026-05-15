@@ -30,14 +30,42 @@ router.get("/categories", requireAdmin, async (req, res, next) => {
 
 router.post("/categories", requireAdmin, async (req, res, next) => {
     const schoolId = getSchoolId(req);
-    const { name, is_car_related } = req.body;
+    const { name, extra_field } = req.body;
     if (!name || !name.trim()) return res.json({ success: false, error: "Category name required" });
+    const validExtra = ['car', 'employee', null, ''];
+    const ef = validExtra.includes(extra_field) ? (extra_field || null) : null;
+    const isCarRelated = ef === 'car' ? 1 : 0;
     try {
         const [result] = await dbPool.query(
-            "INSERT INTO expense_categories (name, is_car_related, is_custom, school_id) VALUES (?, ?, 1, ?)",
-            [name.trim(), is_car_related ? 1 : 0, schoolId]
+            "INSERT INTO expense_categories (name, is_car_related, extra_field, is_custom, school_id) VALUES (?, ?, ?, 1, ?)",
+            [name.trim(), isCarRelated, ef, schoolId]
         );
         res.json({ success: true, id: result.insertId });
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.put("/categories/:id", requireAdmin, async (req, res, next) => {
+    const schoolId = getSchoolId(req);
+    const { id } = req.params;
+    const { name, extra_field } = req.body;
+    if (!name || !name.trim()) return res.json({ success: false, error: "Category name required" });
+    const validExtra = ['car', 'employee', null, ''];
+    const ef = validExtra.includes(extra_field) ? (extra_field || null) : null;
+    const isCarRelated = ef === 'car' ? 1 : 0;
+    try {
+        const [rows] = await dbPool.query(
+            "SELECT is_custom, school_id FROM expense_categories WHERE id = ?", [id]
+        );
+        if (!rows.length) return res.json({ success: false, error: "Not found" });
+        if (!rows[0].is_custom) return res.json({ success: false, error: "Default categories cannot be edited" });
+        if (rows[0].school_id !== schoolId) return res.json({ success: false, error: "Not allowed" });
+        await dbPool.query(
+            "UPDATE expense_categories SET name = ?, is_car_related = ?, extra_field = ? WHERE id = ? AND school_id = ?",
+            [name.trim(), isCarRelated, ef, id, schoolId]
+        );
+        res.json({ success: true });
     } catch (err) {
         next(err);
     }

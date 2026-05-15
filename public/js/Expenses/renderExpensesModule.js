@@ -18,6 +18,7 @@ window.renderExpensesModule = async function (tableWrap) {
             <div class="exp-tabs">
                 <button class="exp-tab active" data-tab="add">Add Expense</button>
                 <button class="exp-tab" data-tab="history">Expense History</button>
+                <button class="exp-tab" data-tab="categories">Expense Categories</button>
             </div>
             <div id="expTabContent"></div>
         </div>
@@ -30,7 +31,8 @@ window.renderExpensesModule = async function (tableWrap) {
             tableWrap.querySelectorAll('.exp-tab').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             if (btn.dataset.tab === 'add') renderAddTab();
-            else renderHistoryTab();
+            else if (btn.dataset.tab === 'history') renderHistoryTab();
+            else renderCategoryTab();
         });
     });
 
@@ -84,7 +86,7 @@ window.renderExpensesModule = async function (tableWrap) {
                         <div class="exp-inline">
                             <select id="expCategory">
                                 <option value="">Select category...</option>
-                                ${categories.map(c => `<option value="${c.id}" data-car="${c.is_car_related}">${c.name}</option>`).join('')}
+                                ${categories.map(c => `<option value="${c.id}" data-extra="${c.extra_field || ''}">${c.name}</option>`).join('')}
                             </select>
                             <button class="btn-exp-create" id="btnNewCategory">+ New</button>
                         </div>
@@ -140,19 +142,19 @@ window.renderExpensesModule = async function (tableWrap) {
             </div>
         `;
 
-        // Show/hide car/employee fields based on category
+        // Show/hide car/employee fields based on category's extra_field setting
         document.getElementById('expCategory').addEventListener('change', async function () {
             const opt = this.options[this.selectedIndex];
-            const isCarRelated = opt?.dataset.car === '1';
-            const isSalary = opt?.text === 'Salary Withdrawal Slip';
+            const extraField = opt?.dataset.extra || '';
 
-            document.getElementById('expCarField').style.display = isCarRelated ? '' : 'none';
-            if (!isCarRelated) document.getElementById('expCar').value = '';
-
+            const carField = document.getElementById('expCarField');
             const empField = document.getElementById('expEmployeeField');
             const empSelect = document.getElementById('expEmployee');
 
-            if (isSalary) {
+            carField.style.display = extraField === 'car' ? '' : 'none';
+            if (extraField !== 'car') document.getElementById('expCar').value = '';
+
+            if (extraField === 'employee') {
                 empField.style.display = '';
                 empSelect.innerHTML = '<option value="">Loading...</option>';
                 empSelect.disabled = true;
@@ -222,9 +224,10 @@ window.renderExpensesModule = async function (tableWrap) {
             if (!expense_date)                    return showErr(msg, 'Please select a date.');
 
             const catOpt = document.getElementById('expCategory').options[document.getElementById('expCategory').selectedIndex];
-            if (catOpt?.dataset.car === '1' && !car_id) return showErr(msg, 'Please select a car for this category.');
-            if (catOpt?.text === 'Salary Withdrawal Slip' && !document.getElementById('expEmployee').value)
-                return showErr(msg, 'Please select an employee for salary withdrawal.');
+            const extraField = catOpt?.dataset.extra || '';
+            if (extraField === 'car' && !car_id) return showErr(msg, 'Please select a car for this category.');
+            if (extraField === 'employee' && !document.getElementById('expEmployee').value)
+                return showErr(msg, 'Please select an employee for this category.');
 
             const btn = document.getElementById('btnSubmitExpense');
             btn.disabled = true;
@@ -257,6 +260,152 @@ window.renderExpensesModule = async function (tableWrap) {
     function showErr(el, msg) {
         el.className = 'exp-form-msg error';
         el.textContent = msg;
+    }
+
+    // =====================
+    // EXPENSE CATEGORIES TAB
+    // =====================
+    async function renderCategoryTab() {
+        tabContent.innerHTML = `<div class="loading-overlay">Loading...</div>`;
+
+        const res = await window.api('/api/expenses/categories');
+        const categories = res?.success ? res.categories : [];
+
+        tabContent.innerHTML = `
+            <div class="exp-cat-wrap">
+                <div class="exp-cat-header">
+                    <h4>Expense Categories</h4>
+                    <button class="btn-exp-submit" id="btnAddCatRow" style="padding:8px 16px;font-size:13px;">+ Add Category</button>
+                </div>
+                <div id="expCatMsg" class="exp-form-msg" style="margin-bottom:12px;"></div>
+                <table class="expenses-table exp-cat-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;">#</th>
+                            <th>Category Name</th>
+                            <th style="width:140px;">Extra Field</th>
+                            <th style="width:120px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="expCatBody">
+                        ${categories.map((c, i) => {
+                            const ef = c.extra_field || '';
+                            const efLabel = ef === 'car' ? '<span class="exp-badge-yes">Car</span>'
+                                          : ef === 'employee' ? '<span class="exp-badge-emp">Employee</span>'
+                                          : '<span class="exp-badge-no">None</span>';
+                            return `
+                            <tr data-id="${c.id}" data-custom="${c.is_custom}">
+                                <td>${i + 1}</td>
+                                <td class="cat-name-cell">${c.name}</td>
+                                <td class="cat-ef-cell">${efLabel}</td>
+                                <td class="cat-actions">
+                                    ${c.is_custom
+                                        ? `<button class="btn-cat-edit" data-id="${c.id}" data-name="${c.name}" data-extra="${ef}">Edit</button>
+                                           <button class="btn-exp-delete btn-cat-delete" data-id="${c.id}">Delete</button>`
+                                        : '<span style="color:#9CA3AF;font-size:12px;">—</span>'
+                                    }
+                                </td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        const msg = document.getElementById('expCatMsg');
+
+        // Add new category row
+        document.getElementById('btnAddCatRow').addEventListener('click', () => {
+            const tbody = document.getElementById('expCatBody');
+            // Avoid adding duplicate add row
+            if (tbody.querySelector('.cat-new-row')) return;
+            const tr = document.createElement('tr');
+            tr.className = 'cat-new-row';
+            tr.innerHTML = `
+                <td>—</td>
+                <td><input type="text" class="cat-input" id="newCatName" placeholder="Category name..." /></td>
+                <td>
+                    <select class="cat-input" id="newCatExtraField">
+                        <option value="">None</option>
+                        <option value="car">Car</option>
+                        <option value="employee">Employee</option>
+                    </select>
+                </td>
+                <td>
+                    <button class="btn-exp-submit btn-cat-save" id="btnSaveNewCat" style="padding:5px 12px;font-size:12px;">Save</button>
+                    <button class="btn-cat-cancel" id="btnCancelNewCat">Cancel</button>
+                </td>
+            `;
+            tbody.insertBefore(tr, tbody.firstChild);
+
+            document.getElementById('btnCancelNewCat').addEventListener('click', () => tr.remove());
+            document.getElementById('btnSaveNewCat').addEventListener('click', async () => {
+                const name = document.getElementById('newCatName').value.trim();
+                const extra_field = document.getElementById('newCatExtraField').value;
+                if (!name) { msg.className = 'exp-form-msg error'; msg.textContent = 'Category name is required.'; return; }
+                const r = await window.api('/api/expenses/categories', {
+                    method: 'POST',
+                    body: JSON.stringify({ name, extra_field: extra_field || null })
+                });
+                if (!r.success) { msg.className = 'exp-form-msg error'; msg.textContent = r.error || 'Failed to add.'; return; }
+                expCategoriesCache = null;
+                await renderCategoryTab();
+            });
+        });
+
+        // Edit / Delete
+        document.getElementById('expCatBody').addEventListener('click', e => {
+            const row = e.target.closest('tr');
+            if (!row) return;
+            const id = row.dataset.id;
+
+            if (e.target.classList.contains('btn-cat-edit')) {
+                const nameCell = row.querySelector('.cat-name-cell');
+                const efCell = row.querySelector('.cat-ef-cell');
+                const currentName = e.target.dataset.name;
+                const currentExtra = e.target.dataset.extra || '';
+
+                nameCell.innerHTML = `<input type="text" class="cat-input" id="editCatName_${id}" value="${currentName.replace(/"/g, '&quot;')}" style="width:100%;" />`;
+                efCell.innerHTML = `
+                    <select class="cat-input" id="editCatExtra_${id}">
+                        <option value="" ${currentExtra === '' ? 'selected' : ''}>None</option>
+                        <option value="car" ${currentExtra === 'car' ? 'selected' : ''}>Car</option>
+                        <option value="employee" ${currentExtra === 'employee' ? 'selected' : ''}>Employee</option>
+                    </select>`;
+                const actionsCell = row.querySelector('.cat-actions');
+                actionsCell.innerHTML = `
+                    <button class="btn-exp-submit btn-cat-save-edit" style="padding:5px 12px;font-size:12px;">Save</button>
+                    <button class="btn-cat-cancel">Cancel</button>
+                `;
+
+                actionsCell.querySelector('.btn-cat-save-edit').addEventListener('click', async () => {
+                    const name = document.getElementById(`editCatName_${id}`).value.trim();
+                    const extra_field = document.getElementById(`editCatExtra_${id}`).value;
+                    if (!name) { msg.className = 'exp-form-msg error'; msg.textContent = 'Category name is required.'; return; }
+                    const r = await window.api(`/api/expenses/categories/${id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ name, extra_field: extra_field || null })
+                    });
+                    if (!r.success) { msg.className = 'exp-form-msg error'; msg.textContent = r.error || 'Failed to update.'; return; }
+                    expCategoriesCache = null;
+                    await renderCategoryTab();
+                });
+
+                actionsCell.querySelector('.btn-cat-cancel').addEventListener('click', async () => {
+                    expCategoriesCache = null;
+                    await renderCategoryTab();
+                });
+            }
+
+            if (e.target.classList.contains('btn-cat-delete')) {
+                if (!confirm('Delete this category? This cannot be undone.')) return;
+                window.api(`/api/expenses/categories/${id}`, { method: 'DELETE' }).then(async r => {
+                    if (!r.success) { msg.className = 'exp-form-msg error'; msg.textContent = r.error || 'Failed to delete.'; return; }
+                    expCategoriesCache = null;
+                    await renderCategoryTab();
+                });
+            }
+        });
     }
 
     // =====================

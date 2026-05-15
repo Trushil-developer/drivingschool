@@ -12,7 +12,7 @@ const router = express.Router();
  */
 router.get("/stats", requireAdmin, async (req, res) => {
   try {
-    const { from, to, month, branch } = req.query;
+    const { from, to, month, branch, joinDate } = req.query;
 
     let whereClause = "";
     let params = [];
@@ -49,9 +49,10 @@ router.get("/stats", requireAdmin, async (req, res) => {
       dbPool.query(`SELECT COALESCE(SUM(total_fees),0) AS total FROM bookings ${whereClause}`, params)
     ]);
 
-    // Branch-aware "Joined Today"
-    let todayQuery = "SELECT COUNT(*) AS count FROM bookings WHERE DATE(created_at)=CURDATE()";
-    let todayParams = [];
+    // Branch-aware "Joined Today" (supports custom date via joinDate param)
+    const joinDateStr = joinDate || new Date().toISOString().split('T')[0];
+    let todayQuery = "SELECT COUNT(*) AS count FROM bookings WHERE DATE(created_at)=?";
+    let todayParams = [joinDateStr];
     if (branch) {
       todayQuery += " AND TRIM(LOWER(branch)) = ?";
       todayParams.push(branch.toLowerCase());
@@ -175,7 +176,10 @@ router.get("/branches", requireAdmin, async (req, res) => {
  */
 router.get("/today-slots", requireAdmin, async (req, res) => {
   try {
-    const { branch } = req.query;
+    const { branch, date } = req.query;
+    const targetDate = date ? new Date(date) : new Date();
+    targetDate.setHours(0, 0, 0, 0);
+    const targetDateStr = targetDate.toISOString().split('T')[0];
 
     // Fetch all cars with their branch
     const [allCars] = await dbPool.query(
@@ -204,8 +208,7 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     );
 
     // Apply the exact same date filter the schedule JS uses
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = targetDate;
 
     const bookings = rawBookings.filter(b => {
       const start = new Date(b.starting_from);
@@ -257,15 +260,15 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       carsByBranch[b].push(c.car_name.trim());
     });
 
-    // Attendance per branch today
+    // Attendance per branch for target date
     const [attendanceRows] = await dbPool.query(`
       SELECT TRIM(b.branch) AS branch, COUNT(a.id) AS present
       FROM attendance a
       JOIN bookings b ON a.booking_id = b.id
-      WHERE DATE(a.date) = CURDATE() AND a.present >= 1
+      WHERE DATE(a.date) = ? AND a.present >= 1
       ${branch ? 'AND TRIM(LOWER(b.branch)) = ?' : ''}
       GROUP BY TRIM(b.branch)
-    `, branch ? [branch.toLowerCase()] : []);
+    `, branch ? [targetDateStr, branch.toLowerCase()] : [targetDateStr]);
 
     const presentByBranch = {};
     attendanceRows.forEach(r => { presentByBranch[r.branch] = Number(r.present); });

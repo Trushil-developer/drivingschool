@@ -440,6 +440,87 @@
     font-size: 14px;
 }
 
+/* ── Expense Categories Tab ── */
+.exp-cat-wrap {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 700px;
+}
+
+.exp-cat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.exp-cat-header h4 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.exp-cat-table td, .exp-cat-table th {
+    vertical-align: middle;
+}
+
+.cat-input {
+    padding: 6px 10px;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    font-size: 13px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.cat-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.btn-cat-edit {
+    padding: 4px 10px;
+    background: #EFF6FF;
+    color: #2563EB;
+    border: 1px solid #BFDBFE;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.btn-cat-edit:hover { background: #DBEAFE; }
+
+.btn-cat-cancel {
+    padding: 4px 10px;
+    background: #F3F4F6;
+    color: #374151;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.btn-cat-cancel:hover { background: #E5E7EB; }
+
+.exp-badge-yes, .exp-badge-no, .exp-badge-emp, .exp-badge-custom, .exp-badge-default {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.exp-badge-yes    { background: #D1FAE5; color: #065F46; }
+.exp-badge-no     { background: #F3F4F6; color: #6B7280; }
+.exp-badge-emp    { background: #DBEAFE; color: #1D4ED8; }
+.exp-badge-custom { background: #EDE9FE; color: #5B21B6; }
+.exp-badge-default{ background: #FEF3C7; color: #92400E; }
+
 @media (max-width: 640px) {
     .exp-form-grid {
         grid-template-columns: 1fr;
