@@ -463,14 +463,14 @@ router.get("/car-workload", requireAdmin, async (req, res) => {
 
     const [rows] = await dbPool.query(`
       SELECT
-        COALESCE(c.car_name, CONCAT('Car #', b.car_id)) AS car,
+        b.car_name AS car,
         COUNT(*) AS activeStudents
       FROM bookings b
-      JOIN cars c ON c.id = b.car_id
+      JOIN cars c ON c.car_name = b.car_name
       ${branchFilter}
       ${branchFilter ? "AND" : "WHERE"} b.attendance_status = 'Active'
-      AND b.car_id IS NOT NULL
-      GROUP BY b.car_id, c.car_name
+      AND b.car_name IS NOT NULL AND b.car_name != ''
+      GROUP BY b.car_name
       ORDER BY activeStudents DESC
       LIMIT 10
     `, params);
