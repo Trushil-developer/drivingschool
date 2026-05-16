@@ -360,6 +360,10 @@ window.renderExpensesModule = async function (tableWrap) {
             const id = row.dataset.id;
 
             if (e.target.classList.contains('btn-cat-edit')) {
+                const pwd = prompt('Enter admin password to edit:');
+                if (!pwd) return;
+                if (pwd !== '1234') return alert('Incorrect password!');
+
                 const nameCell = row.querySelector('.cat-name-cell');
                 const efCell = row.querySelector('.cat-ef-cell');
                 const currentName = e.target.dataset.name;
@@ -398,6 +402,9 @@ window.renderExpensesModule = async function (tableWrap) {
             }
 
             if (e.target.classList.contains('btn-cat-delete')) {
+                const pwd = prompt('Enter admin password to delete:');
+                if (!pwd) return;
+                if (pwd !== '1234') return alert('Incorrect password!');
                 if (!confirm('Delete this category? This cannot be undone.')) return;
                 window.api(`/api/expenses/categories/${id}`, { method: 'DELETE' }).then(async r => {
                     if (!r.success) { msg.className = 'exp-form-msg error'; msg.textContent = r.error || 'Failed to delete.'; return; }
@@ -417,18 +424,24 @@ window.renderExpensesModule = async function (tableWrap) {
     let expFilterMonth = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}`;
     let expCategoriesCache = null;
     let expBranchesCache = null;
+    let expModesCache = null;
+    let expCarsCache = null;
 
     async function renderHistoryTab(page = 1) {
         tabContent.innerHTML = `<div class="loading-overlay">Loading...</div>`;
 
         // Load filter options once
-        if (!expCategoriesCache || !expBranchesCache) {
-            const [resCategories, resBranches] = await Promise.all([
+        if (!expCategoriesCache || !expBranchesCache || !expModesCache || !expCarsCache) {
+            const [resCategories, resBranches, resModes, resCars] = await Promise.all([
                 window.api('/api/expenses/categories'),
-                window.api('/api/branches')
+                window.api('/api/branches'),
+                window.api('/api/expenses/payment-modes'),
+                window.api('/api/cars')
             ]);
             expCategoriesCache = resCategories?.success ? resCategories.categories : [];
             expBranchesCache = resBranches?.success ? resBranches.branches : [];
+            expModesCache = resModes?.success ? resModes.modes : [];
+            expCarsCache = resCars?.success ? resCars.cars : [];
         }
 
         const params = new URLSearchParams({ page, limit: 50 });
@@ -507,14 +520,204 @@ window.renderExpensesModule = async function (tableWrap) {
         });
 
         document.getElementById('expTableWrap').addEventListener('click', async e => {
-            if (!e.target.classList.contains('btn-exp-delete')) return;
             const id = e.target.dataset.id;
-            const pwd = prompt('Enter admin password to delete:');
-            if (!pwd) return;
-            if (pwd !== '1234') return alert('Incorrect password!');
-            const res = await window.api(`/api/expenses/${id}`, { method: 'DELETE' });
-            if (!res.success) return alert(res.error || 'Delete failed');
-            await renderHistoryTab(page);
+            if (!id) return;
+
+            if (e.target.classList.contains('btn-exp-delete')) {
+                const pwd = prompt('Enter admin password to delete:');
+                if (!pwd) return;
+                if (pwd !== '1234') return alert('Incorrect password!');
+                const res = await window.api(`/api/expenses/${id}`, { method: 'DELETE' });
+                if (!res.success) return alert(res.error || 'Delete failed');
+                await renderHistoryTab(page);
+            }
+
+            if (e.target.classList.contains('btn-exp-edit')) {
+                const pwd = prompt('Enter admin password to edit:');
+                if (!pwd) return;
+                if (pwd !== '1234') return alert('Incorrect password!');
+                const expense = expenses.find(ex => String(ex.id) === String(id));
+                if (!expense) return;
+                showExpenseEditModal(expense, async () => renderHistoryTab(page));
+            }
+        });
+    }
+
+    async function showExpenseEditModal(expense, onSaved) {
+        let modal = document.getElementById('expEditModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'expEditModal';
+            document.body.appendChild(modal);
+        }
+
+        const branches   = expBranchesCache || [];
+        const categories = expCategoriesCache || [];
+        const modes      = expModesCache || [];
+        const cars       = expCarsCache || [];
+
+        const dateVal = expense.expense_date ? expense.expense_date.split('T')[0] : '';
+
+        modal.innerHTML = `
+            <div class="exp-modal-overlay">
+                <div class="exp-modal-box">
+                    <div class="exp-modal-header">
+                        <h3>Edit Expense <span class="exp-slip-badge">#${expense.id}</span></h3>
+                        <button class="exp-modal-close" id="btnExpEditClose">&times;</button>
+                    </div>
+                    <div class="exp-form-grid">
+                        <div class="exp-field">
+                            <label>Branch *</label>
+                            <select id="editExpBranch">
+                                <option value="">Select branch...</option>
+                                ${branches.map(b => `<option value="${b.branch_name}" ${expense.branch === b.branch_name ? 'selected' : ''}>${b.branch_name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="exp-field">
+                            <label>Paid By (Name) *</label>
+                            <input type="text" id="editExpDebitor" value="${expense.debitor || ''}" />
+                        </div>
+                        <div class="exp-field">
+                            <label>Expense Category *</label>
+                            <select id="editExpCategory">
+                                <option value="">Select category...</option>
+                                ${categories.map(c => `<option value="${c.id}" data-extra="${c.extra_field || ''}" ${String(c.id) === String(expense.category_id) ? 'selected' : ''}>${c.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="exp-field" id="editExpCarField" style="display:none;">
+                            <label>Car *</label>
+                            <select id="editExpCar">
+                                <option value="">Select car...</option>
+                                ${cars.map(c => `<option value="${c.id}" ${String(c.id) === String(expense.car_id) ? 'selected' : ''}>${c.car_name}${c.branch ? ' (' + c.branch + ')' : ''}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="exp-field" id="editExpEmployeeField" style="display:none;">
+                            <label>Employee *</label>
+                            <select id="editExpEmployee">
+                                <option value="">Loading...</option>
+                            </select>
+                        </div>
+                        <div class="exp-field">
+                            <label>Amount (Rs.) *</label>
+                            <input type="number" id="editExpAmount" value="${expense.amount || ''}" min="0" step="0.01" />
+                        </div>
+                        <div class="exp-field">
+                            <label>Payment Mode *</label>
+                            <select id="editExpPayMode">
+                                <option value="">Select mode...</option>
+                                ${modes.map(m => `<option value="${m.id}" ${String(m.id) === String(expense.payment_mode_id) ? 'selected' : ''}>${m.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="exp-field">
+                            <label>Expense Date *</label>
+                            <input type="date" id="editExpDate" value="${dateVal}" />
+                        </div>
+                        <div class="exp-field exp-field-full">
+                            <label>Note</label>
+                            <textarea id="editExpNote" rows="3">${expense.note || ''}</textarea>
+                        </div>
+                    </div>
+                    <div class="exp-form-footer">
+                        <button id="btnExpEditSave" class="btn-exp-submit">Save Changes</button>
+                        <button id="btnExpEditCancel" class="btn-exp-cancel">Cancel</button>
+                        <div id="expEditMsg" class="exp-form-msg"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        modal.style.display = 'block';
+
+        async function applyExtraField(extraField, empName) {
+            const carField  = document.getElementById('editExpCarField');
+            const empField  = document.getElementById('editExpEmployeeField');
+            const empSelect = document.getElementById('editExpEmployee');
+            const carSel    = document.getElementById('editExpCar');
+
+            carField.style.display = extraField === 'car' ? '' : 'none';
+            if (extraField !== 'car' && carSel) carSel.value = '';
+
+            if (extraField === 'employee') {
+                empField.style.display = '';
+                empSelect.innerHTML = '<option value="">Loading...</option>';
+                empSelect.disabled = true;
+                try {
+                    const res = await window.api('/api/instructors');
+                    const employees = res?.success ? res.instructors.filter(i => i.is_active) : [];
+                    empSelect.innerHTML = '<option value="">Select employee...</option>' +
+                        employees.map(e => `<option value="${e.instructor_name}" ${e.instructor_name === empName ? 'selected' : ''}>${e.instructor_name}</option>`).join('');
+                } catch {
+                    empSelect.innerHTML = '<option value="">Failed to load</option>';
+                }
+                empSelect.disabled = false;
+            } else {
+                empField.style.display = 'none';
+                if (empSelect) empSelect.value = '';
+            }
+        }
+
+        const catSel = document.getElementById('editExpCategory');
+        await applyExtraField(expense.extra_field || '', expense.employee_name);
+
+        catSel.addEventListener('change', async function () {
+            const opt = this.options[this.selectedIndex];
+            await applyExtraField(opt?.dataset.extra || '', '');
+        });
+
+        const closeModal = () => { modal.style.display = 'none'; };
+        document.getElementById('btnExpEditClose').addEventListener('click', closeModal);
+        document.getElementById('btnExpEditCancel').addEventListener('click', closeModal);
+        modal.querySelector('.exp-modal-overlay').addEventListener('click', e => {
+            if (e.target === e.currentTarget) closeModal();
+        });
+
+        document.getElementById('btnExpEditSave').addEventListener('click', async () => {
+            const msg = document.getElementById('expEditMsg');
+            msg.className = 'exp-form-msg';
+            msg.textContent = '';
+
+            const branch          = document.getElementById('editExpBranch').value;
+            const debitor         = document.getElementById('editExpDebitor').value.trim();
+            const category_id     = document.getElementById('editExpCategory').value;
+            const car_id          = document.getElementById('editExpCar')?.value || null;
+            const employee_name   = document.getElementById('editExpEmployee')?.value || null;
+            const amount          = document.getElementById('editExpAmount').value;
+            const payment_mode_id = document.getElementById('editExpPayMode').value;
+            const expense_date    = document.getElementById('editExpDate').value;
+            const note            = document.getElementById('editExpNote').value.trim();
+
+            const catOpt = document.getElementById('editExpCategory').options[document.getElementById('editExpCategory').selectedIndex];
+            const extraField = catOpt?.dataset.extra || '';
+
+            if (!branch)                       { msg.className = 'exp-form-msg error'; msg.textContent = 'Select a branch.'; return; }
+            if (!debitor)                      { msg.className = 'exp-form-msg error'; msg.textContent = 'Enter paid by name.'; return; }
+            if (!category_id)                  { msg.className = 'exp-form-msg error'; msg.textContent = 'Select a category.'; return; }
+            if (!amount || Number(amount) <= 0){ msg.className = 'exp-form-msg error'; msg.textContent = 'Enter a valid amount.'; return; }
+            if (!payment_mode_id)              { msg.className = 'exp-form-msg error'; msg.textContent = 'Select a payment mode.'; return; }
+            if (!expense_date)                 { msg.className = 'exp-form-msg error'; msg.textContent = 'Select a date.'; return; }
+            if (extraField === 'car' && !car_id) { msg.className = 'exp-form-msg error'; msg.textContent = 'Select a car.'; return; }
+            if (extraField === 'employee' && !employee_name) { msg.className = 'exp-form-msg error'; msg.textContent = 'Select an employee.'; return; }
+
+            const btn = document.getElementById('btnExpEditSave');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            const res = await window.api(`/api/expenses/${expense.id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ branch, debitor, employee_name: extraField === 'employee' ? employee_name : null, category_id, car_id: extraField === 'car' ? car_id : null, amount, payment_mode_id, note, expense_date })
+            });
+
+            btn.disabled = false;
+            btn.textContent = 'Save Changes';
+
+            if (!res?.success) {
+                msg.className = 'exp-form-msg error';
+                msg.textContent = res?.error || 'Failed to save.';
+                return;
+            }
+
+            closeModal();
+            await onSaved();
         });
     }
 
@@ -558,7 +761,10 @@ window.renderExpensesModule = async function (tableWrap) {
                             <td class="exp-amount-cell">${fmtAmt(e.amount)}</td>
                             <td>${e.payment_mode || '-'}</td>
                             <td style="max-width:150px;white-space:pre-wrap;color:#6B7280;">${e.note || '-'}</td>
-                            <td><button class="btn-exp-delete" data-id="${e.id}">Delete</button></td>
+                            <td class="exp-row-actions">
+                                <button class="btn-exp-edit" data-id="${e.id}">Edit</button>
+                                <button class="btn-exp-delete" data-id="${e.id}">Delete</button>
+                            </td>
                         </tr>
                     `).join('')}
                 </tbody>

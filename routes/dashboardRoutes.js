@@ -447,6 +447,43 @@ router.get("/instructor-workload", requireAdmin, async (req, res) => {
 });
 
 /**
+ * CAR WORKLOAD
+ */
+router.get("/car-workload", requireAdmin, async (req, res) => {
+  try {
+    const { branch } = req.query;
+
+    let branchFilter = "";
+    let params = [];
+
+    if (branch) {
+      branchFilter = "WHERE TRIM(LOWER(c.branch)) = ?";
+      params.push(branch.toLowerCase());
+    }
+
+    const [rows] = await dbPool.query(`
+      SELECT
+        COALESCE(c.car_name, CONCAT('Car #', b.car_id)) AS car,
+        COUNT(*) AS activeStudents
+      FROM bookings b
+      JOIN cars c ON c.id = b.car_id
+      ${branchFilter}
+      ${branchFilter ? "AND" : "WHERE"} b.attendance_status = 'Active'
+      AND b.car_id IS NOT NULL
+      GROUP BY b.car_id, c.car_name
+      ORDER BY activeStudents DESC
+      LIMIT 10
+    `, params);
+
+    res.json({ success: true, data: rows });
+
+  } catch (err) {
+    console.error("CAR WORKLOAD ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+/**
  * ENQUIRY TRENDS
  */
 router.get("/enquiry-trends", requireAdmin, async (req, res) => {

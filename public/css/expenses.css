@@ -521,6 +521,49 @@
 .exp-badge-custom { background: #EDE9FE; color: #5B21B6; }
 .exp-badge-default{ background: #FEF3C7; color: #92400E; }
 
+.btn-exp-edit {
+    background: #EFF6FF;
+    color: #1D4ED8;
+    border: 1px solid #BFDBFE;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 500;
+}
+.btn-exp-edit:hover { background: #DBEAFE; }
+
+.exp-row-actions { display: flex; gap: 6px; white-space: nowrap; }
+
+/* Edit expense modal */
+#expEditModal { display: none; }
+.exp-modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.45); z-index: 1000;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 40px 16px; overflow-y: auto;
+}
+.exp-modal-box {
+    background: #fff; border-radius: 12px; padding: 24px;
+    width: 100%; max-width: 620px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    position: relative;
+}
+.exp-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+}
+.exp-modal-header h3 { margin: 0; font-size: 16px; color: #111827; display: flex; align-items: center; gap: 8px; }
+.exp-modal-close {
+    background: none; border: none; font-size: 22px; cursor: pointer;
+    color: #9CA3AF; line-height: 1; padding: 0 4px;
+}
+.exp-modal-close:hover { color: #374151; }
+.btn-exp-cancel {
+    background: #F3F4F6; color: #374151; border: 1px solid #D1D5DB;
+    border-radius: 8px; padding: 10px 20px; font-size: 14px; cursor: pointer; font-weight: 500;
+}
+.btn-exp-cancel:hover { background: #E5E7EB; }
+
 @media (max-width: 640px) {
     .exp-form-grid {
         grid-template-columns: 1fr;

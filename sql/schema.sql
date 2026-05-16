@@ -14,22 +14,7 @@ CREATE TABLE IF NOT EXISTS expense_categories (
     school_id INT NOT NULL DEFAULT 0
 );
 
--- Add extra_field column if it doesn't exist (for existing installations)
-SET @dbname = DATABASE();
-SET @preparedStatement = (SELECT IF(
-    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-     WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'expense_categories' AND COLUMN_NAME = 'extra_field') > 0,
-    'SELECT 1',
-    'ALTER TABLE expense_categories ADD COLUMN extra_field VARCHAR(20) DEFAULT NULL AFTER is_car_related'
-));
-PREPARE alterIfNotExists FROM @preparedStatement;
-EXECUTE alterIfNotExists;
-DEALLOCATE PREPARE alterIfNotExists;
-
--- Backfill extra_field from is_car_related for existing rows
-UPDATE expense_categories SET extra_field = 'car' WHERE is_car_related = 1 AND extra_field IS NULL;
-
-INSERT IGNORE INTO expense_categories (id, name, is_car_related, extra_field, is_custom, school_id) VALUES
+INSERT INTO expense_categories (id, name, is_car_related, extra_field, is_custom, school_id) VALUES
 (1,  'Car Fuel (CNG)',           1, 'car',      0, 0),
 (2,  'Car Fuel (Petrol)',        1, 'car',      0, 0),
 (3,  'Light Bill',               0, NULL,       0, 0),
@@ -39,7 +24,12 @@ INSERT IGNORE INTO expense_categories (id, name, is_car_related, extra_field, is
 (7,  'Salary Withdrawal Slip',   0, 'employee', 0, 0),
 (8,  'Car Wash',                 1, 'car',      0, 0),
 (9,  'AMC Bill',                 1, 'car',      0, 0),
-(10, 'Others',                   0, NULL,       0, 0);
+(10, 'Others',                   0, NULL,       0, 0)
+ON DUPLICATE KEY UPDATE
+    name           = VALUES(name),
+    is_car_related = VALUES(is_car_related),
+    extra_field    = VALUES(extra_field),
+    is_custom      = VALUES(is_custom);
 
 -- =====================================
 -- PAYMENT MODES TABLE
@@ -53,11 +43,12 @@ CREATE TABLE IF NOT EXISTS payment_modes (
     school_id INT NOT NULL DEFAULT 0
 );
 
-INSERT IGNORE INTO payment_modes (id, name, is_custom, school_id) VALUES
+INSERT INTO payment_modes (id, name, is_custom, school_id) VALUES
 (1, 'Cash',            0, 0),
 (2, 'UPI',             0, 0),
 (3, 'Bank Transfer',   0, 0),
-(4, 'Cheque',          0, 0);
+(4, 'Cheque',          0, 0)
+ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 -- =====================================
 -- EXPENSES TABLE

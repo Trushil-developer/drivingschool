@@ -149,6 +149,10 @@ export function renderDashboardModule(container) {
             <h3>Instructor Workload</h3>
             <canvas id="instructorChart"></canvas>
           </div>
+          <div class="dashboard-section">
+            <h3>Car Workload</h3>
+            <canvas id="carChart"></canvas>
+          </div>
         </div>
 
       </div>
@@ -384,7 +388,8 @@ async function loadAllCharts(query = "") {
     loadExpenseChart(),
     loadExamChart(),
     loadPackageChart(query),
-    loadInstructorChart(query)
+    loadInstructorChart(query),
+    loadCarChart(query)
   ]);
 }
 
@@ -901,5 +906,44 @@ async function loadInstructorChart(query) {
     });
   } catch (err) {
     console.error("Instructor chart error:", err);
+  }
+}
+
+async function loadCarChart(query) {
+  try {
+    const branchParam = new URLSearchParams(query).get('branch');
+    const params = branchParam ? `?branch=${branchParam}` : '';
+    const res = await window.api(`/api/dashboard/car-workload${params}`);
+    if (!res.success) return;
+
+    const ctx = document.getElementById('carChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (chartInstances.car) chartInstances.car.destroy();
+
+    chartInstances.car = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: res.data.map(d => d.car),
+        datasets: [{
+          label: 'Active Students',
+          data: res.data.map(d => d.activeStudents),
+          backgroundColor: COLORS.cyan,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Car chart error:", err);
   }
 }

@@ -161,9 +161,10 @@ router.get("/", requireAdmin, async (req, res, next) => {
         const where = 'WHERE ' + conditions.join(' AND ');
         const selectCols = `
             e.id, e.branch, e.debitor, e.employee_name,
-            ec.name AS category, ec.is_car_related,
-            c.car_name, e.amount,
-            pm.name AS payment_mode,
+            e.category_id, ec.name AS category, ec.is_car_related, ec.extra_field,
+            e.car_id, c.car_name,
+            e.amount,
+            e.payment_mode_id, pm.name AS payment_mode,
             e.note, e.expense_date, e.created_at`;
         const joins = `
             LEFT JOIN expense_categories ec ON e.category_id = ec.id
@@ -206,6 +207,28 @@ router.post("/", requireAdmin, async (req, res, next) => {
             [schoolId, branch, debitor.trim(), employee_name?.trim() || null, category_id, car_id || null, amount || 0, payment_mode_id, note || null, expense_date]
         );
         res.json({ success: true, id: result.insertId, slip_no: result.insertId });
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.put("/:id", requireAdmin, async (req, res, next) => {
+    const schoolId = getSchoolId(req);
+    const { id } = req.params;
+    const { branch, debitor, employee_name, category_id, car_id, amount, payment_mode_id, note, expense_date } = req.body;
+
+    if (!branch || !debitor || !category_id || !payment_mode_id || !expense_date) {
+        return res.json({ success: false, error: "Missing required fields" });
+    }
+
+    try {
+        const [result] = await dbPool.query(
+            `UPDATE expenses SET branch=?, debitor=?, employee_name=?, category_id=?, car_id=?, amount=?, payment_mode_id=?, note=?, expense_date=?
+             WHERE id=? AND school_id=?`,
+            [branch, debitor.trim(), employee_name?.trim() || null, category_id, car_id || null, amount || 0, payment_mode_id, note || null, expense_date, id, schoolId]
+        );
+        if (result.affectedRows === 0) return res.json({ success: false, error: "Expense not found" });
+        res.json({ success: true });
     } catch (err) {
         next(err);
     }
