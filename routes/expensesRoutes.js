@@ -19,7 +19,7 @@ router.get("/categories", requireAdmin, async (req, res, next) => {
     const schoolId = getSchoolId(req);
     try {
         const [rows] = await dbPool.query(
-            "SELECT * FROM expense_categories WHERE school_id = 0 OR school_id = ? ORDER BY is_custom ASC, id ASC",
+            "SELECT * FROM expense_categories WHERE school_id = ? ORDER BY id ASC",
             [schoolId]
         );
         res.json({ success: true, categories: rows });

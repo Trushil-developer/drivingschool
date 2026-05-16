@@ -621,10 +621,11 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
     if (cols[0].cnt === 0) {
       await dbPool.query(`ALTER TABLE expense_categories ADD COLUMN extra_field VARCHAR(20) DEFAULT NULL`);
     }
-    // Always ensure default categories have correct extra_field (safe to run every startup)
-    await dbPool.query(`UPDATE expense_categories SET extra_field = 'car'      WHERE is_car_related = 1 AND (extra_field IS NULL OR extra_field = '') AND school_id = 0`);
-    await dbPool.query(`UPDATE expense_categories SET extra_field = 'employee' WHERE id = 7          AND (extra_field IS NULL OR extra_field = '') AND school_id = 0`);
-    console.log('[Migration] expense_categories.extra_field ensured for defaults.');
+    // Migrate any old global defaults (school_id=0) to school-owned so they are editable
+    await dbPool.query(`UPDATE expense_categories SET school_id = 1, is_custom = 1 WHERE school_id = 0`);
+    // Ensure extra_field is set for any rows missing it
+    await dbPool.query(`UPDATE expense_categories SET extra_field = 'car' WHERE is_car_related = 1 AND (extra_field IS NULL OR extra_field = '')`);
+    console.log('[Migration] expense_categories ready.');
   } catch (err) {
     console.error('expense_categories migration error:', err);
   }

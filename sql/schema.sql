@@ -14,22 +14,6 @@ CREATE TABLE IF NOT EXISTS expense_categories (
     school_id INT NOT NULL DEFAULT 0
 );
 
-INSERT INTO expense_categories (id, name, is_car_related, extra_field, is_custom, school_id) VALUES
-(1,  'Car Fuel (CNG)',           1, 'car',      0, 0),
-(2,  'Car Fuel (Petrol)',        1, 'car',      0, 0),
-(3,  'Light Bill',               0, NULL,       0, 0),
-(4,  'Office Maintenance',       0, NULL,       0, 0),
-(5,  'Stationary',               0, NULL,       0, 0),
-(6,  'Car Repair Slip',          1, 'car',      0, 0),
-(7,  'Salary Withdrawal Slip',   0, 'employee', 0, 0),
-(8,  'Car Wash',                 1, 'car',      0, 0),
-(9,  'AMC Bill',                 1, 'car',      0, 0),
-(10, 'Others',                   0, NULL,       0, 0)
-ON DUPLICATE KEY UPDATE
-    name           = VALUES(name),
-    is_car_related = VALUES(is_car_related),
-    extra_field    = VALUES(extra_field),
-    is_custom      = VALUES(is_custom);
 
 -- =====================================
 -- PAYMENT MODES TABLE
