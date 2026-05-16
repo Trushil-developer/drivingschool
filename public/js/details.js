@@ -328,6 +328,9 @@ import {
                 if (key.startsWith('allotted_time')) {
                     const timeInput = document.createElement('input');
                     timeInput.type = 'time';
+                    timeInput.min = '06:00';
+                    timeInput.max = '22:00';
+                    timeInput.step = '1800';
                     timeInput.value = val || '';
                     td.appendChild(timeInput);
                     continue;

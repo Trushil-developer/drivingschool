@@ -161,13 +161,15 @@ function normalizeSlots(selectedSlots = []) {
 
   const normalizeTime = (t) => {
     if (!t) return null;
-    // Ensure HH:MM:SS exactly
     const match = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(t);
     if (!match) return null;
-    const hh = match[1];
-    const mm = match[2];
+    const hh = parseInt(match[1], 10);
+    const mm = parseInt(match[2], 10);
+    const totalMins = hh * 60 + mm;
+    // Reject times outside working hours 06:00–22:00
+    if (totalMins < 6 * 60 || totalMins > 22 * 60) return null;
     const ss = match[3] || "00";
-    return `${hh}:${mm}:${ss}`;
+    return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${ss}`;
   };
 
   return {

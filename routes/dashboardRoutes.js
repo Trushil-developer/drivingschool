@@ -180,21 +180,26 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     const targetDate = date ? new Date(date) : new Date();
     targetDate.setHours(0, 0, 0, 0);
     const targetDateStr = targetDate.toISOString().split('T')[0];
+    const selectedTime = targetDate.getTime();
 
-    // Fetch all cars with their branch
+    // 1. Get cars grouped by their branch (same as schedule: cars.filter(c => c.branch === branch))
     const [allCars] = await dbPool.query(
       branch
-        ? "SELECT car_name, branch FROM cars WHERE TRIM(LOWER(branch)) = ?"
-        : "SELECT car_name, branch FROM cars",
+        ? "SELECT car_name, branch FROM cars WHERE TRIM(LOWER(branch)) = ? AND car_name IS NOT NULL AND car_name != ''"
+        : "SELECT car_name, branch FROM cars WHERE car_name IS NOT NULL AND car_name != ''",
       branch ? [branch.toLowerCase()] : []
     );
 
-    if (allCars.length === 0) return res.json({ success: true, activeSlots: 0, availableSlots: 0, studentsPresent: 0, branchStats: [] });
+    const carsByBranch = {};
+    allCars.forEach(c => {
+      const b = (c.branch || '').trim();
+      if (!carsByBranch[b]) carsByBranch[b] = new Set();
+      carsByBranch[b].add(c.car_name.trim());
+    });
 
-    // Fetch candidate bookings with branch
+    // 2. Get bookings — same status + conditions as schedule
     const bookingParams = [];
-    let bookingWhere = `attendance_status IN ('Active','Pending')
-      AND starting_from IS NOT NULL AND car_name IS NOT NULL AND car_name != ''`;
+    let bookingWhere = `attendance_status IN ('Active','Pending') AND starting_from IS NOT NULL AND allotted_time IS NOT NULL AND allotted_time != ''`;
     if (branch) {
       bookingWhere += ` AND TRIM(LOWER(branch)) = ?`;
       bookingParams.push(branch.toLowerCase());
@@ -207,33 +212,32 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       bookingParams
     );
 
-    // Apply the exact same date filter the schedule JS uses
-    const today = targetDate;
-
+    // 3. Apply same date-range filter as schedule
     const bookings = rawBookings.filter(b => {
       const start = new Date(b.starting_from);
-      start.setHours(0, 0, 0, 0);
-      if (today < start) return false;
+      const end   = new Date(start);
       const totalSessions = Number(b.training_days) || 15;
       const doneSessions  = Number(b.present_days)  || 0;
       const remaining     = totalSessions - doneSessions;
-      let end;
       if (remaining < totalSessions / 2) {
-        end = new Date(today);
+        end.setTime(selectedTime);
         end.setDate(end.getDate() + remaining + 3);
       } else {
-        end = new Date(start);
-        end.setDate(end.getDate() + 29);
+        end.setDate(start.getDate() + 29);
       }
-      return today <= end;
+      return selectedTime >= start.getTime() && selectedTime <= end.getTime();
     });
 
-    // Build bookedSlots map keyed by car
-    const bookedSlots = {};
+    // 4. Build bookedSlots[bookingBranch][car] — same as schedule builds bookedSlots[car]
+    //    but keyed by booking's branch so we can look up per branch
+    const bookedByBranch = {};
     bookings.forEach(b => {
       if (!b.car_name || !b.allotted_time) return;
+      const branchName = (b.branch || '').trim();
       const car = b.car_name.trim();
-      if (!bookedSlots[car]) bookedSlots[car] = {};
+      if (!bookedByBranch[branchName]) bookedByBranch[branchName] = {};
+      if (!bookedByBranch[branchName][car]) bookedByBranch[branchName][car] = {};
+
       const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
         .filter(Boolean).sort();
       const mins = slots.map(s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; });
@@ -247,20 +251,12 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       groups.forEach(g => {
         g.forEach((min, idx) => {
           const key = `${String(Math.floor(min/60)).padStart(2,'0')}:${String(min%60).padStart(2,'0')}`;
-          bookedSlots[car][key] = idx === 0 ? true : 'skip';
+          bookedByBranch[branchName][car][key] = idx === 0 ? true : 'skip';
         });
       });
     });
 
-    // Group cars by branch
-    const carsByBranch = {};
-    allCars.forEach(c => {
-      const b = (c.branch || '').trim();
-      if (!carsByBranch[b]) carsByBranch[b] = [];
-      carsByBranch[b].push(c.car_name.trim());
-    });
-
-    // Attendance per branch for target date
+    // 5. Attendance per branch for target date
     const [attendanceRows] = await dbPool.query(`
       SELECT TRIM(b.branch) AS branch, COUNT(a.id) AS present
       FROM attendance a
@@ -273,30 +269,32 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     const presentByBranch = {};
     attendanceRows.forEach(r => { presentByBranch[r.branch] = Number(r.present); });
 
-    // Compute per-branch stats
+    // 6. Count active slots per branch exactly like the schedule does:
+    //    iterate cars-in-branch, count non-skip slots from bookings-in-branch
     let totalActiveSlots = 0;
-    let totalSlots = 0;
     let totalPresent = 0;
     const branchStats = Object.keys(carsByBranch).sort().map(branchName => {
-      const cars = carsByBranch[branchName];
+      const branchCars = carsByBranch[branchName];
+      const branchBooked = bookedByBranch[branchName] || {};
       let active = 0;
-      cars.forEach(car => {
-        if (bookedSlots[car]) {
-          active += Object.values(bookedSlots[car]).filter(v => v !== 'skip').length;
-        }
+      branchCars.forEach(carName => {
+        const carSlots = branchBooked[carName] || {};
+        Object.entries(carSlots).forEach(([time, val]) => {
+          if (val === 'skip') return;
+          const [h, m] = time.split(':').map(Number);
+          const mins = h * 60 + m;
+          if (mins >= 6 * 60 && mins <= 22 * 60) active++;
+        });
       });
-      const total = cars.length * 33;
       const present = presentByBranch[branchName] || 0;
       totalActiveSlots += active;
-      totalSlots += total;
       totalPresent += present;
-      return { branch: branchName, activeSlots: active, totalSlots: total, present };
+      return { branch: branchName, activeSlots: active, present };
     });
 
     res.json({
       success: true,
       activeSlots: totalActiveSlots,
-      availableSlots: totalSlots - totalActiveSlots,
       studentsPresent: totalPresent,
       branchStats
     });
@@ -490,20 +488,6 @@ router.get("/enquiry-trends", requireAdmin, async (req, res) => {
   try {
     const { branch, heard_about, granularity = 'day' } = req.query;
 
-    let groupBy, dateFormat;
-    switch (granularity) {
-      case 'day':
-        groupBy = "DATE(e.created_at)";
-        dateFormat = "%Y-%m-%d";
-        break;
-      case 'year':
-        groupBy = "YEAR(e.created_at)";
-        dateFormat = "%Y";
-        break;
-      default: // month
-        groupBy = "DATE_FORMAT(e.created_at, '%Y-%m')";
-        dateFormat = "%Y-%m";
-    }
 
     let whereClause = "";
     let params = [];
@@ -561,18 +545,6 @@ router.get("/heard-about-options", requireAdmin, async (req, res) => {
 router.get("/enrollment-trends", requireAdmin, async (req, res) => {
   try {
     const { branch, granularity = 'day' } = req.query;
-
-    let groupBy;
-    switch (granularity) {
-      case 'day':
-        groupBy = "DATE(created_at)";
-        break;
-      case 'year':
-        groupBy = "YEAR(created_at)";
-        break;
-      default: // month
-        groupBy = "DATE_FORMAT(created_at, '%Y-%m')";
-    }
 
     let whereClause = "";
     let params = [];
