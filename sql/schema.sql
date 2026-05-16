@@ -798,6 +798,7 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN date DATE NOT NU
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='present');
 SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN present TINYINT(1) NOT NULL DEFAULT 0;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+
 -- =====================================
 -- ADMINS TABLE
 -- =====================================
@@ -1892,6 +1893,21 @@ SET @sql := IF(@idx_exists=0,
     'CREATE INDEX idx_practice_progress_category ON practice_progress (user_id, category, language);',
     'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- SCHEDULE AD-HOC SLOTS TABLE
+-- =====================================
+CREATE TABLE IF NOT EXISTS schedule_slots (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    booking_id INT NOT NULL,
+    date DATE NOT NULL,
+    time VARCHAR(10) NOT NULL,
+    car_name VARCHAR(100),
+    instructor_name VARCHAR(100),
+    present TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_schedule_slots_booking FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
+);
 
 -- =====================================
 -- ENQUIRY STATUS COLUMN

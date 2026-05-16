@@ -662,6 +662,14 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
   }
 })();
 
+// Migration: add present column to schedule_slots
+(async () => {
+  try {
+    await dbPool.query(`ALTER TABLE schedule_slots ADD COLUMN present TINYINT(1) DEFAULT 1`);
+    console.log('[Migration] schedule_slots.present column added.');
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_slots.present:', e.message); }
+})();
+
 app.get('/api/attendance-all', requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
@@ -695,7 +703,7 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
     const booking_id = req.params.booking_id;
     const { date, value } = req.body;
 
-    if (!date || typeof value !== 'number') {
+    if (!date || typeof value !== 'number' || isNaN(value)) {
         return res.status(400).json({ success: false, error: 'Date and value required' });
     }
     if (value > 4) {
@@ -703,72 +711,211 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
     }
 
     const mysqlDate = date.split("T")[0];
-    const conn = await dbPool.getConnection();
 
-    try {
-        await conn.beginTransaction();
+    async function attemptUpdate() {
+        let conn;
+        try {
+            conn = await dbPool.getConnection();
+            await conn.beginTransaction();
 
-        // 1) Set attendance to exact value — delete if 0, upsert otherwise
-        if (value <= 0) {
+            if (value <= 0) {
+                await conn.query(
+                    `DELETE FROM attendance WHERE booking_id = ? AND date = ?`,
+                    [booking_id, mysqlDate]
+                );
+            } else {
+                await conn.query(
+                    `INSERT INTO attendance (booking_id, date, present) VALUES (?, ?, ?)
+                     ON DUPLICATE KEY UPDATE present = ?`,
+                    [booking_id, mysqlDate, value, value]
+                );
+            }
+
             await conn.query(
-                `DELETE FROM attendance WHERE booking_id = ? AND date = ?`,
-                [booking_id, mysqlDate]
+                `DELETE FROM attendance WHERE booking_id = ? AND present <= 0`,
+                [booking_id]
             );
-        } else {
+
+            const [presentSumRows] = await conn.query(
+                `SELECT COALESCE(SUM(present),0) AS total_present FROM attendance WHERE booking_id = ?`,
+                [booking_id]
+            );
+            const totalPresent = Math.max(0, Number(presentSumRows[0].total_present));
+
             await conn.query(
-                `INSERT INTO attendance (booking_id, date, present) VALUES (?, ?, ?)
-                 ON DUPLICATE KEY UPDATE present = ?`,
-                [booking_id, mysqlDate, value, value]
+                `UPDATE bookings SET present_days = ? WHERE id = ?`,
+                [totalPresent, booking_id]
             );
+
+            const [bookingRows] = await conn.query(
+                `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?`,
+                [booking_id]
+            );
+            if (!bookingRows.length) throw new Error(`Booking ${booking_id} not found`);
+
+            const newStatus = computeAttendanceStatus(bookingRows[0]);
+
+            await conn.query(
+                `UPDATE bookings SET attendance_status = ? WHERE id = ?`,
+                [newStatus, booking_id]
+            );
+
+            await conn.commit();
+            return { totalPresent, newStatus };
+        } catch (err) {
+            if (conn) await conn.rollback().catch(() => {});
+            throw err;
+        } finally {
+            if (conn) conn.release();
         }
+    }
 
-        // 2) Update present_days (clean up any stale negative rows first)
-        await conn.query(
-            `DELETE FROM attendance WHERE booking_id = ? AND present <= 0`,
-            [booking_id]
-        );
-
-        const [presentSumRows] = await conn.query(
-            `SELECT COALESCE(SUM(present),0) AS total_present FROM attendance WHERE booking_id = ?`,
-            [booking_id]
-        );
-
-        const totalPresent = Math.max(0, presentSumRows[0].total_present);
-
-        await conn.query(
-            `UPDATE bookings SET present_days = ? WHERE id = ?`,
-            [totalPresent, booking_id]
-        );
-
-        // 3) Immediately recompute attendance_status based on updated present_days
-        const [bookingRows] = await conn.query(
-            `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?`,
-            [booking_id]
-        );
-
-        const booking = bookingRows[0];
-        const newStatus = computeAttendanceStatus(booking);
-
-        await conn.query(
-            `UPDATE bookings SET attendance_status = ? WHERE id = ?`,
-            [newStatus, booking_id]
-        );
-
-        await conn.commit();
-        res.json({ success: true, present_days: totalPresent, attendance_status: newStatus });
-
-    } catch (err) {
-        await conn.rollback();
-        console.error('ATTENDANCE UPDATE ERROR:', err);
-        next(err);
-    } finally {
-        conn.release();
+    // Retry up to 3 times on deadlock (ER_LOCK_DEADLOCK = 1213)
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            const { totalPresent, newStatus } = await attemptUpdate();
+            return res.json({ success: true, present_days: totalPresent, attendance_status: newStatus });
+        } catch (err) {
+            if (err.errno === 1213 && attempt < 3) {
+                await new Promise(r => setTimeout(r, 50 * attempt));
+                continue;
+            }
+            console.error('ATTENDANCE UPDATE ERROR:', err.message);
+            return next(err);
+        }
     }
 });
 
 
 
 
+
+// ---------- SCHEDULE AD-HOC SLOTS ----------
+app.get('/api/schedule-slots', requireAdmin, async (req, res, next) => {
+  const { branch, date } = req.query;
+  if (!branch || !date) return res.json({ success: false, error: 'branch and date required' });
+  try {
+    const [rows] = await dbPool.query(`
+      SELECT ss.id, ss.booking_id, ss.time, ss.car_name, ss.instructor_name, ss.present,
+             b.customer_name, b.present_days, b.training_days, b.mobile_no
+      FROM schedule_slots ss
+      JOIN bookings b ON ss.booking_id = b.id
+      WHERE ss.date = ? AND b.branch = ?
+      ORDER BY ss.time ASC
+    `, [date, branch]);
+    res.json({ success: true, slots: rows });
+  } catch (err) {
+    console.error('GET SCHEDULE SLOTS ERROR:', err);
+    next(err);
+  }
+});
+
+app.post('/api/schedule-slots', requireAdmin, async (req, res, next) => {
+  const { booking_id, date, time, car_name, instructor_name } = req.body;
+  if (!booking_id || !date || !time || !car_name) {
+    return res.status(400).json({ success: false, error: 'booking_id, date, time, car_name required' });
+  }
+  const conn = await dbPool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [result] = await conn.query(
+      `INSERT INTO schedule_slots (booking_id, date, time, car_name, instructor_name) VALUES (?, ?, ?, ?, ?)`,
+      [booking_id, date, time, car_name || null, instructor_name || null]
+    );
+
+    // Recalculate present_days (new slot already has present=1, included in adhocSum)
+    const [[attSum]] = await conn.query(
+      `SELECT COALESCE(SUM(present), 0) AS total FROM attendance WHERE booking_id = ?`, [booking_id]
+    );
+    const [[adhocSum]] = await conn.query(
+      `SELECT COUNT(*) AS total FROM schedule_slots WHERE booking_id = ? AND present = 1`, [booking_id]
+    );
+    await conn.query(
+      `UPDATE bookings SET present_days = ? WHERE id = ?`,
+      [Number(attSum.total) + Number(adhocSum.total), booking_id]
+    );
+
+    await conn.commit();
+    res.json({ success: true, slot_id: result.insertId });
+  } catch (err) {
+    await conn.rollback();
+    console.error('POST SCHEDULE SLOT ERROR:', err);
+    next(err);
+  } finally {
+    conn.release();
+  }
+});
+
+app.delete('/api/schedule-slots/:id', requireAdmin, async (req, res, next) => {
+  const conn = await dbPool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [[slot]] = await conn.query(`SELECT * FROM schedule_slots WHERE id = ?`, [req.params.id]);
+    if (!slot) {
+      await conn.rollback();
+      return res.json({ success: false, error: 'Slot not found' });
+    }
+
+    await conn.query(`DELETE FROM schedule_slots WHERE id = ?`, [req.params.id]);
+
+    // Recalculate present_days after removing this ad-hoc slot
+    const [[attSum]] = await conn.query(
+      `SELECT COALESCE(SUM(present), 0) AS total FROM attendance WHERE booking_id = ?`, [slot.booking_id]
+    );
+    const [[adhocSum]] = await conn.query(
+      `SELECT COUNT(*) AS total FROM schedule_slots WHERE booking_id = ? AND present = 1 AND id != ?`,
+      [slot.booking_id, req.params.id]
+    );
+    await conn.query(
+      `UPDATE bookings SET present_days = ? WHERE id = ?`,
+      [Number(attSum.total) + Number(adhocSum.total), slot.booking_id]
+    );
+
+    await conn.commit();
+    res.json({ success: true });
+  } catch (err) {
+    await conn.rollback();
+    console.error('DELETE SCHEDULE SLOT ERROR:', err);
+    next(err);
+  } finally {
+    conn.release();
+  }
+});
+
+app.patch('/api/schedule-slots/:id/present', requireAdmin, async (req, res, next) => {
+  const { present } = req.body; // 1 or 0
+  const conn = await dbPool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [[slot]] = await conn.query(`SELECT * FROM schedule_slots WHERE id = ?`, [req.params.id]);
+    if (!slot) { await conn.rollback(); return res.json({ success: false, error: 'Slot not found' }); }
+
+    await conn.query(`UPDATE schedule_slots SET present = ? WHERE id = ?`, [present ? 1 : 0, req.params.id]);
+
+    // Recalculate present_days = regular attendance + ad-hoc present slots
+    const [[attSum]] = await conn.query(
+      `SELECT COALESCE(SUM(present), 0) AS total FROM attendance WHERE booking_id = ?`,
+      [slot.booking_id]
+    );
+    const [[adhocSum]] = await conn.query(
+      `SELECT COUNT(*) AS total FROM schedule_slots WHERE booking_id = ? AND present = 1`,
+      [slot.booking_id]
+    );
+    const totalPresent = Number(attSum.total) + Number(adhocSum.total);
+    await conn.query(`UPDATE bookings SET present_days = ? WHERE id = ?`, [totalPresent, slot.booking_id]);
+
+    await conn.commit();
+    res.json({ success: true, present_days: totalPresent });
+  } catch (err) {
+    await conn.rollback();
+    console.error('PATCH SCHEDULE SLOT PRESENT ERROR:', err);
+    next(err);
+  } finally {
+    conn.release();
+  }
+});
 
 // ---------- BRANCHES CRUD ----------
 app.get('/api/branches', async (req, res, next) => {

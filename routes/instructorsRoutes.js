@@ -9,8 +9,11 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const role = (req.query.role || '').trim();
-    const conditions = role ? ['role = ?'] : [];
-    const params = role ? [role] : [];
+    const branch = (req.query.branch || '').trim();
+    const conditions = [];
+    const params = [];
+    if (role) { conditions.push('role = ?'); params.push(role); }
+    if (branch) { conditions.push('branch = ?'); params.push(branch); }
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
     const [rows] = await dbPool.query(`

@@ -318,6 +318,277 @@
 }
 
 /* ==============================
+   SLOT CONTENT LAYOUT
+================================ */
+#scheduleTabWrapper .slot-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 110px;
+}
+
+#scheduleTabWrapper .slot-name {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.3;
+    text-align: center;
+}
+
+#scheduleTabWrapper .slot-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+/* ==============================
+   ATTENDANCE BUTTONS
+================================ */
+#scheduleTabWrapper .att-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    padding: 0;
+    line-height: 1;
+}
+
+#scheduleTabWrapper .att-present {
+    background: #bbf7d0;
+    color: #166534;
+}
+
+#scheduleTabWrapper .att-present:hover {
+    background: #16a34a;
+    color: #fff;
+    transform: scale(1.15);
+}
+
+#scheduleTabWrapper .att-absent {
+    background: #fecaca;
+    color: #b91c1c;
+}
+
+#scheduleTabWrapper .att-absent:hover {
+    background: #dc2626;
+    color: #fff;
+    transform: scale(1.15);
+}
+
+#scheduleTabWrapper .att-remove {
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 10px;
+}
+
+#scheduleTabWrapper .att-remove:hover {
+    background: #ef4444;
+    color: #fff;
+    transform: scale(1.15);
+}
+
+#scheduleTabWrapper .att-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ==============================
+   PHONE ICON
+================================ */
+#scheduleTabWrapper .phone-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    font-size: 13px;
+    border-radius: 50%;
+    background: #dcfce7;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+#scheduleTabWrapper .phone-icon:hover {
+    background: #16a34a;
+    transform: scale(1.15);
+}
+
+/* ==============================
+   AD-HOC SLOT BADGE
+================================ */
+#scheduleTabWrapper .adhoc-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: #e0f2fe;
+    color: #0369a1;
+    border-radius: 4px;
+    padding: 1px 5px;
+}
+
+#scheduleTabWrapper .slot-adhoc {
+    border: 2px dashed #38bdf8 !important;
+}
+
+/* ==============================
+   EMPTY SLOT ADD BUTTON
+================================ */
+#scheduleTabWrapper .empty-slot {
+    position: relative;
+}
+
+#scheduleTabWrapper .add-slot-btn {
+    opacity: 0;
+    pointer-events: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid #3b82f6;
+    background: #fff;
+    color: #3b82f6;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    padding: 0;
+}
+
+#scheduleTabWrapper .empty-slot:hover .add-slot-btn {
+    opacity: 1;
+    pointer-events: all;
+}
+
+#scheduleTabWrapper .add-slot-btn:hover {
+    background: #3b82f6;
+    color: #fff;
+    transform: scale(1.1);
+}
+
+/* ==============================
+   ADD SLOT MODAL
+================================ */
+.sched-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sched-modal {
+    background: #fff;
+    border-radius: 14px;
+    padding: 24px 28px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+}
+
+.sched-modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 12px;
+}
+
+.sched-modal-info {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+    color: #475569;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.sched-modal-field {
+    margin-bottom: 14px;
+}
+
+.sched-modal-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.sched-modal-field select,
+.sched-modal-field input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #0f172a;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.sched-modal-field select:focus,
+.sched-modal-field input:focus {
+    border-color: #3b82f6;
+}
+
+.sched-modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.sched-modal-btn {
+    flex: 1;
+    padding: 9px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #f8fafc;
+    color: #374151;
+    transition: all 0.15s ease;
+}
+
+.sched-modal-btn:hover {
+    background: #e2e8f0;
+}
+
+.sched-modal-btn.primary {
+    background: #3b82f6;
+    color: #fff;
+    border-color: #3b82f6;
+}
+
+.sched-modal-btn.primary:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+.sched-modal-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ==============================
    RESPONSIVE
 ================================ */
 @media (max-width: 768px) {
