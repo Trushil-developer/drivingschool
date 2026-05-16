@@ -391,6 +391,37 @@ header {
     border: none;
 }
 
+.map-facade {
+    margin-top: 18px;
+    border-radius: 14px;
+    width: 100%;
+    height: 240px;
+    background: #e8f0e8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.map-facade span {
+    font-size: 14px;
+    color: #555;
+    font-weight: 500;
+}
+
+.map-facade button {
+    background: #1a73e8;
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
 /* ==================== FOOTER ==================== */
 .site-footer {
     background-color: #1565c0;

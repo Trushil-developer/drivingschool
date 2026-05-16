@@ -35,7 +35,6 @@
 
     <!-- Preconnect (max 3 — Lighthouse warns above 4) -->
     <link rel="preconnect" href="https://www.googletagmanager.com">
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
 
     <!-- =========================================================
          CSS
@@ -180,10 +179,11 @@
                             class="email-link">info@dwarkeshdrivingschool.com</a></p>
                 </div>
                 <div class="map">
-                    <iframe title="Map of Vandematram Branch, Ahmedabad"
-                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3670.071846973232!2d72.54403177478596!3d23.094465613642505!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e8318299ef44f%3A0xcbac783b40e3e8f6!2sDwarkesh%20Motor%20Driving%20School!5e0!3m2!1sen!2suk!4v1765530033705!5m2!1sen!2suk"
-                        width="100%" height="250" style="border:0;" allowfullscreen loading="lazy"
-                        referrerpolicy="no-referrer-when-downgrade"></iframe>
+                    <div class="map-facade" data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3670.071846973232!2d72.54403177478596!3d23.094465613642505!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e8318299ef44f%3A0xcbac783b40e3e8f6!2sDwarkesh%20Motor%20Driving%20School!5e0!3m2!1sen!2suk!4v1765530033705!5m2!1sen!2suk">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="#ea4335" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                        <span>Vandematram Branch</span>
+                        <button type="button" onclick="loadMap(this)">View Map</button>
+                    </div>
                 </div>
             </div>
 
@@ -198,10 +198,11 @@
                             class="email-link">info@dwarkeshdrivingschool.com</a></p>
                 </div>
                 <div class="map">
-                    <iframe title="Map of South Bopal Branch, Ahmedabad"
-                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d235020.99570091633!2d72.26651596782358!3d23.016315400000018!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e9b7f21e5c24f%3A0x61d2b2526a0bbe91!2sDwarkesh%20motor%20driving%20school!5e0!3m2!1sen!2suk!4v1765530561162!5m2!1sen!2suk"
-                        width="100%" height="250" style="border:0;" allowfullscreen loading="lazy"
-                        referrerpolicy="no-referrer-when-downgrade"></iframe>
+                    <div class="map-facade" data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d235020.99570091633!2d72.26651596782358!3d23.016315400000018!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e9b7f21e5c24f%3A0x61d2b2526a0bbe91!2sDwarkesh%20motor%20driving%20school!5e0!3m2!1sen!2suk!4v1765530561162!5m2!1sen!2suk">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="#ea4335" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                        <span>South Bopal Branch</span>
+                        <button type="button" onclick="loadMap(this)">View Map</button>
+                    </div>
                 </div>
             </div>
 
@@ -216,10 +217,11 @@
                             class="email-link">info@dwarkeshdrivingschool.com</a></p>
                 </div>
                 <div class="map">
-                    <iframe title="Map of Malabar Branch, Ahmedabad"
-                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d58706.28106607415!2d72.4722334486328!3d23.128463600000003!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e83d539757c0f%3A0xcd842a3194dac879!2sDwarkesh%20Motor%20Driving%20School!5e0!3m2!1sen!2suk!4v1765530498530!5m2!1sen!2suk"
-                        width="100%" height="250" style="border:0;" allowfullscreen loading="lazy"
-                        referrerpolicy="no-referrer-when-downgrade"></iframe>
+                    <div class="map-facade" data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d58706.28106607415!2d72.4722334486328!3d23.128463600000003!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e83d539757c0f%3A0xcd842a3194dac879!2sDwarkesh%20Motor%20Driving%20School!5e0!3m2!1sen!2suk!4v1765530498530!5m2!1sen!2suk">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="#ea4335" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                        <span>Malabar Branch</span>
+                        <button type="button" onclick="loadMap(this)">View Map</button>
+                    </div>
                 </div>
             </div>
 
@@ -234,7 +236,7 @@
         <div class="reviews-container">
             <div class="reviews-header">
                 <div class="reviews-left">
-                    <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google Reviews" width="105" height="105">
+                    <img src="/images/google-reviews-icon.webp" alt="Google Reviews" width="105" height="105">
                     <div class="reviews-summary">
                         <h2 class="google-reviews-title">
                             Google Reviews
@@ -385,7 +387,33 @@
         }
 
         document.getElementById("branchSelect")?.addEventListener("change", e => loadReviews(e.target.value));
-        loadReviews("vandematram");
+
+        // Defer reviews fetch until section enters viewport
+        const _reviewsSection = document.querySelector('.google-reviews');
+        if (_reviewsSection) {
+            let _reviewsLoaded = false;
+            new IntersectionObserver((entries, obs) => {
+                if (entries[0].isIntersecting && !_reviewsLoaded) {
+                    _reviewsLoaded = true;
+                    obs.disconnect();
+                    loadReviews("vandematram");
+                }
+            }, { rootMargin: '200px' }).observe(_reviewsSection);
+        }
+
+        function loadMap(btn) {
+            const facade = btn.closest('.map-facade');
+            const src = facade.dataset.src;
+            const iframe = document.createElement('iframe');
+            iframe.src = src;
+            iframe.width = '100%';
+            iframe.height = '250';
+            iframe.style.border = '0';
+            iframe.allowFullscreen = true;
+            iframe.referrerPolicy = 'no-referrer-when-downgrade';
+            iframe.title = facade.querySelector('span').textContent + ', Ahmedabad';
+            facade.replaceWith(iframe);
+        }
     </script>
     <script src="js/includeHTML.js" defer></script>
     <script src="js/common.js" defer></script>
