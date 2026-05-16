@@ -76,6 +76,16 @@ const MySQLStore = MySQLStoreImport(session);
 const sessionStore = new MySQLStore({}, dbPool);
 
 app.use(cors());
+
+// 301 redirect: non-www → www
+app.use((req, res, next) => {
+  const host = req.headers.host || '';
+  if (process.env.NODE_ENV === 'production' && !host.startsWith('www.')) {
+    return res.redirect(301, `https://www.${host}${req.url}`);
+  }
+  next();
+});
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));

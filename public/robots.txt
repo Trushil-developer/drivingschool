@@ -5,4 +5,4 @@ Disallow: /login.html
 Disallow: /details.html
 Disallow: /api/
 
-Sitemap: https://dwarkeshdrivingschool.com/sitemap.xml
+Sitemap: https://www.dwarkeshdrivingschool.com/sitemap.xml
