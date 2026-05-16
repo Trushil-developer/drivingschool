@@ -98,6 +98,7 @@ p {
     gap: 1.5rem;
     max-width: 1100px;
     margin: auto;
+    min-height: 370px;
 }
 
 .package-card {
@@ -503,5 +504,9 @@ p {
 
     .review-card {
         min-width: 280px;
+    }
+
+    .packages-grid {
+        min-height: 1100px;
     }
 }

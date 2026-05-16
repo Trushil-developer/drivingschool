@@ -28,6 +28,7 @@ import AWS from "aws-sdk";
 import fs from "fs";
 import packagesRoutes from './routes/packagesRoutes.js';
 import expensesRoutes from './routes/expensesRoutes.js';
+import reviewsRoute from './routes/reviewsRoute.js';
 
 dotenv.config();
 
@@ -954,6 +955,7 @@ app.use("/api/exam", examRoutes);
 app.use("/api/cms", cmsRoutes);
 app.use('/api/packages', packagesRoutes);
 app.use('/api/expenses', expensesRoutes);
+app.use('/api/reviews', reviewsRoute);
 
 // ---------- START SERVER ----------
 app.listen(PORT, '0.0.0.0', () => {
