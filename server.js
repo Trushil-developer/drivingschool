@@ -670,10 +670,27 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_slots.present:', e.message); }
 })();
 
+// Migration: add time column to attendance + update unique key to (booking_id, date, time)
+// Existing rows keep time='' so old display behavior is preserved via frontend fallback
+(async () => {
+  try {
+    try { await dbPool.query(`ALTER TABLE attendance ADD COLUMN time VARCHAR(10) NOT NULL DEFAULT '' AFTER date`); }
+    catch (e) { if (e.errno !== 1060) throw e; }
+    // Drop both possible old key names before re-creating
+    try { await dbPool.query(`ALTER TABLE attendance DROP INDEX unique_attendance`); } catch (_) {}
+    try { await dbPool.query(`ALTER TABLE attendance DROP INDEX unique_record`); } catch (_) {}
+    try { await dbPool.query(`ALTER TABLE attendance ADD UNIQUE KEY unique_record (booking_id, date, time)`); }
+    catch (e) { if (e.errno !== 1061) throw e; }
+    console.log('[Migration] attendance per-slot tracking ready.');
+  } catch (err) {
+    console.error('[Migration] attendance per-slot:', err.message);
+  }
+})();
+
 app.get('/api/attendance-all', requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
-      SELECT booking_id, DATE_FORMAT(date, '%Y-%m-%d') AS date, present
+      SELECT booking_id, DATE_FORMAT(date, '%Y-%m-%d') AS date, time, present
       FROM attendance
       ORDER BY booking_id ASC, date ASC
     `);
@@ -701,16 +718,14 @@ app.get('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
 
 app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
     const booking_id = req.params.booking_id;
-    const { date, value } = req.body;
+    const { date, time, value } = req.body;
 
     if (!date || typeof value !== 'number' || isNaN(value)) {
         return res.status(400).json({ success: false, error: 'Date and value required' });
     }
-    if (value > 4) {
-        return res.status(400).json({ success: false, error: 'Maximum 4 slots per day allowed' });
-    }
 
     const mysqlDate = date.split("T")[0];
+    const slotTime = (time || '').substring(0, 5);
 
     async function attemptUpdate() {
         let conn;
@@ -720,14 +735,14 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
 
             if (value <= 0) {
                 await conn.query(
-                    `DELETE FROM attendance WHERE booking_id = ? AND date = ?`,
-                    [booking_id, mysqlDate]
+                    `DELETE FROM attendance WHERE booking_id = ? AND date = ? AND time = ?`,
+                    [booking_id, mysqlDate, slotTime]
                 );
             } else {
                 await conn.query(
-                    `INSERT INTO attendance (booking_id, date, present) VALUES (?, ?, ?)
+                    `INSERT INTO attendance (booking_id, date, time, present) VALUES (?, ?, ?, ?)
                      ON DUPLICATE KEY UPDATE present = ?`,
-                    [booking_id, mysqlDate, value, value]
+                    [booking_id, mysqlDate, slotTime, value, value]
                 );
             }
 

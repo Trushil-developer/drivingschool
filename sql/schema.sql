@@ -798,6 +798,22 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN date DATE NOT NU
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='present');
 SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN present TINYINT(1) NOT NULL DEFAULT 0;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- time: per-slot key (HH:MM); empty string for legacy records
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='time');
+SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN time VARCHAR(10) NOT NULL DEFAULT \'\' AFTER date;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Drop old 2-column unique keys (both possible names) before adding the 3-column one
+SET @sql := IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_attendance')>0,'ALTER TABLE attendance DROP INDEX unique_attendance;','SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_record' AND (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_record')=2)>0,'ALTER TABLE attendance DROP INDEX unique_record;','SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Unique key: one attendance row per booking per date per time slot
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_record');
+SET @sql := IF(@idx_exists=0,'ALTER TABLE attendance ADD UNIQUE KEY unique_record (booking_id, date, time);','SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 
 -- =====================================
 -- ADMINS TABLE

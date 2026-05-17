@@ -220,7 +220,9 @@ window.renderScheduleModule = function(tableWrap) {
                     attendanceRecords.forEach(r => {
                         if (!attendanceMap[r.booking_id]) attendanceMap[r.booking_id] = {};
                         const dk = new Date(r.date).toISOString().split("T")[0];
-                        attendanceMap[r.booking_id][dk] = Number(r.present);
+                        if (!attendanceMap[r.booking_id][dk]) attendanceMap[r.booking_id][dk] = {};
+                        const tk = (r.time || '').substring(0, 5);
+                        attendanceMap[r.booking_id][dk][tk] = Number(r.present);
                     });
 
                     const branchBookings = bookings.filter(b => {
@@ -259,42 +261,19 @@ window.renderScheduleModule = function(tableWrap) {
 
                         const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4].filter(Boolean);
                         if (slots.length === 0) return;
-                        slots.sort();
 
                         if (!bookedSlots[car]) bookedSlots[car] = {};
 
-                        const slotMinutes = slots.map(s => {
-                            const [h, m] = s.split(':').map(Number);
-                            return h*60 + m;
-                        });
-
-                        let groups = [], currentGroup = [slotMinutes[0]];
-                        for (let i = 1; i < slotMinutes.length; i++) {
-                            if (slotMinutes[i] === slotMinutes[i-1] + 30) {
-                                currentGroup.push(slotMinutes[i]);
-                            } else {
-                                groups.push(currentGroup);
-                                currentGroup = [slotMinutes[i]];
-                            }
-                        }
-                        groups.push(currentGroup);
-
-                        groups.forEach(group => {
-                            group.forEach((min, idx) => {
-                                const hh = String(Math.floor(min/60)).padStart(2,'0');
-                                const mm = String(min%60).padStart(2,'0');
-                                const key = `${hh}:${mm}`;
-                                bookedSlots[car][key] = idx === 0
-                                    ? {
-                                        customer: label,
-                                        rowspan: group.length,
-                                        instructor_name: b.instructor_name || "N/A",
-                                        booking_id: b.id,
-                                        mobile_no: b.mobile_no || '',
-                                        ad_hoc: false
-                                    }
-                                    : { skip: true };
-                            });
+                        slots.forEach(s => {
+                            const key = s.substring(0, 5); // HH:MM
+                            bookedSlots[car][key] = {
+                                customer: label,
+                                rowspan: 1,
+                                instructor_name: b.instructor_name || "N/A",
+                                booking_id: b.id,
+                                mobile_no: b.mobile_no || '',
+                                ad_hoc: false
+                            };
                         });
                     });
 
@@ -353,10 +332,12 @@ window.renderScheduleModule = function(tableWrap) {
                                             const now = new Date();
                                             const slotDateTime = new Date(`${dateStr}T${t}:00`);
 
-                                            // Ad-hoc slots use their own present field; regular slots use attendanceMap
-                                            const isPresent = slot.ad_hoc
-                                                ? slot.ad_hoc_present > 0
-                                                : (attendanceMap[slot.booking_id]?.[dateStr] ?? 0) > 0;
+                                            // Ad-hoc: own present field. Regular: look up by time, fall back to '' for old records
+                                            const dayMap = attendanceMap[slot.booking_id]?.[dateStr];
+                                            const slotPv = slot.ad_hoc
+                                                ? slot.ad_hoc_present
+                                                : (dayMap?.[t] ?? dayMap?.[''] ?? 0);
+                                            const isPresent = slotPv > 0;
 
                                             let slotClass = "slot";
                                             if (isPresent) {
@@ -366,15 +347,12 @@ window.renderScheduleModule = function(tableWrap) {
                                             }
                                             if (slot.ad_hoc) slotClass += " slot-adhoc";
 
-                                            const pv = slot.ad_hoc
-                                                ? slot.ad_hoc_present
-                                                : (attendanceMap[slot.booking_id]?.[dateStr] ?? 0);
-
                                             return `
                                                 <td class="${slotClass}" rowspan="${slot.rowspan}"
                                                     data-booking-id="${slot.booking_id}"
                                                     data-date="${dateStr}"
-                                                    data-present="${pv}"
+                                                    data-time="${t}"
+                                                    data-present="${slotPv}"
                                                     ${slot.ad_hoc ? `data-slot-id="${slot.slot_id}" data-adhoc="1"` : ''}>
                                                     <div class="slot-content">
                                                         <span class="slot-name">${slot.customer}</span>
@@ -449,6 +427,15 @@ window.renderScheduleModule = function(tableWrap) {
                             return;
                         }
 
+                        // Password required to change an already-set attendance
+                        if (action === 'absent') {
+                            const pwd = prompt('Enter password to change attendance:');
+                            if (pwd !== '1234') {
+                                alert('Incorrect password.');
+                                return;
+                            }
+                        }
+
                         wrap.style.pointerEvents = 'none';
                         let r;
                         if (td.dataset.adhoc === '1') {
@@ -462,7 +449,7 @@ window.renderScheduleModule = function(tableWrap) {
                             const newValue = action === 'present' ? 1 : 0;
                             r = await window.api(`/api/attendance/${bookingId}`, {
                                 method: 'POST',
-                                body: { date, value: newValue }
+                                body: { date, time: td.dataset.time || '', value: newValue }
                             });
                         }
                         if (r.success) {
