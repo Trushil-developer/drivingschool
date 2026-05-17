@@ -676,11 +676,17 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
   try {
     try { await dbPool.query(`ALTER TABLE attendance ADD COLUMN time VARCHAR(10) NOT NULL DEFAULT '' AFTER date`); }
     catch (e) { if (e.errno !== 1060) throw e; }
-    // Drop both possible old key names before re-creating
+    // Add new key under a temp name first so FK has an index to hold on to during drops
+    try { await dbPool.query(`ALTER TABLE attendance ADD UNIQUE KEY uq_att_slot (booking_id, date, time)`); }
+    catch (e) { if (e.errno !== 1061) throw e; }
+    // Now safe to drop old keys
     try { await dbPool.query(`ALTER TABLE attendance DROP INDEX unique_attendance`); } catch (_) {}
     try { await dbPool.query(`ALTER TABLE attendance DROP INDEX unique_record`); } catch (_) {}
+    // Add canonical key name
     try { await dbPool.query(`ALTER TABLE attendance ADD UNIQUE KEY unique_record (booking_id, date, time)`); }
     catch (e) { if (e.errno !== 1061) throw e; }
+    // Drop temp key
+    try { await dbPool.query(`ALTER TABLE attendance DROP INDEX uq_att_slot`); } catch (_) {}
     console.log('[Migration] attendance per-slot tracking ready.');
   } catch (err) {
     console.error('[Migration] attendance per-slot:', err.message);

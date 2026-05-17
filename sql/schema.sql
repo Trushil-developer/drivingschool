@@ -802,16 +802,30 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN present TINYINT(
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='time');
 SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN time VARCHAR(10) NOT NULL DEFAULT \'\' AFTER date;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- Drop old 2-column unique keys (both possible names) before adding the 3-column one
-SET @sql := IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_attendance')>0,'ALTER TABLE attendance DROP INDEX unique_attendance;','SELECT "exists";');
+-- Step 1: add new 3-column key under a temp name so the FK has something to hold on to
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='uq_att_slot');
+SET @sql := IF(@idx_exists=0,'ALTER TABLE attendance ADD UNIQUE KEY uq_att_slot (booking_id, date, time);','SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @sql := IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_record' AND (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_record')=2)>0,'ALTER TABLE attendance DROP INDEX unique_record;','SELECT "exists";');
+-- Step 2: now safe to drop old keys (uq_att_slot satisfies any FK)
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_attendance');
+SET @sql := IF(@idx_exists>0,'ALTER TABLE attendance DROP INDEX unique_attendance;','SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- Unique key: one attendance row per booking per date per time slot
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_record');
+SET @col_count := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_record');
+SET @sql := IF(@col_count=2,'ALTER TABLE attendance DROP INDEX unique_record;','SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Step 3: add the final key with the canonical name
 SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_record');
 SET @sql := IF(@idx_exists=0,'ALTER TABLE attendance ADD UNIQUE KEY unique_record (booking_id, date, time);','SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Step 4: drop the temp key now that unique_record exists
+SET @r_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_record');
+SET @t_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='uq_att_slot');
+SET @sql := IF(@r_exists>0 AND @t_exists>0,'ALTER TABLE attendance DROP INDEX uq_att_slot;','SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 
