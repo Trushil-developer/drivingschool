@@ -1,5 +1,6 @@
 (function () {
     const LOCK_PASSWORD = "1234";
+    const LOCK_PASSWORD_A = "12345";
 
     function localDateStr(d) {
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -132,24 +133,48 @@
 
         overlay.classList.add("active");
         modal.classList.add("active");
-
-        // Attendance is now managed from the Schedule tab
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="3" style="text-align:center; padding: 32px 16px;">
-                    <div style="font-size:32px; margin-bottom:10px;">🔒</div>
-                    <div style="font-weight:700; font-size:15px; color:#0f172a; margin-bottom:6px;">Attendance Locked</div>
-                    <div style="font-size:13px; color:#64748b;">Please mark attendance from the <strong>Schedule</strong> tab.</div>
-                </td>
-            </tr>
-        `;
         saveBtn.style.display = 'none';
-        closeBtn.onclick = () => {
-            overlay.classList.remove("active");
-            modal.classList.remove("active");
-            saveBtn.style.display = '';
-        };
-        return;
+
+        // Show inline password gate
+        await new Promise(resolve => {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="3" style="text-align:center; padding: 32px 16px;">
+                        <div style="font-size:32px; margin-bottom:10px;">🔒</div>
+                        <div style="font-weight:700; font-size:15px; color:#0f172a; margin-bottom:8px;">Enter Password</div>
+                        <div style="display:flex; gap:8px; justify-content:center; margin-top:4px;">
+                            <input id="attPwdInput" type="password" placeholder="Password"
+                                style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; outline:none; width:140px;" />
+                            <button id="attPwdSubmit"
+                                style="padding:7px 16px; background:#3b82f6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">
+                                Unlock
+                            </button>
+                        </div>
+                        <div id="attPwdError" style="color:#dc2626; font-size:12px; margin-top:8px; display:none;">Incorrect password.</div>
+                    </td>
+                </tr>
+            `;
+
+            const input = document.getElementById('attPwdInput');
+            const submitBtn = document.getElementById('attPwdSubmit');
+            const errorMsg = document.getElementById('attPwdError');
+
+            const attempt = () => {
+                if (input.value === LOCK_PASSWORD_A) {
+                    resolve();
+                } else {
+                    errorMsg.style.display = 'block';
+                    input.value = '';
+                    input.focus();
+                }
+            };
+
+            submitBtn.addEventListener('click', attempt);
+            input.addEventListener('keydown', e => { if (e.key === 'Enter') attempt(); });
+            input.focus();
+        });
+
+        saveBtn.style.display = '';
 
         const startDate = new Date(booking.starting_from);
         const totalDays = 30 + Number(booking.extended_days || 0);
