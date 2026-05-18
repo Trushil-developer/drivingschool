@@ -141,7 +141,8 @@
                 <tr>
                     <td colspan="3" style="text-align:center; padding: 32px 16px;">
                         <div style="font-size:32px; margin-bottom:10px;">🔒</div>
-                        <div style="font-weight:700; font-size:15px; color:#0f172a; margin-bottom:8px;">Enter Password</div>
+                        <div style="font-weight:700; font-size:15px; color:#0f172a; margin-bottom:4px;">Attendance Locked</div>
+                        <div style="font-size:13px; color:#64748b; margin-bottom:12px;">Please mark attendance from the <strong>Schedule</strong> tab.<br/>Or enter password to access here.</div>
                         <div style="display:flex; gap:8px; justify-content:center; margin-top:4px;">
                             <input id="attPwdInput" type="password" placeholder="Password"
                                 style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; outline:none; width:140px;" />
