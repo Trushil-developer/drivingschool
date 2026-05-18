@@ -132,7 +132,24 @@
 
         overlay.classList.add("active");
         modal.classList.add("active");
-        tableBody.innerHTML = "";
+
+        // Attendance is now managed from the Schedule tab
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="3" style="text-align:center; padding: 32px 16px;">
+                    <div style="font-size:32px; margin-bottom:10px;">🔒</div>
+                    <div style="font-weight:700; font-size:15px; color:#0f172a; margin-bottom:6px;">Attendance Locked</div>
+                    <div style="font-size:13px; color:#64748b;">Please mark attendance from the <strong>Schedule</strong> tab.</div>
+                </td>
+            </tr>
+        `;
+        saveBtn.style.display = 'none';
+        closeBtn.onclick = () => {
+            overlay.classList.remove("active");
+            modal.classList.remove("active");
+            saveBtn.style.display = '';
+        };
+        return;
 
         const startDate = new Date(booking.starting_from);
         const totalDays = 30 + Number(booking.extended_days || 0);
