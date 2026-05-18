@@ -135,105 +135,96 @@
         modal.classList.add("active");
         saveBtn.style.display = 'none';
 
-        // Show inline password gate
-        await new Promise(resolve => {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="3" style="text-align:center; padding: 32px 16px;">
-                        <div style="font-size:32px; margin-bottom:10px;">🔒</div>
-                        <div style="font-weight:700; font-size:15px; color:#0f172a; margin-bottom:4px;">Attendance Locked</div>
-                        <div style="font-size:13px; color:#64748b; margin-bottom:12px;">Please mark attendance from the <strong>Schedule</strong> tab.<br/>Or enter password to access here.</div>
-                        <div style="display:flex; gap:8px; justify-content:center; margin-top:4px;">
-                            <input id="attPwdInput" type="password" placeholder="Password"
-                                style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; outline:none; width:140px;" />
-                            <button id="attPwdSubmit"
-                                style="padding:7px 16px; background:#3b82f6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">
-                                Unlock
-                            </button>
-                        </div>
-                        <div id="attPwdError" style="color:#dc2626; font-size:12px; margin-top:8px; display:none;">Incorrect password.</div>
-                    </td>
-                </tr>
-            `;
-
-            const input = document.getElementById('attPwdInput');
-            const submitBtn = document.getElementById('attPwdSubmit');
-            const errorMsg = document.getElementById('attPwdError');
-
-            const attempt = () => {
-                if (input.value === LOCK_PASSWORD_A) {
-                    resolve();
-                } else {
-                    errorMsg.style.display = 'block';
-                    input.value = '';
-                    input.focus();
-                }
-            };
-
-            submitBtn.addEventListener('click', attempt);
-            input.addEventListener('keydown', e => { if (e.key === 'Enter') attempt(); });
-            input.focus();
-        });
-
-        saveBtn.style.display = '';
-
-        const startDate = new Date(booking.starting_from);
-        const totalDays = 30 + Number(booking.extended_days || 0);
-
-        if (booking.hold_from && booking.resume_from) {
-            const holdStart = new Date(booking.hold_from);
-            const resumeStart = new Date(booking.resume_from);
-            const holdDays = Math.ceil((resumeStart - holdStart) / (1000 * 60 * 60 * 24));
-            startDate.setDate(startDate.getDate() + holdDays);
-        }
-
-        // Fetch existing attendance
-        const res = await window.api(`/api/attendance/${booking.id}`);
-        const existing = res.records || [];
-
-        const status = booking.attendance_status.toLowerCase();
-        const isEditable = status === "active";
-        const isCompleted = status === "completed";
-        const incrementMap = {};
-
-        const newTbody = generateAttendanceRows(startDate, existing, totalDays, isEditable, incrementMap, isCompleted);
-        tableBody.innerHTML = "";
-        while (newTbody.firstChild) {
-            tableBody.appendChild(newTbody.firstChild);
-        }
-
-    saveBtn.onclick = async () => {
-        const updates = Object.entries(incrementMap);
-        if (updates.length === 0) {
+        const closeModal = () => {
             overlay.classList.remove("active");
             modal.classList.remove("active");
-            return booking.refresh?.();
-        }
+            saveBtn.style.display = '';
+        };
+        closeBtn.onclick = closeModal;
 
-        try {
-            for (const [date, newCount] of updates) {
-                const result = await window.api(`/api/attendance/${booking.id}`, {
-                    method: "POST",
-                    body: { date, value: newCount }
-                });
-                if (!result.success) throw new Error(result.error || 'Save failed');
+        // Show inline password gate
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="3" style="text-align:center; padding: 32px 16px;">
+                    <div style="font-size:32px; margin-bottom:10px;">🔒</div>
+                    <div style="font-weight:700; font-size:15px; color:#0f172a; margin-bottom:4px;">Attendance Locked</div>
+                    <div style="font-size:13px; color:#64748b; margin-bottom:12px;">Please mark attendance from the <strong>Schedule</strong> tab.<br/>Or enter password to access here.</div>
+                    <div style="display:flex; gap:8px; justify-content:center; margin-top:4px;">
+                        <input id="attPwdInput" type="password" placeholder="Password"
+                            style="padding:7px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; outline:none; width:140px;" />
+                        <button id="attPwdSubmit"
+                            style="padding:7px 16px; background:#3b82f6; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">
+                            Unlock
+                        </button>
+                    </div>
+                    <div id="attPwdError" style="color:#dc2626; font-size:12px; margin-top:8px; display:none;">Incorrect password.</div>
+                </td>
+            </tr>
+        `;
+
+        const input = document.getElementById('attPwdInput');
+        const submitBtn = document.getElementById('attPwdSubmit');
+        const errorMsg = document.getElementById('attPwdError');
+
+        const loadAttendance = async () => {
+            saveBtn.style.display = '';
+            tableBody.innerHTML = '';
+
+            const startDate = new Date(booking.starting_from);
+            const totalDays = 30 + Number(booking.extended_days || 0);
+
+            if (booking.hold_from && booking.resume_from) {
+                const holdStart = new Date(booking.hold_from);
+                const resumeStart = new Date(booking.resume_from);
+                const holdDays = Math.ceil((resumeStart - holdStart) / (1000 * 60 * 60 * 24));
+                startDate.setDate(startDate.getDate() + holdDays);
             }
 
-            alert("Attendance saved successfully!");
-            overlay.classList.remove("active");
-            modal.classList.remove("active");
-            booking.refresh?.();
-        } catch (err) {
-            console.error(err);
-            alert("Failed to save attendance. Try again.");
-        }
-    };
+            const res = await window.api(`/api/attendance/${booking.id}`);
+            const existing = res.records || [];
 
+            const status = booking.attendance_status.toLowerCase();
+            const isEditable = status === "active";
+            const isCompleted = status === "completed";
+            const incrementMap = {};
 
-        closeBtn.onclick = () => {
-            overlay.classList.remove("active");
-            modal.classList.remove("active");
+            const newTbody = generateAttendanceRows(startDate, existing, totalDays, isEditable, incrementMap, isCompleted);
+            while (newTbody.firstChild) tableBody.appendChild(newTbody.firstChild);
+
+            saveBtn.onclick = async () => {
+                const updates = Object.entries(incrementMap);
+                if (updates.length === 0) { closeModal(); return booking.refresh?.(); }
+                try {
+                    for (const [date, newCount] of updates) {
+                        const result = await window.api(`/api/attendance/${booking.id}`, {
+                            method: "POST",
+                            body: { date, value: newCount }
+                        });
+                        if (!result.success) throw new Error(result.error || 'Save failed');
+                    }
+                    alert("Attendance saved successfully!");
+                    closeModal();
+                    booking.refresh?.();
+                } catch (err) {
+                    console.error(err);
+                    alert("Failed to save attendance. Try again.");
+                }
+            };
         };
+
+        const attempt = () => {
+            if (input.value === LOCK_PASSWORD_A) {
+                loadAttendance();
+            } else {
+                errorMsg.style.display = 'block';
+                input.value = '';
+                input.focus();
+            }
+        };
+
+        submitBtn.addEventListener('click', attempt);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') attempt(); });
+        input.focus();
     }
 
     window.openAttendanceModal = openAttendanceModal;
