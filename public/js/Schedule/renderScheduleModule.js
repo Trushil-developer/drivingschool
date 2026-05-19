@@ -356,6 +356,7 @@ window.renderScheduleModule = function(tableWrap) {
                                                     ${slot.ad_hoc ? `data-slot-id="${slot.slot_id}" data-adhoc="1"` : ''}>
                                                     <div class="slot-content">
                                                         <span class="slot-name">${slot.customer}</span>
+                                                        <span class="slot-instructor">${slot.instructor_name && slot.instructor_name !== 'N/A' ? slot.instructor_name : ''}</span>
                                                         <div class="slot-actions">
                                                             <button class="att-btn att-present" title="Mark Present" data-action="present" ${isPresent ? 'disabled' : ''}>✓</button>
                                                             <button class="att-btn att-absent" title="Mark Absent" data-action="absent" ${!isPresent ? 'disabled' : ''}>✗</button>
@@ -543,6 +544,7 @@ function printSchedule(branch, date) {
                 .slot-actions, .info-tooltip, .phone-icon { display: none !important; }
                 .slot-content { display: block; }
                 .slot-name { font-weight: 600; font-size: 12px; }
+                .slot-instructor { display: block; font-size: 11px; color: #555; margin-top: 2px; }
             </style>
         </head>
         <body>
