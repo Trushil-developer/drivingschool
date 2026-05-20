@@ -256,12 +256,17 @@ async function loadDashboardData(query = "") {
     const isJoinedToday = joinedDate.getTime() === today.getTime();
     const joinedDateLabel = formatAttendanceDateLabel(joinedDate);
 
-    const branchRowsHtml = branchStats.map(b =>
-      `<div class="branch-slot-row">
+    const branchRowsHtml = branchStats.map(b => {
+      const absent = b.activeSlots - b.present;
+      return `<div class="branch-slot-row">
         <span class="branch-slot-name">${b.branch}</span>
-        <span class="branch-slot-count">${b.present} / ${b.activeSlots}</span>
-      </div>`
-    ).join('');
+        <span class="branch-slot-pat">
+          <span class="pat-p">P ${b.present}</span>
+          <span class="pat-a">A ${absent}</span>
+          <span class="pat-t">T ${b.activeSlots}</span>
+        </span>
+      </div>`;
+    }).join('');
 
     // Render dashboard cards
     document.getElementById("dashboardCards").innerHTML = `

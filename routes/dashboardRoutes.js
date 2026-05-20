@@ -239,25 +239,32 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       if (!bookedByBranch[branchName]) bookedByBranch[branchName] = {};
       if (!bookedByBranch[branchName][car]) bookedByBranch[branchName][car] = {};
 
-      const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
-        .filter(Boolean).sort();
-      const mins = slots.map(s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; });
-      let group = [mins[0]];
-      const groups = [];
-      for (let i = 1; i < mins.length; i++) {
-        if (mins[i] === mins[i - 1] + 30) { group.push(mins[i]); }
-        else { groups.push(group); group = [mins[i]]; }
-      }
-      groups.push(group);
-      groups.forEach(g => {
-        g.forEach((min, idx) => {
-          const key = `${String(Math.floor(min/60)).padStart(2,'0')}:${String(min%60).padStart(2,'0')}`;
-          bookedByBranch[branchName][car][key] = idx === 0 ? true : 'skip';
-        });
-      });
+      [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
+        .filter(Boolean)
+        .forEach(t => { bookedByBranch[branchName][car][t.substring(0, 5)] = true; });
     });
 
-    // 5. Attendance per branch for target date
+    // 4b. Ad-hoc slots for this date — same as schedule merges them
+    const adHocParams = [targetDateStr];
+    let adHocWhere = 'DATE(ss.date) = ?';
+    if (branch) { adHocWhere += ' AND TRIM(LOWER(ss.car_name)) IN (SELECT TRIM(LOWER(car_name)) FROM cars WHERE TRIM(LOWER(branch)) = ?)'; adHocParams.push(branch.toLowerCase()); }
+    const [adHocRows] = await dbPool.query(
+      `SELECT ss.car_name, ss.time, TRIM(b.branch) AS branch
+       FROM schedule_slots ss
+       JOIN bookings b ON ss.booking_id = b.id
+       WHERE ${adHocWhere}`,
+      adHocParams
+    );
+    adHocRows.forEach(s => {
+      const branchName = (s.branch || '').trim();
+      const car = (s.car_name || '').trim();
+      const key = s.time.substring(0, 5);
+      if (!bookedByBranch[branchName]) bookedByBranch[branchName] = {};
+      if (!bookedByBranch[branchName][car]) bookedByBranch[branchName][car] = {};
+      if (!bookedByBranch[branchName][car][key]) bookedByBranch[branchName][car][key] = true;
+    });
+
+    // 5. Attendance per branch for target date (slot-level count, matching schedule)
     const [attendanceRows] = await dbPool.query(`
       SELECT TRIM(b.branch) AS branch, COUNT(a.id) AS present
       FROM attendance a
@@ -270,8 +277,7 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     const presentByBranch = {};
     attendanceRows.forEach(r => { presentByBranch[r.branch] = Number(r.present); });
 
-    // 6. Count active slots per branch exactly like the schedule does:
-    //    iterate cars-in-branch, count non-skip slots from bookings-in-branch
+    // 6. Count active slots per branch — each booked time row counted individually
     let totalActiveSlots = 0;
     let totalPresent = 0;
     const branchStats = Object.keys(carsByBranch).sort().map(branchName => {
@@ -280,8 +286,7 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       let active = 0;
       branchCars.forEach(carName => {
         const carSlots = branchBooked[carName] || {};
-        Object.entries(carSlots).forEach(([time, val]) => {
-          if (val === 'skip') return;
+        Object.keys(carSlots).forEach(time => {
           const [h, m] = time.split(':').map(Number);
           const mins = h * 60 + m;
           if (mins >= 6 * 60 && mins <= 22 * 60) active++;
