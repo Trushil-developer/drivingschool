@@ -10,8 +10,7 @@ let isSubmitting = false;
 
     const formDate = document.getElementById("form_date");
     if (formDate) {
-        const today = new Date();
-        formDate.valueAsDate = today;
+        formDate.value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
     }
 
     const q = (s) => form.querySelector(s);
@@ -36,9 +35,9 @@ let isSubmitting = false;
     }
 
     function initAllottedTime() {
-        const now = new Date();
-        const hours = now.getHours().toString().padStart(2, "0");
-        const minutes = now.getMinutes();
+        const _nowIST = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' });
+        const hours = _nowIST.slice(11, 13);
+        const minutes = parseInt(_nowIST.slice(14, 16), 10);
         const roundedMinutes = Math.round(minutes / 30) * 30;
         const minsStr = roundedMinutes === 60 ? "00" : roundedMinutes.toString().padStart(2, "0");
 

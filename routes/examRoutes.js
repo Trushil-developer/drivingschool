@@ -519,8 +519,8 @@ router.get("/admin/attempts/export", requireAdmin, async (req, res) => {
                 a.score || '',
                 a.total_questions || '',
                 a.result || '',
-                a.started_at ? new Date(a.started_at).toISOString() : '',
-                a.finished_at ? new Date(a.finished_at).toISOString() : '',
+                a.started_at ? (() => { const d = new Date(a.started_at); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; })() : '',
+                a.finished_at ? (() => { const d = new Date(a.finished_at); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; })() : '',
                 a.status
             ].join(','));
         });

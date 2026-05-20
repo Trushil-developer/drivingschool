@@ -1,26 +1,23 @@
 // Store chart instances for cleanup
 let chartInstances = {};
 
-// Attendance date navigator state
-let attendanceDate = new Date();
-attendanceDate.setHours(0, 0, 0, 0);
+const _IST_TZ = 'Asia/Kolkata';
+const _todayIST = new Date().toLocaleDateString('en-CA', { timeZone: _IST_TZ });
 
-// Joined date navigator state
-let joinedDate = new Date();
-joinedDate.setHours(0, 0, 0, 0);
+// Attendance date navigator state — initialised to IST today
+let attendanceDate = new Date(_todayIST);
+
+// Joined date navigator state — initialised to IST today
+let joinedDate = new Date(_todayIST);
 
 function formatAttendanceDateParam(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return d.toLocaleDateString('en-CA', { timeZone: _IST_TZ });
 }
 
 function formatAttendanceDateLabel(d) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (d.getTime() === today.getTime()) return 'Today';
-  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: _IST_TZ });
+  if (d.toLocaleDateString('en-CA', { timeZone: _IST_TZ }) === todayIST) return 'Today';
+  return d.toLocaleDateString('en-IN', { timeZone: _IST_TZ, day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export function renderDashboardModule(container) {
@@ -168,7 +165,7 @@ export function renderDashboardModule(container) {
 
     // Default: current month
     const now = new Date();
-    const currentMonth = now.toISOString().slice(0, 7);
+    const currentMonth = now.toLocaleDateString('en-CA', { timeZone: _IST_TZ }).slice(0, 7);
     monthPicker.value = currentMonth;
 
     // Load branches, heard_about options and initial dashboard
@@ -719,8 +716,8 @@ async function loadExpenseChart() {
       const d = new Date(e.expense_date);
       let period;
       if (granularity === 'day')       period = e.expense_date.split('T')[0];
-      else if (granularity === 'year') period = String(d.getFullYear());
-      else                             period = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      else if (granularity === 'year') period = d.toLocaleDateString('en-CA', { timeZone: _IST_TZ }).slice(0, 4);
+      else                             period = d.toLocaleDateString('en-CA', { timeZone: _IST_TZ }).slice(0, 7);
 
       if (!periodMap[period]) periodMap[period] = {};
       const cat = e.category || 'Other';

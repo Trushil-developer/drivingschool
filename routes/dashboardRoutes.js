@@ -50,7 +50,8 @@ router.get("/stats", requireAdmin, async (req, res) => {
     ]);
 
     // Branch-aware "Joined Today" (supports custom date via joinDate param)
-    const joinDateStr = joinDate || new Date().toISOString().split('T')[0];
+    const _jn = new Date();
+    const joinDateStr = joinDate || `${_jn.getFullYear()}-${String(_jn.getMonth()+1).padStart(2,'0')}-${String(_jn.getDate()).padStart(2,'0')}`;
     let todayQuery = "SELECT COUNT(*) AS count FROM bookings WHERE DATE(created_at)=?";
     let todayParams = [joinDateStr];
     if (branch) {
@@ -179,7 +180,7 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     const { branch, date } = req.query;
     const targetDate = date ? new Date(date) : new Date();
     targetDate.setHours(0, 0, 0, 0);
-    const targetDateStr = targetDate.toISOString().split('T')[0];
+    const targetDateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth()+1).padStart(2,'0')}-${String(targetDate.getDate()).padStart(2,'0')}`;
     const selectedTime = targetDate.getTime();
 
     // 1. Get cars grouped by their branch (same as schedule: cars.filter(c => c.branch === branch))

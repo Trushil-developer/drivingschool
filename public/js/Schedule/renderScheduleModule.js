@@ -480,13 +480,15 @@ window.renderScheduleModule = function(tableWrap) {
             }
 
             function formatDate(d) {
-                return `${String(d.getDate()).padStart(2,'0')}/` +
-                       `${String(d.getMonth()+1).padStart(2,'0')}/` +
-                       `${d.getFullYear()}`;
+                const parts = new Intl.DateTimeFormat('en-IN', {
+                    timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric'
+                }).formatToParts(d);
+                const v = Object.fromEntries(parts.map(p => [p.type, p.value]));
+                return `${v.day}/${v.month}/${v.year}`;
             }
 
             function localDateStr(d) {
-                return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
             }
 
         } catch(err) {
@@ -523,9 +525,7 @@ function to12HourFormat(time24) {
 
 function printSchedule(branch, date) {
     const scheduleTable = document.getElementById("scheduleTableWrap").innerHTML;
-    const dateStr = `${String(date.getDate()).padStart(2,'0')}/` +
-                    `${String(date.getMonth()+1).padStart(2,'0')}/` +
-                    `${date.getFullYear()}`;
+    const dateStr = date.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric' });
     const printWindow = window.open('', '', 'width=900,height=700');
     printWindow.document.write(`
         <html>

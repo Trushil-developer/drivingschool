@@ -33,15 +33,14 @@ window.renderEnquiryModule = async function (tableWrap) {
 
     function formatDate(dateStr) {
         if (!dateStr) return "-";
-        const d = new Date(dateStr);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        return new Date(dateStr).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
     }
 
     function formatDateTime(dateStr) {
         if (!dateStr) return "-";
         const d = new Date(dateStr);
-        const date = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
-        const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+        const date = d.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric' });
+        const time = d.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
         return `${date} ${time}`;
     }
 
@@ -134,7 +133,7 @@ window.renderEnquiryModule = async function (tableWrap) {
                             <div>
                                 <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Date & Time</label>
                                 <input id="act-date" type="datetime-local" style="width:100%;padding:7px 10px;border:1px solid #D1D5DB;border-radius:6px;font-size:13px;box-sizing:border-box;"
-                                    value="${new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16)}" />
+                                    value="${new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' }).slice(0, 16)}" />
                             </div>
                             <div>
                                 <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Update Status</label>

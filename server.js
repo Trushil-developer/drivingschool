@@ -161,7 +161,7 @@ export function toMySQLDate(value) {
   if (!value) return null;
   const d = new Date(value);
   if (isNaN(d)) return null;
-  return d.toISOString().split('T')[0];
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 // =====================
@@ -1067,7 +1067,7 @@ app.get("/api/public/certificates", async (req, res) => {
         bookingId,
         studentName: booking.customer_name,
         course: booking.car_name,
-        date: booking.starting_from ? booking.starting_from.toISOString().split("T")[0] : null,
+        date: booking.starting_from ? (() => { const d = new Date(booking.starting_from); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })() : null,
         url: `https://${process.env.S3_BUCKET}.s3.${process.env.S3_REGION}.amazonaws.com/${obj.Key}`
       });
     }

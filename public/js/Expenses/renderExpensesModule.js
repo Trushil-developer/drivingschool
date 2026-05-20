@@ -3,7 +3,9 @@ window.renderExpensesModule = async function (tableWrap) {
     function formatDate(dateStr) {
         if (!dateStr) return '-';
         const d = new Date(dateStr);
-        return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+        const p = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric' }).formatToParts(d);
+        const v = Object.fromEntries(p.map(x => [x.type, x.value]));
+        return `${v.day}/${v.month}/${v.year}`;
     }
 
     function fmtAmt(val) {
@@ -125,7 +127,7 @@ window.renderExpensesModule = async function (tableWrap) {
 
                     <div class="exp-field">
                         <label>Expense Date *</label>
-                        <input type="date" id="expDate" value="${new Date().toISOString().split('T')[0]}" />
+                        <input type="date" id="expDate" value="${new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })}" />
                     </div>
 
                     <div class="exp-field exp-field-full">
@@ -253,7 +255,7 @@ window.renderExpensesModule = async function (tableWrap) {
             });
             document.getElementById('expCarField').style.display = 'none';
             document.getElementById('expEmployeeField').style.display = 'none';
-            document.getElementById('expDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('expDate').value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         });
     }
 
@@ -420,8 +422,7 @@ window.renderExpensesModule = async function (tableWrap) {
     // =====================
     let expFilterBranch = '';
     let expFilterCategory = '';
-    const _now = new Date();
-    let expFilterMonth = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}`;
+    let expFilterMonth = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }).slice(0, 7);
     let expCategoriesCache = null;
     let expBranchesCache = null;
     let expModesCache = null;

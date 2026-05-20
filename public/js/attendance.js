@@ -3,7 +3,7 @@
     const LOCK_PASSWORD_A = "12345";
 
     function localDateStr(d) {
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
     }
 
     // Render a locked counter (password required to edit)

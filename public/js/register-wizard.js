@@ -249,7 +249,7 @@ const steps = [
         minDate: "today",
         dateFormat: "Y-m-d",
         defaultDate: wizardData.starting_from || null,
-        onChange: d => wizardData.starting_from = d[0].toISOString().split("T")[0]
+        onChange: d => { wizardData.starting_from = d[0].toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); }
       });
 
       flatpickr("#allotted_time", {
