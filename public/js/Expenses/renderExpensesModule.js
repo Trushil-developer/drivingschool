@@ -455,7 +455,7 @@ window.renderExpensesModule = async function (tableWrap) {
         const total = resExpenses?.total || 0;
         const limit = resExpenses?.limit || 50;
         const totalPages = Math.ceil(total / limit);
-        const pageAmt = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+        const monthTotal = resExpenses?.month_total || 0;
 
         const paginationHTML = totalPages > 1
             ? `<div class="pagination-bar">
@@ -473,8 +473,8 @@ window.renderExpensesModule = async function (tableWrap) {
                         <div class="value blue">${total}</div>
                     </div>
                     <div class="exp-summary-card">
-                        <div class="label">Page Amount</div>
-                        <div class="value green">${fmtAmt(pageAmt)}</div>
+                        <div class="label">Monthly Amount</div>
+                        <div class="value green">${fmtAmt(monthTotal)}</div>
                     </div>
                 </div>
                 <div class="exp-table-section">
@@ -729,8 +729,6 @@ window.renderExpensesModule = async function (tableWrap) {
             return;
         }
 
-        const pageTotal = data.reduce((s, e) => s + Number(e.amount || 0), 0);
-
         wrap.innerHTML = `
             <div style="overflow-x:auto;">
             <table class="expenses-table">
@@ -772,7 +770,7 @@ window.renderExpensesModule = async function (tableWrap) {
             </table>
             </div>
             <div class="exp-table-footer">
-                Page Total: <strong style="margin-left:6px;">${fmtAmt(pageTotal)}</strong>
+                Showing ${data.length} record${data.length !== 1 ? 's' : ''} on this page
             </div>
         `;
     }
