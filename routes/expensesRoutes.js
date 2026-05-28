@@ -173,7 +173,7 @@ router.get("/", requireAdmin, async (req, res, next) => {
 
         if (page !== null) {
             const offset = (page - 1) * limit;
-            const [[{ total }], [[{ month_total }]], [rows]] = await Promise.all([
+            const [[[{ total }]], [[{ month_total }]], [rows]] = await Promise.all([
                 dbPool.query(`SELECT COUNT(*) as total FROM expenses e ${joins} ${where}`, params),
                 dbPool.query(`SELECT COALESCE(SUM(e.amount), 0) AS month_total FROM expenses e ${joins} ${where}`, params),
                 dbPool.query(`SELECT ${selectCols} FROM expenses e ${joins} ${where} ORDER BY e.id DESC LIMIT ? OFFSET ?`, [...params, limit, offset])
