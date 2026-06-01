@@ -828,6 +828,10 @@ SET @t_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table
 SET @sql := IF(@r_exists>0 AND @t_exists>0,'ALTER TABLE attendance DROP INDEX uq_att_slot;','SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- marked_at: tracks when attendance was last set/changed
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='marked_at');
+SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER present;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 
 -- =====================================
 -- ADMINS TABLE

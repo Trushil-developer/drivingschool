@@ -739,22 +739,11 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
             conn = await dbPool.getConnection();
             await conn.beginTransaction();
 
-            if (value <= 0) {
-                await conn.query(
-                    `DELETE FROM attendance WHERE booking_id = ? AND date = ? AND time = ?`,
-                    [booking_id, mysqlDate, slotTime]
-                );
-            } else {
-                await conn.query(
-                    `INSERT INTO attendance (booking_id, date, time, present) VALUES (?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE present = ?`,
-                    [booking_id, mysqlDate, slotTime, value, value]
-                );
-            }
-
+            const storedValue = value >= 1 ? 1 : 0;
             await conn.query(
-                `DELETE FROM attendance WHERE booking_id = ? AND present <= 0`,
-                [booking_id]
+                `INSERT INTO attendance (booking_id, date, time, present, marked_at) VALUES (?, ?, ?, ?, NOW())
+                 ON DUPLICATE KEY UPDATE present = ?, marked_at = NOW()`,
+                [booking_id, mysqlDate, slotTime, storedValue, storedValue]
             );
 
             const [presentSumRows] = await conn.query(
