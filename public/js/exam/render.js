@@ -36,7 +36,7 @@ export function renderQuestion() {
 
     // Question text
     dom.questionText.innerHTML = `
-        ${q.image ? `<img src="${q.image}" alt="" class="question-image">` : ""}
+        ${q.image ? `<img src="${q.image}" alt="Theory test question illustration" class="question-image">` : ""}
         <span>${q.question}</span>
     `;
 
