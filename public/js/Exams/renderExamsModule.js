@@ -5,6 +5,7 @@ let allAttempts = [];
 let allQuestions = [];
 let questionCategories = [];
 let allPracticeProgress = [];
+let practiceByUser = {}; // keyed by user_id
 
 export function renderExamsModule(container) {
     return async function renderExams() {
@@ -16,114 +17,177 @@ export function renderExamsModule(container) {
             <div class="exams-module">
                 <div class="exams-tabs">
                     <button class="tab-btn active" data-tab="overview">Overview</button>
-                    <button class="tab-btn" data-tab="users">Users</button>
-                    <button class="tab-btn" data-tab="attempts">Attempts</button>
-                    <button class="tab-btn" data-tab="practice">Practice Progress</button>
+                    <button class="tab-btn" data-tab="users">Students</button>
+                    <button class="tab-btn" data-tab="attempts">Exam History</button>
                     <button class="tab-btn" data-tab="questions">Question Bank</button>
                 </div>
 
                 <div class="exams-content">
-                    <div id="examOverview" class="tab-content active"></div>
-                    <div id="examUsers" class="tab-content hidden"></div>
-                    <div id="examAttempts" class="tab-content hidden"></div>
-                    <div id="examPractice" class="tab-content hidden"></div>
+                    <div id="examOverview"  class="tab-content active"></div>
+                    <div id="examUsers"     class="tab-content hidden"></div>
+                    <div id="examAttempts"  class="tab-content hidden"></div>
                     <div id="examQuestions" class="tab-content hidden"></div>
                 </div>
             </div>
         `;
 
-        // Tab switching
         const tabBtns = container.querySelectorAll('.tab-btn');
         tabBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 tabBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-
                 container.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
                 const tabId = btn.dataset.tab;
                 document.getElementById(`exam${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`).classList.remove('hidden');
 
-                if (tabId === 'users') loadUsers();
+                if (tabId === 'users')    loadUsers();
                 else if (tabId === 'attempts') loadAttempts();
-                else if (tabId === 'practice') loadPracticeProgress();
                 else if (tabId === 'questions') loadQuestions();
             });
         });
 
-        // Load overview by default
         await loadOverview();
     };
 }
 
+// ─────────────────────────────────────────────
+// OVERVIEW
+// ─────────────────────────────────────────────
 async function loadOverview() {
     const container = document.getElementById('examOverview');
-    container.innerHTML = '<div class="loading">Loading...</div>';
+    container.innerHTML = '<div class="loading">Loading…</div>';
 
     try {
-        const [overviewRes, scoreDistRes] = await Promise.all([
+        const [overviewRes, scoreDistRes, usersRes, practiceRes] = await Promise.all([
             window.api('/api/exam/admin/overview'),
-            window.api('/api/exam/admin/score-distribution')
+            window.api('/api/exam/admin/score-distribution'),
+            window.api('/api/exam/admin/users'),
+            window.api('/api/exam/admin/practice-progress')
         ]);
 
         if (!overviewRes.success) throw new Error('Failed to load overview');
 
-        const { stats, recentActivity, practiceStats } = overviewRes;
+        const { stats, practiceStats, recentActivity } = overviewRes;
         const scoreDistribution = scoreDistRes.success ? scoreDistRes.distribution : [];
+        const users  = usersRes.success  ? usersRes.users : [];
+        const pRaw   = practiceRes.success ? practiceRes.progress : [];
+
+        // Compute funnel
+        const totalRegistered = stats.totalUsers;
+        const practicedUsers  = new Set(pRaw.map(p => p.user_id)).size;
+        const attemptedUsers  = users.filter(u => u.total_attempts > 0).length;
+        const passedUsers     = users.filter(u => u.last_result === 'PASS').length;
+
+        // Status breakdown
+        const struggling   = users.filter(u => u.total_attempts >= 3 && u.last_result !== 'PASS').length;
+        const neverStarted = users.filter(u => u.total_attempts === 0).length;
+
+        // Practice stats
         const ps = practiceStats || {};
+        const totalAnswered    = ps.totalAnswers    || 0;
+        const totalCorrect     = ps.correctAnswers  || 0;
+        const overallAccuracy  = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+        const avgPerStudent    = practicedUsers > 0 ? Math.round(totalAnswered / practicedUsers) : 0;
+
+        // Per-category breakdown (aggregated across all users, sorted worst first)
+        const catMap = {};
+        pRaw.forEach(p => {
+            if (!catMap[p.category]) catMap[p.category] = { answered: 0, correct: 0 };
+            catMap[p.category].answered += Number(p.answered) || 0;
+            catMap[p.category].correct  += Number(p.correct)  || 0;
+        });
+        const catStats = Object.entries(catMap)
+            .map(([cat, d]) => ({
+                cat,
+                answered: d.answered,
+                accuracy: d.answered > 0 ? Math.round((d.correct / d.answered) * 100) : 0
+            }))
+            .sort((a, b) => a.accuracy - b.accuracy); // worst first
 
         container.innerHTML = `
+            <!-- Funnel -->
+            <div class="ov-section-label">Student Journey</div>
+            <div class="ov-funnel">
+                ${funnelStep('Registered', totalRegistered, '#3b82f6', '👤')}
+                <div class="ov-funnel-arrow">→</div>
+                ${funnelStep('Practiced', practicedUsers, '#8b5cf6', '📚', totalRegistered)}
+                <div class="ov-funnel-arrow">→</div>
+                ${funnelStep('Attempted Exam', attemptedUsers, '#f59e0b', '✏️', totalRegistered)}
+                <div class="ov-funnel-arrow">→</div>
+                ${funnelStep('Passed', passedUsers, '#10b981', '✅', totalRegistered)}
+            </div>
+
+            <!-- Practice Progress -->
+            <div class="ov-section-label" style="margin-top:24px;">Practice Progress</div>
+            <div class="ov-practice-panel">
+                <div class="ov-practice-stats">
+                    <div class="ov-ps-item">
+                        <span class="ov-ps-val">${totalAnswered.toLocaleString()}</span>
+                        <span class="ov-ps-label">Questions Answered</span>
+                    </div>
+                    <div class="ov-ps-item">
+                        <span class="ov-ps-val" style="color:${overallAccuracy >= 70 ? '#10b981' : overallAccuracy >= 50 ? '#f59e0b' : '#ef4444'};">${overallAccuracy}%</span>
+                        <span class="ov-ps-label">Overall Accuracy</span>
+                    </div>
+                    <div class="ov-ps-item">
+                        <span class="ov-ps-val">${avgPerStudent}</span>
+                        <span class="ov-ps-label">Avg per Student</span>
+                    </div>
+                    <div class="ov-ps-item">
+                        <span class="ov-ps-val">${practicedUsers}</span>
+                        <span class="ov-ps-label">Students Practiced</span>
+                    </div>
+                </div>
+                ${catStats.length > 0 ? `
+                <div class="ov-cat-header">
+                    <span>Category</span>
+                    <span>Accuracy &amp; Volume</span>
+                </div>
+                <div class="ov-cat-list">
+                    ${catStats.map(c => {
+                        const barColor = c.accuracy >= 70 ? '#10b981' : c.accuracy >= 50 ? '#f59e0b' : '#ef4444';
+                        const label = c.accuracy < 50 ? ' ⚠ Weak' : '';
+                        return `
+                        <div class="ov-cat-row">
+                            <div class="ov-cat-name">${c.cat}${label ? `<span class="ov-cat-weak">${label}</span>` : ''}</div>
+                            <div class="ov-cat-bar-bg">
+                                <div class="ov-cat-bar" style="width:${c.accuracy}%; background:${barColor};"></div>
+                            </div>
+                            <div class="ov-cat-meta">${c.accuracy}% · ${c.answered.toLocaleString()} q</div>
+                        </div>`;
+                    }).join('')}
+                </div>` : '<div class="ov-practice-empty">No practice activity yet</div>'}
+            </div>
+
+            <!-- Key stats row -->
+            <div class="ov-section-label" style="margin-top:24px;">Exam Performance</div>
             <div class="exam-stats-cards">
-                <div class="stat-card">
-                    <h4>Total Users</h4>
-                    <p class="stat-value">${stats.totalUsers}</p>
-                </div>
-                <div class="stat-card">
-                    <h4>Total Attempts</h4>
-                    <p class="stat-value">${stats.totalAttempts}</p>
-                </div>
-                <div class="stat-card success">
-                    <h4>Passed</h4>
-                    <p class="stat-value">${stats.passed}</p>
-                </div>
-                <div class="stat-card danger">
-                    <h4>Failed</h4>
-                    <p class="stat-value">${stats.failed}</p>
-                </div>
                 <div class="stat-card">
                     <h4>Pass Rate</h4>
                     <p class="stat-value">${stats.passRate}%</p>
+                    <p class="stat-sub">${stats.passed} passed / ${stats.totalAttempts} attempts</p>
                 </div>
                 <div class="stat-card">
                     <h4>Avg Score</h4>
                     <p class="stat-value">${stats.avgScore}%</p>
+                    <p class="stat-sub">across all completed exams</p>
+                </div>
+                <div class="stat-card danger">
+                    <h4>Struggling</h4>
+                    <p class="stat-value">${struggling}</p>
+                    <p class="stat-sub">3+ attempts, not yet passed</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Never Started</h4>
+                    <p class="stat-value">${neverStarted}</p>
+                    <p class="stat-sub">registered but 0 attempts</p>
                 </div>
             </div>
 
-            ${ps.practicingUsers !== undefined ? `
-            <div class="overview-section-title">Practice Stats</div>
-            <div class="exam-stats-cards">
-                <div class="stat-card">
-                    <h4>Practicing Users</h4>
-                    <p class="stat-value">${ps.practicingUsers}</p>
-                </div>
-                <div class="stat-card">
-                    <h4>Total Answers</h4>
-                    <p class="stat-value">${ps.totalAnswers}</p>
-                </div>
-                <div class="stat-card success">
-                    <h4>Correct Answers</h4>
-                    <p class="stat-value">${ps.correctAnswers}</p>
-                </div>
-                <div class="stat-card">
-                    <h4>Accuracy</h4>
-                    <p class="stat-value">${ps.totalAnswers > 0 ? Math.round((ps.correctAnswers / ps.totalAnswers) * 100) : 0}%</p>
-                </div>
-            </div>
-            ` : ''}
-
-            <div class="exam-charts">
+            <!-- Charts -->
+            <div class="exam-charts" style="margin-top:8px;">
                 <div class="chart-section">
-                    <h3>Pass/Fail Distribution</h3>
+                    <h3>Pass / Fail</h3>
                     <canvas id="passFailChart"></canvas>
                 </div>
                 <div class="chart-section">
@@ -134,110 +198,16 @@ async function loadOverview() {
 
             <div class="exam-charts">
                 <div class="chart-section chart-section-wide">
-                    <h3>Recent Activity (Last 30 Days)</h3>
+                    <h3>Exam Activity – Last 30 Days</h3>
                     <canvas id="activityChart"></canvas>
                 </div>
             </div>
         `;
 
-        // Render Pass/Fail chart
-        const passFailCtx = document.getElementById('passFailChart')?.getContext('2d');
-        if (passFailCtx) {
-            examChartInstances.passFail = new Chart(passFailCtx, {
-                type: 'doughnut',
-                plugins: [ChartDataLabels],
-                data: {
-                    labels: ['Passed', 'Failed'],
-                    datasets: [{
-                        data: [stats.passed, stats.failed],
-                        backgroundColor: ['#10b981', '#ef4444'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        datalabels: {
-                            color: '#fff',
-                            font: { weight: 'bold', size: 14 },
-                            formatter: (value) => value > 0 ? value : ''
-                        }
-                    }
-                }
-            });
-        }
-
-        // Render Score Distribution chart
-        const scoreDistCtx = document.getElementById('scoreDistChart')?.getContext('2d');
-        if (scoreDistCtx && scoreDistribution.length) {
-            examChartInstances.scoreDist = new Chart(scoreDistCtx, {
-                type: 'bar',
-                data: {
-                    labels: scoreDistribution.map(d => d.score_range),
-                    datasets: [{
-                        label: 'Count',
-                        data: scoreDistribution.map(d => d.count),
-                        backgroundColor: scoreDistribution.map(d => {
-                            const range = d.score_range;
-                            if (range === '0-4' || range === '5-6' || range === '7-8') return '#ef4444';
-                            return '#10b981';
-                        }),
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        datalabels: {
-                            color: '#fff',
-                            font: { weight: 'bold', size: 12 },
-                            formatter: (value) => value > 0 ? value : ''
-                        }
-                    },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
-                    }
-                }
-            });
-        }
-
-        // Render Activity chart
-        const activityCtx = document.getElementById('activityChart')?.getContext('2d');
-        if (activityCtx && recentActivity.length) {
-            const labels = recentActivity.map(d => {
-                const date = new Date(d.date);
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            });
-
-            examChartInstances.activity = new Chart(activityCtx, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'Attempts',
-                        data: recentActivity.map(d => d.attempts),
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        fill: true,
-                        tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
-                    }
-                }
-            });
-        }
+        // Charts
+        renderPassFailChart(stats);
+        renderScoreDistChart(scoreDistribution);
+        renderActivityChart(recentActivity);
 
     } catch (err) {
         console.error('Exam overview error:', err);
@@ -245,40 +215,166 @@ async function loadOverview() {
     }
 }
 
+function funnelStep(label, count, color, icon, total = null) {
+    const pct = total ? Math.round((count / total) * 100) : 100;
+    return `
+        <div class="ov-funnel-step">
+            <div class="ov-funnel-icon" style="background:${color}20; color:${color};">${icon}</div>
+            <div class="ov-funnel-count" style="color:${color};">${count}</div>
+            <div class="ov-funnel-label">${label}</div>
+            ${total ? `<div class="ov-funnel-pct">${pct}%</div>` : ''}
+        </div>
+    `;
+}
+
+function renderPassFailChart(stats) {
+    const ctx = document.getElementById('passFailChart')?.getContext('2d');
+    if (!ctx) return;
+    examChartInstances.passFail = new Chart(ctx, {
+        type: 'doughnut',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: ['Passed', 'Failed'],
+            datasets: [{ data: [stats.passed, stats.failed], backgroundColor: ['#10b981','#ef4444'], borderWidth: 0 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                datalabels: { color:'#fff', font:{ weight:'bold', size:14 }, formatter: v => v > 0 ? v : '' }
+            }
+        }
+    });
+}
+
+function renderScoreDistChart(scoreDistribution) {
+    const ctx = document.getElementById('scoreDistChart')?.getContext('2d');
+    if (!ctx || !scoreDistribution.length) return;
+    examChartInstances.scoreDist = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: scoreDistribution.map(d => d.score_range),
+            datasets: [{
+                label: 'Count',
+                data: scoreDistribution.map(d => d.count),
+                backgroundColor: scoreDistribution.map(d =>
+                    ['0-4','5-6','7-8'].includes(d.score_range) ? '#ef4444' : '#10b981'
+                ),
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend:{ display:false }, datalabels:{ color:'#fff', font:{weight:'bold',size:12}, formatter: v => v>0?v:'' } },
+            scales: { y:{ beginAtZero:true, ticks:{ stepSize:1 } } }
+        }
+    });
+}
+
+function renderActivityChart(recentActivity) {
+    const ctx = document.getElementById('activityChart')?.getContext('2d');
+    if (!ctx || !recentActivity.length) return;
+    examChartInstances.activity = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: recentActivity.map(d => new Date(d.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})),
+            datasets: [{
+                label: 'Attempts', data: recentActivity.map(d => d.attempts),
+                borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.1)', fill:true, tension:0.3
+            }]
+        },
+        options: {
+            responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{display:false} },
+            scales:{ y:{ beginAtZero:true, ticks:{stepSize:1} } }
+        }
+    });
+}
+
+// ─────────────────────────────────────────────
+// STUDENTS TAB
+// ─────────────────────────────────────────────
 async function loadUsers() {
     const container = document.getElementById('examUsers');
-    container.innerHTML = '<div class="loading">Loading...</div>';
+    container.innerHTML = '<div class="loading">Loading…</div>';
 
     try {
-        const res = await window.api('/api/exam/admin/users');
-        if (!res.success) throw new Error('Failed to load users');
+        const [usersRes, practiceRes] = await Promise.all([
+            window.api('/api/exam/admin/users'),
+            window.api('/api/exam/admin/practice-progress')
+        ]);
+        if (!usersRes.success) throw new Error('Failed to load users');
 
-        allUsers = res.users;
+        allUsers = usersRes.users;
 
-        if (!res.users.length) {
-            container.innerHTML = '<div class="empty">No exam users found</div>';
+        // Build practice map keyed by user_id
+        practiceByUser = {};
+        (practiceRes.progress || []).forEach(p => {
+            if (!practiceByUser[p.user_id]) practiceByUser[p.user_id] = { answered: 0, correct: 0 };
+            practiceByUser[p.user_id].answered += Number(p.answered) || 0;
+            practiceByUser[p.user_id].correct  += Number(p.correct)  || 0;
+        });
+
+        if (!allUsers.length) {
+            container.innerHTML = '<div class="empty">No exam students yet</div>';
             return;
         }
 
-        renderUsersTable(container, allUsers);
+        renderUsersTable(container, sortUsers(allUsers));
 
     } catch (err) {
         console.error('Exam users error:', err);
-        container.innerHTML = '<div class="error">Failed to load users</div>';
+        container.innerHTML = '<div class="error">Failed to load students</div>';
     }
 }
 
+// Sort: Struggling → Active → Passed → Not Started
+function sortUsers(users) {
+    const rank = u => {
+        if (u.total_attempts >= 3 && u.last_result !== 'PASS') return 0; // struggling
+        if (u.total_attempts > 0  && u.last_result !== 'PASS') return 1; // active/failing
+        if (u.last_result === 'PASS') return 2;                           // passed
+        return 3;                                                          // not started
+    };
+    return [...users].sort((a, b) => rank(a) - rank(b));
+}
+
+function userStatus(u) {
+    if (u.last_result === 'PASS')                               return { label:'Passed',      cls:'us-passed',    sort:2 };
+    if (u.total_attempts >= 3 && u.last_result !== 'PASS')     return { label:'Struggling',   cls:'us-struggling',sort:0 };
+    if (u.total_attempts > 0)                                   return { label:'Attempting',   cls:'us-active',    sort:1 };
+    return                                                             { label:'Not Started',  cls:'us-new',       sort:3 };
+}
+
 function renderUsersTable(container, users) {
+    // Build summary counts
+    const counts = { passed:0, struggling:0, active:0, new:0 };
+    users.forEach(u => {
+        const s = userStatus(u);
+        if (s.cls === 'us-passed')      counts.passed++;
+        else if (s.cls === 'us-struggling') counts.struggling++;
+        else if (s.cls === 'us-active') counts.active++;
+        else counts.new++;
+    });
+
     container.innerHTML = `
+        <div class="us-summary-bar">
+            <span class="us-pill us-passed">${counts.passed} Passed</span>
+            <span class="us-pill us-struggling">${counts.struggling} Struggling</span>
+            <span class="us-pill us-active">${counts.active} Attempting</span>
+            <span class="us-pill us-new">${counts.new} Not Started</span>
+        </div>
         <div class="exam-toolbar">
             <div class="search-box">
-                <input type="text" id="userSearch" placeholder="Search by email..." class="search-input">
+                <input type="text" id="userSearch" placeholder="Search by email…" class="search-input">
             </div>
             <div class="filter-box">
-                <select id="userResultFilter" class="filter-select">
-                    <option value="">All Results</option>
-                    <option value="PASS">Passed</option>
-                    <option value="FAIL">Failed</option>
+                <select id="userStatusFilter" class="filter-select">
+                    <option value="">All Students</option>
+                    <option value="passed">Passed</option>
+                    <option value="struggling">Struggling (3+ fails)</option>
+                    <option value="active">Attempting</option>
+                    <option value="new">Not Started</option>
                 </select>
             </div>
         </div>
@@ -286,14 +382,13 @@ function renderUsersTable(container, users) {
             <table class="exam-table">
                 <thead>
                     <tr>
-                        <th>Email</th>
-                        <th>First Verified</th>
-                        <th>Last Seen</th>
+                        <th>Student</th>
+                        <th>Status</th>
                         <th>Attempts</th>
                         <th>Best Score</th>
-                        <th>Last Score</th>
-                        <th>Last Result</th>
-                        <th>Actions</th>
+                        <th>Practice</th>
+                        <th>Last Seen</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody id="usersTableBody">
@@ -303,47 +398,66 @@ function renderUsersTable(container, users) {
         </div>
     `;
 
-    // Search handler
-    document.getElementById('userSearch')?.addEventListener('input', (e) => {
-        filterUsers();
-    });
-
-    // Filter handler
-    document.getElementById('userResultFilter')?.addEventListener('change', () => {
-        filterUsers();
-    });
-
+    document.getElementById('userSearch')?.addEventListener('input',  filterUsers);
+    document.getElementById('userStatusFilter')?.addEventListener('change', filterUsers);
     attachUserActions(container);
 }
 
 function renderUserRows(users) {
-    return users.map(u => `
-        <tr data-user-id="${u.id}">
-            <td>${u.email}</td>
-            <td>${formatDate(u.first_verified_at)}</td>
-            <td>${formatDate(u.last_seen_at)}</td>
-            <td>${u.total_attempts}</td>
-            <td>${u.best_score}%</td>
-            <td>${u.last_score !== null ? u.last_score + '%' : '-'}</td>
-            <td class="${u.last_result === 'PASS' ? 'status-pass' : u.last_result === 'FAIL' ? 'status-fail' : ''}">${u.last_result || '-'}</td>
-            <td class="action-btns">
-                <button class="btn btn-sm view-attempts" data-user-id="${u.id}" data-email="${u.email}">View</button>
-                <button class="btn btn-sm btn-info view-practice" data-user-id="${u.id}" data-email="${u.email}">Practice</button>
-                <button class="btn btn-sm btn-warning reset-attempts" data-user-id="${u.id}" data-email="${u.email}">Reset</button>
-                <button class="btn btn-sm btn-danger delete-user" data-user-id="${u.id}" data-email="${u.email}">Delete</button>
-            </td>
-        </tr>
-    `).join('');
+    return users.map(u => {
+        const st  = userStatus(u);
+        const prac = practiceByUser[u.id] || { answered:0, correct:0 };
+        const accuracy = prac.answered > 0 ? Math.round((prac.correct / prac.answered) * 100) : 0;
+
+        // Score bar width (best_score is already %)
+        const scoreW = u.best_score || 0;
+        const scoreColor = scoreW >= 80 ? '#10b981' : scoreW >= 60 ? '#f59e0b' : '#ef4444';
+
+        const practiceHtml = prac.answered > 0
+            ? `<div class="us-practice-wrap">
+                   <div class="us-practice-bar-bg">
+                       <div class="us-practice-bar" style="width:${accuracy}%; background:${accuracy>=70?'#10b981':'#f59e0b'};"></div>
+                   </div>
+                   <span class="us-practice-label">${prac.answered} q · ${accuracy}%</span>
+               </div>`
+            : `<span style="color:#94a3b8; font-size:12px;">Not started</span>`;
+
+        return `
+            <tr data-user-id="${u.id}" data-status="${st.cls}">
+                <td class="us-email-cell">
+                    <span class="us-email">${u.email}</span>
+                    <span class="us-since">since ${formatDate(u.first_verified_at)}</span>
+                </td>
+                <td><span class="us-badge ${st.cls}">${st.label}</span></td>
+                <td>
+                    <span class="us-attempts-num">${u.total_attempts}</span>
+                    ${u.total_attempts > 0 ? `<div class="us-score-bar-bg"><div class="us-score-bar" style="width:${scoreW}%; background:${scoreColor};"></div></div>
+                    <span class="us-score-label">${u.best_score}%</span>` : ''}
+                </td>
+                <td>${u.best_score > 0 ? `<strong style="color:${scoreColor};">${u.best_score}%</strong>` : '<span style="color:#94a3b8;">—</span>'}</td>
+                <td>${practiceHtml}</td>
+                <td style="color:#64748b; font-size:12px;">${formatDate(u.last_seen_at)}</td>
+                <td class="action-btns">
+                    <button class="btn btn-sm view-attempts" data-user-id="${u.id}" data-email="${u.email}">History</button>
+                    <button class="btn btn-sm btn-danger delete-user" data-user-id="${u.id}" data-email="${u.email}">Delete</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function filterUsers() {
     const search = document.getElementById('userSearch')?.value.toLowerCase() || '';
-    const resultFilter = document.getElementById('userResultFilter')?.value || '';
+    const statusFilter = document.getElementById('userStatusFilter')?.value || '';
 
-    let filtered = allUsers.filter(u => {
+    const statusMap = { passed:'us-passed', struggling:'us-struggling', active:'us-active', new:'us-new' };
+    const wantedCls = statusMap[statusFilter] || '';
+
+    const filtered = sortUsers(allUsers).filter(u => {
+        const st = userStatus(u);
         const matchSearch = u.email.toLowerCase().includes(search);
-        const matchResult = !resultFilter || u.last_result === resultFilter;
-        return matchSearch && matchResult;
+        const matchStatus = !wantedCls || st.cls === wantedCls;
+        return matchSearch && matchStatus;
     });
 
     document.getElementById('usersTableBody').innerHTML = renderUserRows(filtered);
@@ -351,13 +465,11 @@ function filterUsers() {
 }
 
 function attachUserActions(container) {
-    // View attempts
     container.querySelectorAll('.view-attempts').forEach(btn => {
         btn.addEventListener('click', () => {
             const userId = btn.dataset.userId;
-            const email = btn.dataset.email;
+            const email  = btn.dataset.email;
             loadAttempts(userId, email);
-
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelector('.tab-btn[data-tab="attempts"]').classList.add('active');
             document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
@@ -365,70 +477,26 @@ function attachUserActions(container) {
         });
     });
 
-    // View practice progress
-    container.querySelectorAll('.view-practice').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const userId = btn.dataset.userId;
-            const email = btn.dataset.email;
-            loadPracticeProgress(userId, email);
-
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelector('.tab-btn[data-tab="practice"]').classList.add('active');
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-            document.getElementById('examPractice').classList.remove('hidden');
-        });
-    });
-
-    // Reset attempts
-    container.querySelectorAll('.reset-attempts').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const userId = btn.dataset.userId;
-            const email = btn.dataset.email;
-
-            if (!confirm(`Reset all attempts for ${email}? This cannot be undone.`)) return;
-
-            try {
-                const res = await window.api(`/api/exam/admin/users/${userId}/attempts`, { method: 'DELETE' });
-                if (res.success) {
-                    alert('Attempts reset successfully');
-                    loadUsers();
-                } else {
-                    alert('Failed to reset attempts');
-                }
-            } catch (err) {
-                console.error('Reset error:', err);
-                alert('Failed to reset attempts');
-            }
-        });
-    });
-
-    // Delete user
     container.querySelectorAll('.delete-user').forEach(btn => {
         btn.addEventListener('click', async () => {
             const userId = btn.dataset.userId;
-            const email = btn.dataset.email;
-
-            if (!confirm(`Delete user ${email} and all their attempts? This cannot be undone.`)) return;
-
+            const email  = btn.dataset.email;
+            if (!confirm(`Delete ${email} and all their data? This cannot be undone.`)) return;
             try {
-                const res = await window.api(`/api/exam/admin/users/${userId}`, { method: 'DELETE' });
-                if (res.success) {
-                    alert('User deleted successfully');
-                    loadUsers();
-                } else {
-                    alert('Failed to delete user');
-                }
-            } catch (err) {
-                console.error('Delete error:', err);
-                alert('Failed to delete user');
-            }
+                const res = await window.api(`/api/exam/admin/users/${userId}`, { method:'DELETE' });
+                if (res.success) { alert('Deleted'); loadUsers(); }
+                else alert('Failed to delete');
+            } catch (err) { alert('Failed to delete'); }
         });
     });
 }
 
+// ─────────────────────────────────────────────
+// EXAM HISTORY TAB
+// ─────────────────────────────────────────────
 async function loadAttempts(userId = null, userEmail = null) {
     const container = document.getElementById('examAttempts');
-    container.innerHTML = '<div class="loading">Loading...</div>';
+    container.innerHTML = '<div class="loading">Loading…</div>';
 
     try {
         const url = userId ? `/api/exam/admin/attempts?user_id=${userId}` : '/api/exam/admin/attempts';
@@ -436,17 +504,13 @@ async function loadAttempts(userId = null, userEmail = null) {
         if (!res.success) throw new Error('Failed to load attempts');
 
         allAttempts = res.attempts;
-        const headerText = userEmail ? `Attempts for ${userEmail}` : 'All Recent Attempts';
+        const headerText = userEmail ? `Exam History · ${userEmail}` : 'All Exam Attempts';
         const clearFilter = userId ? `<button class="btn btn-sm clear-filter">Show All</button>` : '';
 
         if (!res.attempts.length) {
             container.innerHTML = `
-                <div class="attempts-header">
-                    <h3>${headerText}</h3>
-                    ${clearFilter}
-                </div>
-                <div class="empty">No attempts found</div>
-            `;
+                <div class="attempts-header"><h3>${headerText}</h3>${clearFilter}</div>
+                <div class="empty">No attempts found</div>`;
             return;
         }
 
@@ -460,7 +524,7 @@ async function loadAttempts(userId = null, userEmail = null) {
             </div>
             <div class="exam-toolbar">
                 <div class="search-box">
-                    <input type="text" id="attemptSearch" placeholder="Search by email..." class="search-input">
+                    <input type="text" id="attemptSearch" placeholder="Search by email…" class="search-input">
                 </div>
                 <div class="filter-box">
                     <select id="attemptResultFilter" class="filter-select">
@@ -479,100 +543,83 @@ async function loadAttempts(userId = null, userEmail = null) {
                 <table class="exam-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Email</th>
+                            <th>#</th>
+                            <th>Student</th>
                             <th>Mode</th>
                             <th>Score</th>
                             <th>Questions</th>
                             <th>Result</th>
-                            <th>Started</th>
-                            <th>Finished</th>
+                            <th>Date</th>
                             <th>Status</th>
                         </tr>
                     </thead>
-                    <tbody id="attemptsTableBody">
-                        ${renderAttemptRows(allAttempts)}
-                    </tbody>
+                    <tbody id="attemptsTableBody">${renderAttemptRows(allAttempts)}</tbody>
                 </table>
             </div>
         `;
 
-        // Clear filter handler
-        container.querySelector('.clear-filter')?.addEventListener('click', () => {
-            loadAttempts();
-        });
-
-        // Export CSV handler
+        container.querySelector('.clear-filter')?.addEventListener('click', () => loadAttempts());
         container.querySelector('.export-csv')?.addEventListener('click', () => {
             window.location.href = '/api/exam/admin/attempts/export';
         });
-
-        // Search handler
-        document.getElementById('attemptSearch')?.addEventListener('input', () => {
-            filterAttempts();
-        });
-
-        // Filter handlers
-        document.getElementById('attemptResultFilter')?.addEventListener('change', () => {
-            filterAttempts();
-        });
-
-        document.getElementById('attemptStatusFilter')?.addEventListener('change', () => {
-            filterAttempts();
-        });
+        document.getElementById('attemptSearch')?.addEventListener('input', filterAttempts);
+        document.getElementById('attemptResultFilter')?.addEventListener('change', filterAttempts);
+        document.getElementById('attemptStatusFilter')?.addEventListener('change', filterAttempts);
 
     } catch (err) {
-        console.error('Exam attempts error:', err);
         container.innerHTML = '<div class="error">Failed to load attempts</div>';
     }
 }
 
 function renderAttemptRows(attempts) {
-    return attempts.map(a => `
-        <tr>
-            <td>${a.id}</td>
-            <td>${a.email}</td>
-            <td>${a.mode || '-'}</td>
-            <td>${a.score !== null ? a.score + '%' : '-'}</td>
-            <td>${a.correct_answers || 0}/${a.total_questions || '-'}</td>
-            <td class="${a.result === 'PASS' ? 'status-pass' : a.result === 'FAIL' ? 'status-fail' : ''}">${a.result || '-'}</td>
-            <td>${formatDateTime(a.started_at)}</td>
-            <td>${formatDateTime(a.finished_at)}</td>
-            <td class="status-${a.status}">${a.status}</td>
-        </tr>
-    `).join('');
+    return attempts.map(a => {
+        const scoreW = a.score || 0;
+        const scoreColor = scoreW >= 80 ? '#10b981' : scoreW >= 60 ? '#f59e0b' : '#ef4444';
+        return `
+            <tr>
+                <td style="color:#94a3b8;">${a.id}</td>
+                <td style="font-size:13px;">${a.email}</td>
+                <td><span class="mode-badge mode-${a.mode}">${a.mode || '—'}</span></td>
+                <td>
+                    ${a.score !== null
+                        ? `<strong style="color:${scoreColor};">${a.score}%</strong>`
+                        : '<span style="color:#94a3b8;">—</span>'}
+                </td>
+                <td>${a.correct_answers || 0}/${a.total_questions || '—'}</td>
+                <td class="${a.result === 'PASS' ? 'status-pass' : a.result === 'FAIL' ? 'status-fail' : ''}">${a.result || '—'}</td>
+                <td style="font-size:12px; color:#64748b;">${formatDateTime(a.started_at)}</td>
+                <td class="status-${a.status}">${a.status}</td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function filterAttempts() {
-    const search = document.getElementById('attemptSearch')?.value.toLowerCase() || '';
+    const search       = document.getElementById('attemptSearch')?.value.toLowerCase() || '';
     const resultFilter = document.getElementById('attemptResultFilter')?.value || '';
     const statusFilter = document.getElementById('attemptStatusFilter')?.value || '';
 
-    let filtered = allAttempts.filter(a => {
-        const matchSearch = a.email.toLowerCase().includes(search);
-        const matchResult = !resultFilter || a.result === resultFilter;
-        const matchStatus = !statusFilter || a.status === statusFilter;
-        return matchSearch && matchResult && matchStatus;
-    });
-
+    const filtered = allAttempts.filter(a =>
+        a.email.toLowerCase().includes(search) &&
+        (!resultFilter || a.result === resultFilter) &&
+        (!statusFilter || a.status === statusFilter)
+    );
     document.getElementById('attemptsTableBody').innerHTML = renderAttemptRows(filtered);
 }
 
+// ─────────────────────────────────────────────
+// QUESTION BANK TAB
+// ─────────────────────────────────────────────
 async function loadQuestions() {
     const container = document.getElementById('examQuestions');
-    container.innerHTML = '<div class="loading">Loading...</div>';
-
+    container.innerHTML = '<div class="loading">Loading…</div>';
     try {
         const res = await window.api('/api/exam/admin/questions?lang=en');
-        if (!res.success) throw new Error('Failed to load questions');
-
-        allQuestions = res.questions;
+        if (!res.success) throw new Error();
+        allQuestions     = res.questions;
         questionCategories = res.categories;
-
         renderQuestionsView(container);
-
     } catch (err) {
-        console.error('Questions error:', err);
         container.innerHTML = '<div class="error">Failed to load questions</div>';
     }
 }
@@ -591,7 +638,7 @@ function renderQuestionsView(container) {
         </div>
         <div class="exam-toolbar">
             <div class="search-box">
-                <input type="text" id="questionSearch" placeholder="Search questions..." class="search-input">
+                <input type="text" id="questionSearch" placeholder="Search questions…" class="search-input">
             </div>
             <div class="filter-box">
                 <select id="questionCategoryFilter" class="filter-select">
@@ -606,11 +653,8 @@ function renderQuestionsView(container) {
                 return `<span class="category-badge">${cat}: ${count}</span>`;
             }).join('')}
         </div>
-        <div class="questions-list" id="questionsList">
-            ${renderQuestionCards(allQuestions)}
-        </div>
+        <div class="questions-list" id="questionsList">${renderQuestionCards(allQuestions)}</div>
 
-        <!-- Question Modal -->
         <div id="questionModal" class="modal hidden">
             <div class="modal-content question-modal">
                 <div class="modal-header">
@@ -628,22 +672,10 @@ function renderQuestionsView(container) {
                             </select>
                             <input type="text" id="qNewCategory" placeholder="New category name" class="hidden">
                         </div>
-                        <div class="form-group">
-                            <label>Question</label>
-                            <textarea id="qQuestion" rows="3" required></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Option 1</label>
-                            <input type="text" id="qOption1" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Option 2</label>
-                            <input type="text" id="qOption2" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Option 3</label>
-                            <input type="text" id="qOption3" required>
-                        </div>
+                        <div class="form-group"><label>Question</label><textarea id="qQuestion" rows="3" required></textarea></div>
+                        <div class="form-group"><label>Option 1</label><input type="text" id="qOption1" required></div>
+                        <div class="form-group"><label>Option 2</label><input type="text" id="qOption2" required></div>
+                        <div class="form-group"><label>Option 3</label><input type="text" id="qOption3" required></div>
                         <div class="form-group">
                             <label>Correct Answer</label>
                             <select id="qAnswer" required>
@@ -666,53 +698,24 @@ function renderQuestionsView(container) {
         </div>
     `;
 
-    // Language select handler
-    document.getElementById('questionLangSelect')?.addEventListener('change', async (e) => {
+    document.getElementById('questionLangSelect')?.addEventListener('change', async e => {
         const lang = e.target.value;
-        try {
-            const res = await window.api(`/api/exam/admin/questions?lang=${lang}`);
-            if (res.success) {
-                allQuestions = res.questions;
-                questionCategories = res.categories;
-                renderQuestionsView(container);
-                document.getElementById('questionLangSelect').value = lang;
-            }
-        } catch (err) {
-            console.error('Language switch error:', err);
-        }
+        const res = await window.api(`/api/exam/admin/questions?lang=${lang}`);
+        if (res.success) { allQuestions = res.questions; questionCategories = res.categories; renderQuestionsView(container); document.getElementById('questionLangSelect').value = lang; }
     });
+    document.getElementById('questionSearch')?.addEventListener('input', filterQuestions);
+    document.getElementById('questionCategoryFilter')?.addEventListener('change', filterQuestions);
+    container.querySelector('.add-question')?.addEventListener('click', () => openQuestionModal());
 
-    // Search handler
-    document.getElementById('questionSearch')?.addEventListener('input', () => {
-        filterQuestions();
-    });
-
-    // Category filter handler
-    document.getElementById('questionCategoryFilter')?.addEventListener('change', () => {
-        filterQuestions();
-    });
-
-    // Add question handler
-    container.querySelector('.add-question')?.addEventListener('click', () => {
-        openQuestionModal();
-    });
-
-    // Modal handlers
     const modal = document.getElementById('questionModal');
-    modal?.querySelector('.modal-close')?.addEventListener('click', () => closeQuestionModal());
-    modal?.querySelector('.modal-cancel')?.addEventListener('click', () => closeQuestionModal());
-    modal?.querySelector('.save-question')?.addEventListener('click', () => saveQuestion());
+    modal?.querySelector('.modal-close')?.addEventListener('click', closeQuestionModal);
+    modal?.querySelector('.modal-cancel')?.addEventListener('click', closeQuestionModal);
+    modal?.querySelector('.save-question')?.addEventListener('click', saveQuestion);
 
-    // Category select handler for new category
-    document.getElementById('qCategory')?.addEventListener('change', (e) => {
-        const newCatInput = document.getElementById('qNewCategory');
-        if (e.target.value === '__new__') {
-            newCatInput.classList.remove('hidden');
-            newCatInput.required = true;
-        } else {
-            newCatInput.classList.add('hidden');
-            newCatInput.required = false;
-        }
+    document.getElementById('qCategory')?.addEventListener('change', e => {
+        const el = document.getElementById('qNewCategory');
+        if (e.target.value === '__new__') { el.classList.remove('hidden'); el.required = true; }
+        else { el.classList.add('hidden'); el.required = false; }
     });
 
     attachQuestionActions();
@@ -732,7 +735,7 @@ function renderQuestionCards(questions) {
                     <li class="${q.ANSWER === '2' ? 'correct' : ''}">2. ${q.OPTION2}</li>
                     <li class="${q.ANSWER === '3' ? 'correct' : ''}">3. ${q.OPTION3}</li>
                 </ul>
-                ${q.IMAGE ? `<div class="q-image-indicator">Has image: ${q.IMAGE}</div>` : ''}
+                ${q.IMAGE ? `<div class="q-image-indicator">Image: ${q.IMAGE}</div>` : ''}
             </div>
             <div class="question-card-actions">
                 <button class="btn btn-sm edit-question" data-q-number="${q.Q_NUMBER}">Edit</button>
@@ -743,54 +746,30 @@ function renderQuestionCards(questions) {
 }
 
 function filterQuestions() {
-    const search = document.getElementById('questionSearch')?.value.toLowerCase() || '';
-    const categoryFilter = document.getElementById('questionCategoryFilter')?.value || '';
-
-    let filtered = allQuestions.filter(q => {
-        const matchSearch = q.QUESTION.toLowerCase().includes(search) ||
-            q.OPTION1.toLowerCase().includes(search) ||
-            q.OPTION2.toLowerCase().includes(search) ||
-            q.OPTION3.toLowerCase().includes(search);
-        const matchCategory = !categoryFilter || q.CATEGORY === categoryFilter;
-        return matchSearch && matchCategory;
-    });
-
+    const search   = document.getElementById('questionSearch')?.value.toLowerCase() || '';
+    const catFilter = document.getElementById('questionCategoryFilter')?.value || '';
+    const filtered = allQuestions.filter(q =>
+        (!catFilter || q.CATEGORY === catFilter) &&
+        (q.QUESTION.toLowerCase().includes(search) || q.OPTION1.toLowerCase().includes(search) ||
+         q.OPTION2.toLowerCase().includes(search) || q.OPTION3.toLowerCase().includes(search))
+    );
     document.getElementById('questionsList').innerHTML = renderQuestionCards(filtered);
     attachQuestionActions();
 }
 
 function attachQuestionActions() {
-    // Edit question
     document.querySelectorAll('.edit-question').forEach(btn => {
         btn.addEventListener('click', () => {
-            const qNumber = btn.dataset.qNumber;
-            const question = allQuestions.find(q => q.Q_NUMBER === qNumber);
-            if (question) {
-                openQuestionModal(question);
-            }
+            const q = allQuestions.find(q => q.Q_NUMBER === btn.dataset.qNumber);
+            if (q) openQuestionModal(q);
         });
     });
-
-    // Delete question
     document.querySelectorAll('.delete-question').forEach(btn => {
         btn.addEventListener('click', async () => {
-            const qNumber = btn.dataset.qNumber;
             const lang = document.getElementById('questionLangSelect')?.value || 'en';
-
-            if (!confirm(`Delete question #${qNumber}? This cannot be undone.`)) return;
-
-            try {
-                const res = await window.api(`/api/exam/admin/questions/${qNumber}?lang=${lang}`, { method: 'DELETE' });
-                if (res.success) {
-                    alert('Question deleted successfully');
-                    loadQuestions();
-                } else {
-                    alert('Failed to delete question');
-                }
-            } catch (err) {
-                console.error('Delete question error:', err);
-                alert('Failed to delete question');
-            }
+            if (!confirm(`Delete question #${btn.dataset.qNumber}?`)) return;
+            const res = await window.api(`/api/exam/admin/questions/${btn.dataset.qNumber}?lang=${lang}`, { method:'DELETE' });
+            if (res.success) { alert('Deleted'); loadQuestions(); } else alert('Failed');
         });
     });
 }
@@ -798,23 +777,21 @@ function attachQuestionActions() {
 function openQuestionModal(question = null) {
     const modal = document.getElementById('questionModal');
     const title = document.getElementById('questionModalTitle');
-
     if (question) {
         title.textContent = `Edit Question #${question.Q_NUMBER}`;
-        document.getElementById('qNumber').value = question.Q_NUMBER;
+        document.getElementById('qNumber').value   = question.Q_NUMBER;
         document.getElementById('qCategory').value = question.CATEGORY;
         document.getElementById('qQuestion').value = question.QUESTION;
-        document.getElementById('qOption1').value = question.OPTION1;
-        document.getElementById('qOption2').value = question.OPTION2;
-        document.getElementById('qOption3').value = question.OPTION3;
-        document.getElementById('qAnswer').value = question.ANSWER;
-        document.getElementById('qImage').value = question.IMAGE || '';
+        document.getElementById('qOption1').value  = question.OPTION1;
+        document.getElementById('qOption2').value  = question.OPTION2;
+        document.getElementById('qOption3').value  = question.OPTION3;
+        document.getElementById('qAnswer').value   = question.ANSWER;
+        document.getElementById('qImage').value    = question.IMAGE || '';
     } else {
         title.textContent = 'Add Question';
         document.getElementById('questionForm').reset();
         document.getElementById('qNumber').value = '';
     }
-
     document.getElementById('qNewCategory').classList.add('hidden');
     modal.classList.remove('hidden');
 }
@@ -825,173 +802,40 @@ function closeQuestionModal() {
 
 async function saveQuestion() {
     const qNumber = document.getElementById('qNumber').value;
-    const lang = document.getElementById('questionLangSelect')?.value || 'en';
-
-    let category = document.getElementById('qCategory').value;
+    const lang    = document.getElementById('questionLangSelect')?.value || 'en';
+    let category  = document.getElementById('qCategory').value;
     if (category === '__new__') {
         category = document.getElementById('qNewCategory').value.trim();
-        if (!category) {
-            alert('Please enter a category name');
-            return;
-        }
+        if (!category) { alert('Please enter a category name'); return; }
     }
-
     const data = {
         CATEGORY: category,
         QUESTION: document.getElementById('qQuestion').value,
-        OPTION1: document.getElementById('qOption1').value,
-        OPTION2: document.getElementById('qOption2').value,
-        OPTION3: document.getElementById('qOption3').value,
-        ANSWER: document.getElementById('qAnswer').value,
-        IMAGE: document.getElementById('qImage').value || null
+        OPTION1:  document.getElementById('qOption1').value,
+        OPTION2:  document.getElementById('qOption2').value,
+        OPTION3:  document.getElementById('qOption3').value,
+        ANSWER:   document.getElementById('qAnswer').value,
+        IMAGE:    document.getElementById('qImage').value || null
     };
-
     try {
-        let res;
-        if (qNumber) {
-            res = await window.api(`/api/exam/admin/questions/${qNumber}?lang=${lang}`, {
-                method: 'PUT',
-                body: JSON.stringify(data)
-            });
-        } else {
-            res = await window.api(`/api/exam/admin/questions?lang=${lang}`, {
-                method: 'POST',
-                body: JSON.stringify(data)
-            });
-        }
-
-        if (res.success) {
-            alert(res.message);
-            closeQuestionModal();
-            loadQuestions();
-        } else {
-            alert(res.message || 'Failed to save question');
-        }
-    } catch (err) {
-        console.error('Save question error:', err);
-        alert('Failed to save question');
-    }
+        const res = qNumber
+            ? await window.api(`/api/exam/admin/questions/${qNumber}?lang=${lang}`, { method:'PUT', body:JSON.stringify(data) })
+            : await window.api(`/api/exam/admin/questions?lang=${lang}`, { method:'POST', body:JSON.stringify(data) });
+        if (res.success) { alert(res.message); closeQuestionModal(); loadQuestions(); }
+        else alert(res.message || 'Failed to save');
+    } catch (err) { alert('Failed to save'); }
 }
 
-async function loadPracticeProgress(filterUserId = null, filterEmail = null) {
-    const container = document.getElementById('examPractice');
-    container.innerHTML = '<div class="loading">Loading...</div>';
-
-    try {
-        const res = await window.api('/api/exam/admin/practice-progress');
-        if (!res.success) throw new Error('Failed to load practice progress');
-
-        allPracticeProgress = res.progress;
-
-        const headerText = filterEmail ? `Practice Progress for ${filterEmail}` : 'All Practice Progress';
-        const clearFilter = filterUserId ? `<button class="btn btn-sm clear-practice-filter">Show All</button>` : '';
-
-        // Group by user
-        let grouped = {};
-        allPracticeProgress.forEach(p => {
-            if (filterUserId && String(p.user_id) !== String(filterUserId)) return;
-            if (!grouped[p.user_id]) {
-                grouped[p.user_id] = { email: p.email, categories: {} };
-            }
-            grouped[p.user_id].categories[p.category] = {
-                answered: p.answered,
-                correct: Number(p.correct),
-                language: p.language
-            };
-        });
-
-        const userEntries = Object.entries(grouped);
-
-        if (!userEntries.length) {
-            container.innerHTML = `
-                <div class="attempts-header">
-                    <h3>${headerText}</h3>
-                    ${clearFilter}
-                </div>
-                <div class="empty">No practice progress found</div>
-            `;
-            return;
-        }
-
-        container.innerHTML = `
-            <div class="attempts-header">
-                <h3>${headerText}</h3>
-                <div class="header-actions">${clearFilter}</div>
-            </div>
-            <div class="exam-toolbar">
-                <div class="search-box">
-                    <input type="text" id="practiceSearch" placeholder="Search by email..." class="search-input">
-                </div>
-            </div>
-            <div class="practice-admin-list" id="practiceAdminList">
-                ${renderPracticeUsers(userEntries)}
-            </div>
-        `;
-
-        container.querySelector('.clear-practice-filter')?.addEventListener('click', () => {
-            loadPracticeProgress();
-        });
-
-        document.getElementById('practiceSearch')?.addEventListener('input', (e) => {
-            const search = e.target.value.toLowerCase();
-            const filtered = userEntries.filter(([, data]) => data.email.toLowerCase().includes(search));
-            document.getElementById('practiceAdminList').innerHTML = renderPracticeUsers(filtered);
-        });
-
-    } catch (err) {
-        console.error('Practice progress error:', err);
-        container.innerHTML = '<div class="error">Failed to load practice progress</div>';
-    }
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+function formatDate(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+}
+function formatDateTime(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
 }
 
-function renderPracticeUsers(userEntries) {
-    return userEntries.map(([userId, data]) => {
-        const categories = Object.entries(data.categories);
-        const totalAnswered = categories.reduce((sum, [, c]) => sum + c.answered, 0);
-        const totalCorrect = categories.reduce((sum, [, c]) => sum + c.correct, 0);
-        const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
-
-        return `
-            <div class="practice-user-card">
-                <div class="practice-user-header">
-                    <div>
-                        <strong>${data.email}</strong>
-                        <span class="practice-user-stats">${totalAnswered} answered, ${totalCorrect} correct (${accuracy}%)</span>
-                    </div>
-                </div>
-                <div class="practice-user-categories">
-                    ${categories.map(([cat, info]) => {
-                        const catAccuracy = info.answered > 0 ? Math.round((info.correct / info.answered) * 100) : 0;
-                        return `
-                            <div class="practice-cat-item">
-                                <span class="practice-cat-name">${cat}</span>
-                                <div class="practice-cat-bar-wrap">
-                                    <div class="practice-cat-bar" style="width: ${catAccuracy}%"></div>
-                                </div>
-                                <span class="practice-cat-stats">${info.correct}/${info.answered} (${catAccuracy}%)</span>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function formatDate(dateStr) {
-    if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-function formatDateTime(dateStr) {
-    if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    return d.toLocaleString('en-US', {
-        month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-    });
-}
-
-// Export to window for admin.js
 window.renderExamsModule = renderExamsModule;

@@ -787,6 +787,403 @@
 }
 
 /* ==============================
+   OVERVIEW SECTION LABEL
+================================ */
+.ov-section-label {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+    margin: 0 0 12px;
+}
+
+/* ==============================
+   FUNNEL WIDGET
+================================ */
+.ov-funnel {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.ov-funnel-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 90px;
+    padding: 8px 4px;
+}
+
+.ov-funnel-arrow {
+    font-size: 20px;
+    color: #cbd5e1;
+    flex-shrink: 0;
+    padding: 0 4px;
+    align-self: center;
+    margin-bottom: 20px;
+}
+
+.ov-funnel-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.ov-funnel-count {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.ov-funnel-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    text-align: center;
+}
+
+.ov-funnel-pct {
+    font-size: 11px;
+    color: #94a3b8;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* ==============================
+   PRACTICE PROGRESS PANEL (Overview)
+================================ */
+.ov-practice-panel {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.ov-practice-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.ov-ps-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 20px 12px;
+    border-right: 1px solid #f1f5f9;
+}
+
+.ov-ps-item:last-child {
+    border-right: none;
+}
+
+.ov-ps-val {
+    font-size: 26px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1;
+}
+
+.ov-ps-label {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+    text-align: center;
+}
+
+.ov-cat-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 20px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    border-bottom: 1px solid #f8fafc;
+}
+
+.ov-cat-list {
+    padding: 8px 0 4px;
+}
+
+.ov-cat-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 20px;
+    transition: background 0.1s;
+}
+
+.ov-cat-row:hover {
+    background: #f8fafc;
+}
+
+.ov-cat-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    min-width: 180px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ov-cat-weak {
+    font-size: 11px;
+    font-weight: 700;
+    color: #ef4444;
+}
+
+.ov-cat-bar-bg {
+    flex: 1;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.ov-cat-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+
+.ov-cat-meta {
+    font-size: 12px;
+    color: #64748b;
+    min-width: 90px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.ov-practice-empty {
+    padding: 24px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+@media (max-width: 768px) {
+    .ov-practice-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .ov-ps-item:nth-child(2) {
+        border-right: none;
+    }
+
+    .ov-ps-item:nth-child(3) {
+        border-top: 1px solid #f1f5f9;
+        border-right: 1px solid #f1f5f9;
+    }
+
+    .ov-ps-item:nth-child(4) {
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .ov-cat-name {
+        min-width: 120px;
+    }
+
+    .ov-cat-meta {
+        min-width: 70px;
+    }
+}
+
+/* ==============================
+   STAT CARD SUBTEXT
+================================ */
+.stat-sub {
+    font-size: 12px;
+    color: #94a3b8;
+    margin: 4px 0 0;
+}
+
+/* ==============================
+   STUDENTS SUMMARY BAR
+================================ */
+.us-summary-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.us-pill {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.us-pill.us-passed {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.us-pill.us-struggling {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.us-pill.us-active {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.us-pill.us-new {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+/* ==============================
+   STUDENTS STATUS BADGE
+================================ */
+.us-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.us-badge.us-passed {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.us-badge.us-struggling {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.us-badge.us-active {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.us-badge.us-new {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+/* ==============================
+   STUDENTS EMAIL CELL
+================================ */
+.us-email-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.us-email {
+    font-size: 13px;
+    font-weight: 500;
+    color: #0f172a;
+}
+
+.us-since {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+/* ==============================
+   STUDENTS ATTEMPTS / SCORE
+================================ */
+.us-attempts-num {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.us-score-bar-bg {
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 4px 0 2px;
+    max-width: 80px;
+}
+
+.us-score-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.us-score-label {
+    font-size: 11px;
+    color: #64748b;
+}
+
+/* ==============================
+   STUDENTS PRACTICE BAR
+================================ */
+.us-practice-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.us-practice-bar-bg {
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    overflow: hidden;
+    max-width: 80px;
+}
+
+.us-practice-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.us-practice-label {
+    font-size: 11px;
+    color: #64748b;
+}
+
+/* ==============================
+   MODE BADGE (Exam History)
+================================ */
+.mode-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.mode-badge.mode-mock {
+    background: #ede9fe;
+    color: #5b21b6;
+}
+
+.mode-badge.mode-practice {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+/* ==============================
    BUTTON INFO VARIANT
 ================================ */
 .btn-info {
@@ -888,5 +1285,29 @@
 
     .practice-cat-stats {
         min-width: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .ov-funnel {
+        padding: 16px;
+        gap: 2px;
+    }
+
+    .ov-funnel-arrow {
+        display: none;
+    }
+
+    .ov-funnel-step {
+        min-width: 70px;
+    }
+
+    .ov-funnel-count {
+        font-size: 20px;
+    }
+
+    .us-score-bar-bg,
+    .us-practice-bar-bg {
+        max-width: 60px;
     }
 }
