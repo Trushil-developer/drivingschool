@@ -342,14 +342,18 @@ INSERT INTO bookings (
 // Public endpoint for checking time slot availability during registration
 app.get('/api/bookings/availability', async (req, res, next) => {
   try {
-    const [rows] = await dbPool.query(`
+    const excludeId = req.query.exclude_id ? Number(req.query.exclude_id) : null;
+    const sql = `
       SELECT
         branch, car_name, starting_from,
         allotted_time, allotted_time2, allotted_time3, allotted_time4,
         attendance_status
       FROM bookings
       WHERE attendance_status IN ('Active', 'Pending')
-    `);
+      ${excludeId ? 'AND id != ?' : ''}
+    `;
+    const params = excludeId ? [excludeId] : [];
+    const [rows] = await dbPool.query(sql, params);
     res.json({ success: true, bookings: rows });
   } catch (err) {
     console.error('BOOKINGS AVAILABILITY ERROR:', err);
@@ -416,6 +420,7 @@ app.get('/api/bookings/:id', requireAdmin, async (req, res, next) => {
 app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   const id = req.params.id;
   const data = req.body;
+  const hasSelectedSlots = Array.isArray(data.selected_slots);
   const slotTimes = normalizeSlots(data.selected_slots || []);
 
   try {
@@ -510,10 +515,10 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
       data.email ?? current.email,
       data.occupation ?? current.occupation,
       data.ref ?? current.ref,
-      slotTimes.allotted_time ?? current.allotted_time,
-      slotTimes.allotted_time2 ?? current.allotted_time2,
-      slotTimes.allotted_time3 ?? current.allotted_time3,
-      slotTimes.allotted_time4 ?? current.allotted_time4,
+      hasSelectedSlots ? slotTimes.allotted_time  : current.allotted_time,
+      hasSelectedSlots ? slotTimes.allotted_time2 : current.allotted_time2,
+      hasSelectedSlots ? slotTimes.allotted_time3 : current.allotted_time3,
+      hasSelectedSlots ? slotTimes.allotted_time4 : current.allotted_time4,
       data.duration_minutes ?? current.duration_minutes,
       toMySQLDate(data.starting_from) ?? current.starting_from,
       data.total_fees ?? current.total_fees,
@@ -712,7 +717,9 @@ app.get('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
   const booking_id = req.params.booking_id;
   try {
     const [rows] = await dbPool.query(
-      "SELECT DATE_FORMAT(date, '%Y-%m-%d') AS date, present FROM attendance WHERE booking_id=? ORDER BY date ASC",
+      `SELECT DATE_FORMAT(date, '%Y-%m-%d') AS date, time, present,
+              DATE_FORMAT(marked_at, '%Y-%m-%d %H:%i') AS marked_at
+       FROM attendance WHERE booking_id=? ORDER BY date DESC, time ASC`,
       [booking_id]
     );
     res.json({ success: true, records: rows });

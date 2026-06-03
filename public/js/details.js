@@ -1,7 +1,8 @@
-import { 
-    downloadCertificate, 
+import {
+    downloadCertificate,
     uploadCertificate,
 } from "./globals/certificates.js";
+import { openSlotPicker } from "./globals/slotPicker.js";
 
 (async () => {
     await window.CommonReady;
@@ -155,39 +156,74 @@ import {
                 `);
             }
 
-            // ------------------- Session Slots (grouped) -------------------
-            const slotKeys = [
-                'allotted_time',
-                'allotted_time2',
-                'allotted_time3',
-                'allotted_time4'
-            ];
+            // ------------------- Session Slots -------------------
+            const slotKeys = ['allotted_time', 'allotted_time2', 'allotted_time3', 'allotted_time4'];
 
-            slotKeys.forEach((slotKey, index) => {
-                const value = booking[slotKey] || '';
+            function to12Hour(t) {
+                if (!t) return '';
+                const [hh, mm] = t.split(':').map(Number);
+                const ampm = hh >= 12 ? 'PM' : 'AM';
+                const h = hh % 12 || 12;
+                return `${h}:${String(mm).padStart(2,'0')} ${ampm}`;
+            }
+
+            slotKeys.forEach((slotKey, i) => {
                 detailsTable.insertAdjacentHTML("beforeend", `
-                    <tr>
-                        <th>Session Slot ${index + 1}</th>
-                        <td data-key="${slotKey}">${value}</td>
+                    <tr id="slotRow${i}">
+                        <th>Session Slot ${i + 1}</th>
+                        <td id="slotCell${i}" data-key="${slotKey}"></td>
                     </tr>
                 `);
             });
+            detailsTable.insertAdjacentHTML("beforeend", `
+                <tr id="slotActionRow">
+                    <th></th>
+                    <td id="slotActionCell"></td>
+                </tr>
+            `);
 
-
-            booking._attendanceRecords = existingAttendance;
-
-            attendanceBtn.onclick = () => {
-                if (!booking || !booking.starting_from) return alert("Booking starting date missing");
-                window.openAttendanceModal({
-                    ...booking,
-                    totalDays: Number(booking.training_days) || 30,
-                    refresh: loadBooking
+            function refreshSlotView() {
+                slotKeys.forEach((k, i) => {
+                    const val = booking[k];
+                    const row = document.getElementById(`slotRow${i}`);
+                    const cell = document.getElementById(`slotCell${i}`);
+                    if (!row || !cell) return;
+                    row.style.display = (i === 0 || val) ? '' : 'none';
+                    cell.innerHTML = val
+                        ? `<span class="slot-time-badge">${to12Hour(val)}</span>`
+                        : '<span style="color:#9ca3af;">—</span>';
                 });
-            };
+                const actionCell = document.getElementById('slotActionCell');
+                actionCell.innerHTML = `<button id="editSlotsBtn" class="btn-slot-edit">✏ Edit Slots</button>`;
+                document.getElementById('editSlotsBtn').addEventListener('click', () => {
+                    openSlotPicker({
+                        branch:          booking.branch,
+                        car:             booking.car_name,
+                        startingFrom:    booking.starting_from,
+                        durationMinutes: Number(booking.duration_minutes) || 60,
+                        currentSlots:    slotKeys.map(k => booking[k]).filter(Boolean),
+                        excludeId:       id,
+                        onSave: async (selectedSlots) => {
+                            const res = await window.api(`/api/bookings/${id}`, {
+                                method: 'PUT',
+                                body: JSON.stringify({ selected_slots: selectedSlots })
+                            });
+                            if (!res.success) throw new Error(res.error || 'Failed to save');
+                            slotKeys.forEach((k, i) => { booking[k] = selectedSlots[i] || null; });
+                            refreshSlotView();
+                        }
+                    });
+                });
+            }
+
+            refreshSlotView();
+
+
+            attendanceBtn.onclick = () => openAttendanceHistory(booking);
 
             // ------------------- Certificate Row -------------------
             detailsTable.insertAdjacentHTML("beforeend", `
-                <tr>
+                <tr data-cert-row="1">
                     <th>Certificate</th>
                     <td data-key="certificate_url" id="certCell">
                         ${booking.certificate_url
@@ -217,6 +253,102 @@ import {
     }
 
     await loadBooking();
+
+    // =============================================
+    // ATTENDANCE HISTORY
+    // =============================================
+    async function openAttendanceHistory(bk) {
+        document.getElementById('ahOverlay')?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'ahOverlay';
+        overlay.className = 'ah-overlay';
+        overlay.innerHTML = `
+            <div class="ah-modal">
+                <div class="ah-header">
+                    <div>
+                        <h3>Attendance History</h3>
+                        <p>${bk.customer_name} &middot; ${bk.branch}</p>
+                    </div>
+                    <button class="ah-close">&times;</button>
+                </div>
+                <div class="ah-summary" id="ahSummary">
+                    <span class="ah-stat ah-stat--total"><strong id="ahTotal">…</strong> Recorded</span>
+                    <span class="ah-stat ah-stat--present"><strong id="ahPresent">…</strong> Present</span>
+                    <span class="ah-stat ah-stat--absent"><strong id="ahAbsent">…</strong> Absent</span>
+                </div>
+                <div class="ah-body">
+                    <table class="ah-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Slot</th>
+                                <th>Status</th>
+                                <th>Marked At</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ahBody"><tr><td colspan="4" class="ah-empty">Loading…</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        requestAnimationFrame(() => overlay.classList.add('active'));
+
+        const close = () => {
+            overlay.classList.remove('active');
+            setTimeout(() => overlay.remove(), 280);
+        };
+        overlay.querySelector('.ah-close').addEventListener('click', close);
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+        try {
+            const res = await window.api(`/api/attendance/${bk.id}`);
+            const records = res.records || [];
+            const tbody = overlay.querySelector('#ahBody');
+
+            if (records.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="ah-empty">No attendance recorded yet.</td></tr>`;
+                overlay.querySelector('#ahTotal').textContent = 0;
+                overlay.querySelector('#ahPresent').textContent = 0;
+                overlay.querySelector('#ahAbsent').textContent = 0;
+                return;
+            }
+
+            const presentCount = records.filter(r => r.present == 1).length;
+            const absentCount  = records.filter(r => r.present == 0).length;
+            overlay.querySelector('#ahTotal').textContent   = records.length;
+            overlay.querySelector('#ahPresent').textContent = presentCount;
+            overlay.querySelector('#ahAbsent').textContent  = absentCount;
+
+            tbody.innerHTML = records.map(r => {
+                const slotLabel = r.time ? to12HourFromDB(r.time) : '—';
+                const isPresent = r.present == 1;
+                const badge = isPresent
+                    ? `<span class="ah-badge ah-badge--present">Present</span>`
+                    : `<span class="ah-badge ah-badge--absent">Absent</span>`;
+                return `
+                    <tr>
+                        <td>${r.date}</td>
+                        <td>${slotLabel}</td>
+                        <td>${badge}</td>
+                        <td style="color:#64748b; font-size:12px;">${r.marked_at || '—'}</td>
+                    </tr>`;
+            }).join('');
+
+        } catch (err) {
+            overlay.querySelector('#ahBody').innerHTML =
+                `<tr><td colspan="4" class="ah-empty" style="color:#dc2626;">Failed to load history.</td></tr>`;
+        }
+    }
+
+    function to12HourFromDB(t) {
+        if (!t) return '—';
+        const [hh, mm] = t.split(':').map(Number);
+        const ampm = hh >= 12 ? 'PM' : 'AM';
+        const h = hh % 12 || 12;
+        return `${h}:${String(mm).padStart(2,'0')} ${ampm}`;
+    }
 
     // =============================================
     // EDIT MODE
@@ -327,13 +459,8 @@ import {
                 }
 
                 if (key.startsWith('allotted_time')) {
-                    const timeInput = document.createElement('input');
-                    timeInput.type = 'time';
-                    timeInput.min = '06:00';
-                    timeInput.max = '22:00';
-                    timeInput.step = '1800';
-                    timeInput.value = val || '';
-                    td.appendChild(timeInput);
+                    // Slots are managed by the inline slot editor — skip in main edit form
+                    td.innerHTML = val;
                     continue;
                 }
 
@@ -396,21 +523,14 @@ import {
             }
         });
 
-        const slots = [];
-
+        // Slots are managed by the inline slot editor — preserve current values
         ['allotted_time', 'allotted_time2', 'allotted_time3', 'allotted_time4'].forEach(k => {
-            if (updatedData[k]) {
-                slots.push(updatedData[k]);
-                delete updatedData[k];
-            }
+            delete updatedData[k];
         });
-
-        if (slots.length === 0) {
-            alert("At least one session slot is required");
-            return;
-        }
-
-        updatedData.selected_slots = slots;
+        updatedData.allotted_time  = booking.allotted_time  || null;
+        updatedData.allotted_time2 = booking.allotted_time2 || null;
+        updatedData.allotted_time3 = booking.allotted_time3 || null;
+        updatedData.allotted_time4 = booking.allotted_time4 || null;
 
         if (missingFields.length > 0) {
             alert(`Please fill all required fields: ${missingFields.join(', ')}`);
