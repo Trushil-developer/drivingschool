@@ -610,15 +610,22 @@ router.get("/attendance-trends", requireAdmin, async (req, res) => {
     const [rows] = await dbPool.query(`
       SELECT
         ${periodExpr} AS period,
-        SUM(b.training_days)  AS total,
-        SUM(b.present_days)   AS present_count,
-        COALESCE(SUM(ab.absent_count), 0) AS absent_count
+        SUM(b.training_days) AS total,
+        COALESCE(SUM(day_att.present_days), 0) AS present_count,
+        COALESCE(SUM(day_att.absent_days),  0) AS absent_count
       FROM bookings b
       LEFT JOIN (
-        SELECT booking_id, SUM(CASE WHEN present = 0 THEN 1 ELSE 0 END) AS absent_count
-        FROM attendance
+        SELECT
+          booking_id,
+          SUM(CASE WHEN max_p >= 1 THEN 1 ELSE 0 END) AS present_days,
+          SUM(CASE WHEN max_p = 0  THEN 1 ELSE 0 END) AS absent_days
+        FROM (
+          SELECT booking_id, date, MAX(present) AS max_p
+          FROM attendance
+          GROUP BY booking_id, date
+        ) d
         GROUP BY booking_id
-      ) ab ON ab.booking_id = b.id
+      ) day_att ON day_att.booking_id = b.id
       WHERE b.attendance_status IN ('Active','Completed','Expired','Hold')
         AND b.starting_from IS NOT NULL
         ${branchFilter}
