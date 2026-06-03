@@ -216,8 +216,19 @@ export function renderDashboardModule(container) {
           body: JSON.stringify(body)
         });
 
-        if (res.success) e.target.textContent = `₹${res.totalRevenue}`;
-        else alert("Incorrect password");
+        if (res.success) {
+          const fmt = n => `₹${Number(n).toLocaleString('en-IN')}`;
+          e.target.textContent = fmt(res.trainingRevenue);
+          e.target.classList.remove('revenue-locked');
+          const breakdown = document.getElementById('revenueBreakdown');
+          if (breakdown) {
+            document.getElementById('revTraining').textContent   = fmt(res.trainingRevenue);
+            document.getElementById('revCollected').textContent  = fmt(res.collectedRevenue);
+            document.getElementById('revPending').textContent    = fmt(res.pendingRevenue);
+            document.getElementById('revLicence').textContent    = fmt(res.licenceRevenue);
+            breakdown.style.display = 'block';
+          }
+        } else alert("Incorrect password");
       }
     });
 
@@ -295,8 +306,14 @@ async function loadDashboardData(query = "") {
           <p class="slots-total">Total Students: ${studentsPresent}</p>
       </div>
       <div class="card revenue">
-          <h4>Total Revenue</h4>
-          <p id="revenueValue">🔒 Locked</p>
+          <h4>Revenue</h4>
+          <p id="revenueValue" class="revenue-locked">🔒 Click to unlock</p>
+          <div id="revenueBreakdown" class="revenue-breakdown" style="display:none;">
+              <div class="rev-row"><span>Total Fees</span><span id="revTraining">—</span></div>
+              <div class="rev-row rev-row--collected"><span>Collected</span><span id="revCollected">—</span></div>
+              <div class="rev-row rev-row--pending"><span>Pending</span><span id="revPending">—</span></div>
+              <div class="rev-row rev-row--licence"><span>Licence Fees</span><span id="revLicence">—</span></div>
+          </div>
       </div>
     `;
 
@@ -594,7 +611,12 @@ async function loadAttendanceChart() {
 
     if (chartInstances.attendance) chartInstances.attendance.destroy();
 
-    const labels = res.data.map(d => formatPeriodLabel(d.period, granularity));
+    const labels     = res.data.map(d => formatPeriodLabel(d.period, granularity));
+    const present    = res.data.map(d => Number(d.present_count));
+    const absent     = res.data.map(d => Number(d.absent_count));
+    const unattended = res.data.map((d, i) =>
+      Math.max(0, Number(d.total) - present[i] - absent[i])
+    );
 
     chartInstances.attendance = new Chart(ctx, {
       type: 'bar',
@@ -602,38 +624,56 @@ async function loadAttendanceChart() {
         labels,
         datasets: [
           {
-            label: 'Students Present',
-            data: res.data.map(d => d.present_count),
-            backgroundColor: COLORS.success,
-            borderRadius: 4
+            label: 'Present',
+            data: present,
+            backgroundColor: 'rgba(16,185,129,0.9)',
+            stack: 'att'
           },
           {
-            label: 'Total Slots Attended',
-            data: res.data.map(d => d.total_slots),
-            backgroundColor: 'rgba(59,130,246,0.5)',
-            borderRadius: 4
+            label: 'Absent',
+            data: absent,
+            backgroundColor: 'rgba(239,68,68,0.9)',
+            stack: 'att'
+          },
+          {
+            label: 'Not Yet Attended',
+            data: unattended,
+            backgroundColor: 'rgba(59,130,246,0.55)',
+            stack: 'att'
           }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { position: 'bottom' },
           tooltip: {
             callbacks: {
+              label: (item) => {
+                const idx  = item.dataIndex;
+                const total = Number(res.data[idx]?.total) || 1;
+                const pct  = Math.round((item.raw / total) * 100);
+                return ` ${item.dataset.label}: ${item.raw} (${pct}%)`;
+              },
               afterBody: (items) => {
-                const idx = items[0]?.dataIndex;
-                const d = res.data[idx];
-                if (d && d.absent_count > 0) return [`Marked Absent: ${d.absent_count}`];
-                return [];
+                const idx   = items[0]?.dataIndex;
+                const total = Number(res.data[idx]?.total) || 0;
+                const p     = present[idx] || 0;
+                if (!total) return '';
+                return `Attendance rate: ${Math.round((p / total) * 100)}%`;
               }
             }
           }
         },
         scales: {
-          x: { stacked: false },
-          y: { beginAtZero: true, ticks: { stepSize: 1 } }
+          x: { stacked: true },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            ticks: { stepSize: 1 }
+          }
         }
       }
     });

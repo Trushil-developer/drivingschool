@@ -46,7 +46,7 @@ router.get("/stats", requireAdmin, async (req, res) => {
       dbPool.query(`SELECT COUNT(*) AS count FROM bookings ${whereClause} ${whereClause ? "AND" : "WHERE"} attendance_status='Completed'`, params),
       dbPool.query(`SELECT COUNT(*) AS count FROM bookings ${whereClause} ${whereClause ? "AND" : "WHERE"} attendance_status='Hold'`, params),
       dbPool.query(`SELECT COUNT(*) AS count FROM bookings ${whereClause} ${whereClause ? "AND" : "WHERE"} attendance_status='Expired'`, params),
-      dbPool.query(`SELECT COALESCE(SUM(total_fees),0) AS total FROM bookings ${whereClause}`, params)
+      dbPool.query(`SELECT COALESCE(SUM(total_fees),0) AS training, COALESCE(SUM(COALESCE(advance,0)),0) AS collected, COALESCE(SUM(total_fees) - SUM(COALESCE(advance,0)),0) AS pending, COALESCE(SUM(COALESCE(licence_fee,0)),0) AS licence FROM bookings ${whereClause} ${whereClause ? "AND" : "WHERE"} attendance_status != 'Pending'`, params)
     ]);
 
     // Branch-aware "Joined Today" (supports custom date via joinDate param)
@@ -69,7 +69,10 @@ router.get("/stats", requireAdmin, async (req, res) => {
         hold: hold[0].count,
         expired: expired[0].count,
         todayBookings: todayBookings[0].count,
-        totalRevenue: revenue[0].total
+        trainingRevenue:   Number(revenue[0].training),
+        collectedRevenue:  Number(revenue[0].collected),
+        pendingRevenue:    Number(revenue[0].pending),
+        licenceRevenue:    Number(revenue[0].licence)
       }
     });
 
@@ -145,11 +148,17 @@ router.post("/unlock-revenue", requireAdmin, async (req, res) => {
     }
 
     const [[row]] = await dbPool.query(
-      `SELECT COALESCE(SUM(total_fees),0) AS total FROM bookings ${whereClause}`,
+      `SELECT COALESCE(SUM(total_fees),0) AS training, COALESCE(SUM(COALESCE(advance,0)),0) AS collected, COALESCE(SUM(total_fees) - SUM(COALESCE(advance,0)),0) AS pending, COALESCE(SUM(COALESCE(licence_fee,0)),0) AS licence FROM bookings ${whereClause} ${whereClause ? "AND" : "WHERE"} attendance_status != 'Pending'`,
       params
     );
 
-    res.json({ success: true, totalRevenue: row.total });
+    res.json({
+      success: true,
+      trainingRevenue:  Number(row.training),
+      collectedRevenue: Number(row.collected),
+      pendingRevenue:   Number(row.pending),
+      licenceRevenue:   Number(row.licence)
+    });
   } catch (err) {
     console.error("UNLOCK REVENUE ERROR:", err);
     res.status(500).json({ success: false });
@@ -332,9 +341,10 @@ router.get("/monthly-trends", requireAdmin, async (req, res) => {
       SELECT
         DATE_FORMAT(created_at, '%Y-%m') AS month,
         COUNT(*) AS bookings,
-        COALESCE(SUM(total_fees), 0) AS revenue
+        COALESCE(SUM(total_fees + COALESCE(licence_fee,0)), 0) AS revenue
       FROM bookings
       ${branchFilter}
+      ${branchFilter ? "AND" : "WHERE"} attendance_status != 'Pending'
       GROUP BY DATE_FORMAT(created_at, '%Y-%m')
       ORDER BY month DESC
       LIMIT 6
@@ -564,9 +574,10 @@ router.get("/enrollment-trends", requireAdmin, async (req, res) => {
       SELECT
         ${granularity === 'year' ? 'YEAR(created_at)' : (granularity === 'day' ? 'DATE(created_at)' : "DATE_FORMAT(created_at, '%Y-%m')")} AS period,
         COUNT(*) AS count,
-        COALESCE(SUM(total_fees), 0) AS revenue
+        COALESCE(SUM(total_fees + COALESCE(licence_fee,0)), 0) AS revenue
       FROM bookings
       ${whereClause}
+      ${whereClause ? "AND" : "WHERE"} attendance_status != 'Pending'
       GROUP BY period
       ORDER BY period DESC
       LIMIT ${granularity === 'day' ? 30 : (granularity === 'year' ? 10 : 12)}
@@ -585,41 +596,35 @@ router.get("/enrollment-trends", requireAdmin, async (req, res) => {
  */
 router.get("/attendance-trends", requireAdmin, async (req, res) => {
   try {
-    const { branch, granularity = 'day' } = req.query;
+    const { branch, granularity = 'month' } = req.query;
 
-    let groupBy;
-    switch (granularity) {
-      case 'day':
-        groupBy = "DATE(a.date)";
-        break;
-      case 'year':
-        groupBy = "YEAR(a.date)";
-        break;
-      default: // month
-        groupBy = "DATE_FORMAT(a.date, '%Y-%m')";
-    }
+    const periodExpr = granularity === 'year'
+      ? 'YEAR(b.starting_from)'
+      : granularity === 'day'
+        ? 'DATE(b.starting_from)'
+        : "DATE_FORMAT(b.starting_from, '%Y-%m')";
 
-    let whereClause = "";
-    let params = [];
-
-    if (branch) {
-      whereClause = "WHERE TRIM(LOWER(b.branch)) = ?";
-      params.push(branch.toLowerCase());
-    }
+    const branchFilter = branch ? 'AND TRIM(LOWER(b.branch)) = ?' : '';
+    const params = branch ? [branch.toLowerCase()] : [];
 
     const [rows] = await dbPool.query(`
       SELECT
-        ${granularity === 'year' ? 'YEAR(a.date)' : (granularity === 'day' ? 'DATE(a.date)' : "DATE_FORMAT(a.date, '%Y-%m')")} AS period,
-        SUM(CASE WHEN a.present >= 1 THEN 1 ELSE 0 END) AS present_count,
-        SUM(a.present) AS total_slots,
-        SUM(CASE WHEN a.present = 0 THEN 1 ELSE 0 END) AS absent_count,
-        COUNT(*) AS total
-      FROM attendance a
-      JOIN bookings b ON a.booking_id = b.id
-      ${whereClause}
+        ${periodExpr} AS period,
+        SUM(b.training_days)  AS total,
+        SUM(b.present_days)   AS present_count,
+        COALESCE(SUM(ab.absent_count), 0) AS absent_count
+      FROM bookings b
+      LEFT JOIN (
+        SELECT booking_id, SUM(CASE WHEN present = 0 THEN 1 ELSE 0 END) AS absent_count
+        FROM attendance
+        GROUP BY booking_id
+      ) ab ON ab.booking_id = b.id
+      WHERE b.attendance_status IN ('Active','Completed','Expired','Hold')
+        AND b.starting_from IS NOT NULL
+        ${branchFilter}
       GROUP BY period
       ORDER BY period DESC
-      LIMIT ${granularity === 'day' ? 30 : (granularity === 'year' ? 10 : 12)}
+      LIMIT ${granularity === 'day' ? 30 : granularity === 'year' ? 10 : 12}
     `, params);
 
     res.json({ success: true, data: rows.reverse() });

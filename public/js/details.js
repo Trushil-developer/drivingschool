@@ -141,7 +141,12 @@ import { openSlotPicker } from "./globals/slotPicker.js";
                     value = Number(value) === 1 ? 'Yes' : 'No';
                 }
 
-                let label = key.replace(/_/g, " ");
+                const LABEL_OVERRIDES = {
+                    licence_fee:   'Licence Fee (₹)',
+                    total_fees:    'Total Fees (₹)',
+                    advance:       'Advance (₹)',
+                };
+                let label = LABEL_OVERRIDES[key] || key.replace(/_/g, " ");
 
                 if (key.startsWith('allotted_time')) {
                     const index = key.replace('allotted_time', '') || '1';
@@ -464,6 +469,16 @@ import { openSlotPicker } from "./globals/slotPicker.js";
                     continue;
                 }
 
+
+                if (['licence_fee', 'total_fees', 'advance'].includes(key)) {
+                    const numInput = document.createElement('input');
+                    numInput.type = 'number';
+                    numInput.min = '0';
+                    numInput.step = '1';
+                    numInput.value = val || '0';
+                    td.appendChild(numInput);
+                    continue;
+                }
 
                 if (key === 'duration_minutes') {
                     const select = document.createElement('select');
