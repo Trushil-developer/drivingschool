@@ -611,38 +611,39 @@ async function loadAttendanceChart() {
 
     if (chartInstances.attendance) chartInstances.attendance.destroy();
 
-    const labels     = res.data.map(d => formatPeriodLabel(d.period, granularity));
-    const present    = res.data.map(d => Number(d.present_count));
-    const absent     = res.data.map(d => Number(d.absent_count));
-    const unattended = res.data.map((d, i) =>
-      Math.max(0, Number(d.total) - present[i] - absent[i])
-    );
+    const labels      = res.data.map(d => formatPeriodLabel(d.period, granularity));
+    const present     = res.data.map(d => Number(d.present_count));
+    const absent      = res.data.map(d => Number(d.absent_count));
+    const totals      = res.data.map(d => Number(d.total));
+    const untracked   = totals.map((t, i) => Math.max(0, t - present[i] - absent[i]));
+    const showBlue    = granularity === 'day';
+
+    const datasets = [
+      {
+        label: 'Present',
+        data: present,
+        backgroundColor: 'rgba(16,185,129,0.9)',
+        stack: 'att'
+      },
+      {
+        label: 'Absent',
+        data: absent,
+        backgroundColor: 'rgba(239,68,68,0.9)',
+        stack: 'att'
+      }
+    ];
+    if (showBlue) {
+      datasets.push({
+        label: 'Not Yet Marked',
+        data: untracked,
+        backgroundColor: 'rgba(59,130,246,0.55)',
+        stack: 'att'
+      });
+    }
 
     chartInstances.attendance = new Chart(ctx, {
       type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: 'Present',
-            data: present,
-            backgroundColor: 'rgba(16,185,129,0.9)',
-            stack: 'att'
-          },
-          {
-            label: 'Absent',
-            data: absent,
-            backgroundColor: 'rgba(239,68,68,0.9)',
-            stack: 'att'
-          },
-          {
-            label: 'Not Yet Attended',
-            data: unattended,
-            backgroundColor: 'rgba(59,130,246,0.55)',
-            stack: 'att'
-          }
-        ]
-      },
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -652,14 +653,14 @@ async function loadAttendanceChart() {
           tooltip: {
             callbacks: {
               label: (item) => {
-                const idx  = item.dataIndex;
-                const total = Number(res.data[idx]?.total) || 1;
-                const pct  = Math.round((item.raw / total) * 100);
+                const idx   = item.dataIndex;
+                const total = totals[idx] || 1;
+                const pct   = Math.round((item.raw / total) * 100);
                 return ` ${item.dataset.label}: ${item.raw} (${pct}%)`;
               },
               afterBody: (items) => {
                 const idx   = items[0]?.dataIndex;
-                const total = Number(res.data[idx]?.total) || 0;
+                const total = totals[idx] || 0;
                 const p     = present[idx] || 0;
                 if (!total) return '';
                 return `Attendance rate: ${Math.round((p / total) * 100)}%`;

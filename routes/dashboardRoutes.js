@@ -597,44 +597,86 @@ router.get("/enrollment-trends", requireAdmin, async (req, res) => {
 router.get("/attendance-trends", requireAdmin, async (req, res) => {
   try {
     const { branch, granularity = 'month' } = req.query;
-
-    const periodExpr = granularity === 'year'
-      ? 'YEAR(b.starting_from)'
-      : granularity === 'day'
-        ? 'DATE(b.starting_from)'
-        : "DATE_FORMAT(b.starting_from, '%Y-%m')";
-
     const branchFilter = branch ? 'AND TRIM(LOWER(b.branch)) = ?' : '';
-    const params = branch ? [branch.toLowerCase()] : [];
+    const branchParam  = branch ? [branch.toLowerCase()] : [];
 
-    const [rows] = await dbPool.query(`
-      SELECT
-        ${periodExpr} AS period,
-        SUM(b.training_days) AS total,
-        COALESCE(SUM(day_att.present_days), 0) AS present_count,
-        COALESCE(SUM(day_att.absent_days),  0) AS absent_count
-      FROM bookings b
-      LEFT JOIN (
+    let rows;
+
+    if (granularity === 'day') {
+      // Daily: last 30 days — marked attendance + today's untracked Active bookings (blue)
+      const nums = Array.from({length: 30}, (_, i) => `SELECT ${i} AS seq`).join(' UNION ALL ');
+
+      // Count Active bookings not yet marked today (for blue bar on today's date)
+      const untrackedParams = [...branchParam];
+      const [untrackedRows] = await dbPool.query(`
+        SELECT COUNT(*) AS cnt
+        FROM bookings b
+        WHERE b.attendance_status = 'Active'
+          AND b.starting_from IS NOT NULL
+          AND b.starting_from <= CURDATE()
+          ${branchFilter}
+          AND NOT EXISTS (
+            SELECT 1 FROM attendance a
+            WHERE a.booking_id = b.id AND DATE(a.date) = CURDATE()
+          )
+      `, untrackedParams);
+      const untrackedToday = Number(untrackedRows[0].cnt);
+      // Use IST date to match MySQL CURDATE() on IST server
+      const _istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+      const todayStr = _istNow.toISOString().slice(0, 10);
+
+      const [r] = await dbPool.query(`
         SELECT
-          booking_id,
-          SUM(CASE WHEN max_p >= 1 THEN 1 ELSE 0 END) AS present_days,
-          SUM(CASE WHEN max_p = 0  THEN 1 ELSE 0 END) AS absent_days
-        FROM (
-          SELECT booking_id, date, MAX(present) AS max_p
-          FROM attendance
-          GROUP BY booking_id, date
-        ) d
-        GROUP BY booking_id
-      ) day_att ON day_att.booking_id = b.id
-      WHERE b.attendance_status IN ('Active','Completed','Expired','Hold')
-        AND b.starting_from IS NOT NULL
-        ${branchFilter}
-      GROUP BY period
-      ORDER BY period DESC
-      LIMIT ${granularity === 'day' ? 30 : granularity === 'year' ? 10 : 12}
-    `, params);
+          DATE_FORMAT(cal.dt, '%Y-%m-%d') AS period,
+          COALESCE(att.present_count, 0) AS present_count,
+          COALESCE(att.absent_count,  0) AS absent_count,
+          COALESCE(att.present_count, 0) + COALESCE(att.absent_count, 0) AS total
+        FROM (SELECT CURDATE() - INTERVAL seq DAY AS dt FROM (${nums}) n) cal
+        LEFT JOIN (
+          SELECT DATE_FORMAT(DATE(a.date), '%Y-%m-%d') AS dt,
+            SUM(CASE WHEN a.present >= 1 THEN 1 ELSE 0 END) AS present_count,
+            SUM(CASE WHEN a.present = 0  THEN 1 ELSE 0 END) AS absent_count
+          FROM attendance a
+          JOIN bookings b ON a.booking_id = b.id
+          WHERE b.attendance_status IN ('Active','Completed','Expired','Hold')
+            ${branchFilter}
+          GROUP BY DATE_FORMAT(DATE(a.date), '%Y-%m-%d')
+        ) att ON att.dt = DATE_FORMAT(cal.dt, '%Y-%m-%d')
+        ORDER BY cal.dt ASC
+      `, branchParam);
 
-    res.json({ success: true, data: rows.reverse() });
+      // Add untracked count to today's row
+      rows = r.map(row => {
+        const isToday = String(row.period) === todayStr;
+        return {
+          ...row,
+          total: isToday ? Number(row.total) + untrackedToday : Number(row.total)
+        };
+      });
+    } else {
+      // Month/year: group by attendance date — shows actual marked records
+      const periodExpr = granularity === 'year'
+        ? 'YEAR(a.date)'
+        : "DATE_FORMAT(a.date, '%Y-%m')";
+      const limit = granularity === 'year' ? 5 : 12;
+      const [r] = await dbPool.query(`
+        SELECT
+          ${periodExpr} AS period,
+          SUM(CASE WHEN a.present >= 1 THEN 1 ELSE 0 END) AS present_count,
+          SUM(CASE WHEN a.present = 0  THEN 1 ELSE 0 END) AS absent_count,
+          COUNT(*) AS total
+        FROM attendance a
+        JOIN bookings b ON a.booking_id = b.id
+        WHERE b.attendance_status IN ('Active','Completed','Expired','Hold')
+          ${branchFilter}
+        GROUP BY period
+        ORDER BY period DESC
+        LIMIT ${limit}
+      `, branchParam);
+      rows = r.reverse();
+    }
+
+    res.json({ success: true, data: rows });
 
   } catch (err) {
     console.error("ATTENDANCE TRENDS ERROR:", err);
