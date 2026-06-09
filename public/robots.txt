@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
+Allow: /api/public/certificates
 Disallow: /admin.html
 Disallow: /login.html
 Disallow: /details.html
