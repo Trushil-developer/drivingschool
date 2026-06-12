@@ -779,13 +779,21 @@ async function loadExpenseChart() {
       '#f97316', '#14b8a6'
     ];
 
-    const datasets = visibleCategories.map((cat, i) => ({
-      label: cat,
-      data: labels.map(p => periodMap[p]?.[cat] || 0),
-      backgroundColor: palette[i % palette.length],
-      borderRadius: i === visibleCategories.length - 1 ? 5 : 0,
-      borderSkipped: false
-    }));
+    const datasets = visibleCategories.map((cat, i) => {
+      const color = palette[i % palette.length];
+      return {
+        label: cat,
+        data: labels.map(p => periodMap[p]?.[cat] || 0),
+        borderColor: color,
+        backgroundColor: color + '28',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: color,
+        borderWidth: 2
+      };
+    });
 
     const ctx = document.getElementById('expenseDashboardChart')?.getContext('2d');
     if (!ctx) return;
@@ -793,11 +801,12 @@ async function loadExpenseChart() {
     if (chartInstances.expense) chartInstances.expense.destroy();
 
     chartInstances.expense = new Chart(ctx, {
-      type: 'bar',
+      type: 'line',
       data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: {
             display: true,
@@ -812,9 +821,8 @@ async function loadExpenseChart() {
           }
         },
         scales: {
-          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
+          x: { grid: { display: false }, ticks: { font: { size: 11 } } },
           y: {
-            stacked: true,
             beginAtZero: true,
             grid: { color: '#F3F4F6' },
             ticks: { callback: v => 'Rs.' + v.toLocaleString('en-IN'), font: { size: 11 } }

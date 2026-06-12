@@ -839,11 +839,11 @@ app.post('/api/schedule-slots', requireAdmin, async (req, res, next) => {
     await conn.beginTransaction();
 
     const [result] = await conn.query(
-      `INSERT INTO schedule_slots (booking_id, date, time, car_name, instructor_name) VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO schedule_slots (booking_id, date, time, car_name, instructor_name, present) VALUES (?, ?, ?, ?, ?, 0)`,
       [booking_id, date, time, car_name || null, instructor_name || null]
     );
 
-    // Recalculate present_days (new slot already has present=1, included in adhocSum)
+    // Recalculate present_days (new slot has present=0, not counted until marked)
     const [[attSum]] = await conn.query(
       `SELECT COUNT(DISTINCT date) AS total FROM attendance WHERE booking_id = ? AND present = 1`, [booking_id]
     );
