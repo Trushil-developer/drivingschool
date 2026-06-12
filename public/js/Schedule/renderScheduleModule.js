@@ -251,9 +251,21 @@ window.renderScheduleModule = function(tableWrap) {
                         );
                     });
 
+                    // Also include completed bookings that were present on this specific date
+                    const completedOnDate = bookings.filter(b => {
+                        const status = (b.attendance_status || '').trim().toLowerCase();
+                        if (status !== 'completed') return false;
+                        if (!b.car_name) return false;
+                        if ((b.branch || '').trim().toLowerCase() !== branch.trim().toLowerCase()) return false;
+                        const dayMap = attendanceMap[b.id]?.[dateStr];
+                        return dayMap && Object.values(dayMap).some(v => Number(v) === 1);
+                    }).map(b => ({ ...b, completed: true }));
+
+                    const allBranchBookings = [...branchBookings, ...completedOnDate];
+
                     // Build bookedSlots from regular bookings
                     const bookedSlots = {};
-                    branchBookings.forEach(b => {
+                    allBranchBookings.forEach(b => {
                         if (!b.car_name || !b.allotted_time) return;
                         const car  = b.car_name.trim();
                         const totalDays = Number(b.training_days) || 15;
@@ -272,7 +284,8 @@ window.renderScheduleModule = function(tableWrap) {
                                 instructor_name: b.instructor_name || "N/A",
                                 booking_id: b.id,
                                 mobile_no: b.mobile_no || '',
-                                ad_hoc: false
+                                ad_hoc: false,
+                                completed: !!b.completed
                             };
                         });
                     });
@@ -295,6 +308,30 @@ window.renderScheduleModule = function(tableWrap) {
                                 ad_hoc_present: Number(s.present)
                             };
                         }
+                    });
+
+                    // Inject historical attendance entries for bookings whose slot time changed
+                    allBranchBookings.forEach(b => {
+                        const car = (b.car_name || '').trim();
+                        if (!car) return;
+                        const currentSlots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
+                            .filter(Boolean).map(s => s.substring(0, 5));
+                        const dayMap = attendanceMap[b.id]?.[dateStr] || {};
+                        Object.keys(dayMap).forEach(time => {
+                            if (!time || currentSlots.includes(time)) return;
+                            if (!bookedSlots[car]) bookedSlots[car] = {};
+                            if (bookedSlots[car][time]) return;
+                            const totalDays = Number(b.training_days) || 15;
+                            bookedSlots[car][time] = {
+                                customer: `${b.customer_name || ''} (${b.present_days}/${totalDays})`,
+                                rowspan: 1,
+                                instructor_name: b.instructor_name || 'N/A',
+                                booking_id: b.id,
+                                mobile_no: b.mobile_no || '',
+                                ad_hoc: false,
+                                historical: true
+                            };
+                        });
                     });
 
                     // Slot stats
@@ -346,6 +383,8 @@ window.renderScheduleModule = function(tableWrap) {
                                                 slotClass += " slot-absent";
                                             }
                                             if (slot.ad_hoc) slotClass += " slot-adhoc";
+                                            if (slot.historical) slotClass += " slot-historical";
+                                            if (slot.completed) slotClass += " slot-completed";
 
                                             return `
                                                 <td class="${slotClass}" rowspan="${slot.rowspan}"
@@ -358,8 +397,10 @@ window.renderScheduleModule = function(tableWrap) {
                                                         <span class="slot-name">${slot.customer}</span>
                                                         <span class="slot-instructor">${slot.instructor_name && slot.instructor_name !== 'N/A' ? slot.instructor_name : ''}</span>
                                                         <div class="slot-actions">
+                                                            ${!slot.completed ? `
                                                             <button class="att-btn att-present" title="Mark Present" data-action="present" ${isPresent ? 'disabled' : ''}>✓</button>
                                                             <button class="att-btn att-absent" title="Mark Absent" data-action="absent" ${!isPresent ? 'disabled' : ''}>✗</button>
+                                                            ` : ''}
                                                             <span class="info-tooltip">
                                                                 ℹ
                                                                 <span class="tooltip-text">${slot.instructor_name}</span>
@@ -538,7 +579,8 @@ function printSchedule(branch, date) {
                 th { background: #f3f3f3; font-weight: bold; }
                 .slot-present { background: #dcfce7 !important; }
                 .slot-absent  { background: #fee2e2 !important; }
-                .slot-adhoc   { border: 2px dashed #38bdf8 !important; }
+                .slot-adhoc      { border: 2px dashed #38bdf8 !important; }
+                .slot-historical { border: 2px dashed #f59e0b !important; }
                 /* Hide interactive elements */
                 .att-btn, .add-slot-btn, .adhoc-badge,
                 .slot-actions, .info-tooltip, .phone-icon { display: none !important; }

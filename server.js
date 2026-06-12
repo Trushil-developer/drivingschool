@@ -754,7 +754,9 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
             );
 
             const [presentSumRows] = await conn.query(
-                `SELECT COALESCE(SUM(present),0) AS total_present FROM attendance WHERE booking_id = ?`,
+                `SELECT COUNT(DISTINCT date) AS total_present
+                 FROM attendance
+                 WHERE booking_id = ? AND present = 1`,
                 [booking_id]
             );
             const totalPresent = Math.max(0, Number(presentSumRows[0].total_present));
@@ -843,7 +845,7 @@ app.post('/api/schedule-slots', requireAdmin, async (req, res, next) => {
 
     // Recalculate present_days (new slot already has present=1, included in adhocSum)
     const [[attSum]] = await conn.query(
-      `SELECT COALESCE(SUM(present), 0) AS total FROM attendance WHERE booking_id = ?`, [booking_id]
+      `SELECT COUNT(DISTINCT date) AS total FROM attendance WHERE booking_id = ? AND present = 1`, [booking_id]
     );
     const [[adhocSum]] = await conn.query(
       `SELECT COUNT(*) AS total FROM schedule_slots WHERE booking_id = ? AND present = 1`, [booking_id]
@@ -879,7 +881,7 @@ app.delete('/api/schedule-slots/:id', requireAdmin, async (req, res, next) => {
 
     // Recalculate present_days after removing this ad-hoc slot
     const [[attSum]] = await conn.query(
-      `SELECT COALESCE(SUM(present), 0) AS total FROM attendance WHERE booking_id = ?`, [slot.booking_id]
+      `SELECT COUNT(DISTINCT date) AS total FROM attendance WHERE booking_id = ? AND present = 1`, [slot.booking_id]
     );
     const [[adhocSum]] = await conn.query(
       `SELECT COUNT(*) AS total FROM schedule_slots WHERE booking_id = ? AND present = 1 AND id != ?`,
@@ -913,7 +915,7 @@ app.patch('/api/schedule-slots/:id/present', requireAdmin, async (req, res, next
 
     // Recalculate present_days = regular attendance + ad-hoc present slots
     const [[attSum]] = await conn.query(
-      `SELECT COALESCE(SUM(present), 0) AS total FROM attendance WHERE booking_id = ?`,
+      `SELECT COUNT(DISTINCT date) AS total FROM attendance WHERE booking_id = ? AND present = 1`,
       [slot.booking_id]
     );
     const [[adhocSum]] = await conn.query(

@@ -447,6 +447,22 @@
     border: 2px dashed #38bdf8 !important;
 }
 
+#scheduleTabWrapper .slot-historical {
+    border: 2px dashed #f59e0b !important;
+    opacity: 0.85;
+}
+
+#scheduleTabWrapper .slot-completed {
+    opacity: 0.6;
+}
+
+#scheduleTabWrapper .slot-completed .slot-name::after {
+    content: " ✓";
+    font-size: 10px;
+    color: #16a34a;
+    font-weight: 600;
+}
+
 /* ==============================
    EMPTY SLOT ADD BUTTON
 ================================ */
