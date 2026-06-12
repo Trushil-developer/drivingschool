@@ -463,6 +463,24 @@
     font-weight: 600;
 }
 
+#scheduleTabWrapper .att-replace {
+    background: #f0f9ff;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    font-size: 13px;
+}
+#scheduleTabWrapper .att-replace:hover {
+    background: #e0f2fe;
+}
+
+#scheduleTabWrapper .slot-replaced-label {
+    display: block;
+    font-size: 10px;
+    color: #9ca3af;
+    margin-top: 2px;
+    font-style: italic;
+}
+
 /* ==============================
    EMPTY SLOT ADD BUTTON
 ================================ */

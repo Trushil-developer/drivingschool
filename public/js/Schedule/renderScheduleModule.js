@@ -49,6 +49,32 @@ window.renderScheduleModule = function(tableWrap) {
                         </div>
                     </div>
                 </div>
+                <!-- Replace Slot Modal -->
+                <div id="replaceSlotOverlay" class="sched-modal-overlay" style="display:none">
+                    <div class="sched-modal">
+                        <h3 class="sched-modal-title">Replace Slot for Today</h3>
+                        <div class="sched-modal-info">
+                            <span>Replacing: <strong id="replaceSlotOriginal"></strong></span>
+                            <span>Time: <strong id="replaceSlotTime"></strong></span>
+                        </div>
+                        <div class="sched-modal-field">
+                            <label>Replacement Student</label>
+                            <select id="replaceSlotStudent">
+                                <option value="">— Select student —</option>
+                            </select>
+                        </div>
+                        <div class="sched-modal-field">
+                            <label>Instructor</label>
+                            <select id="replaceSlotInstructor">
+                                <option value="">— Select instructor —</option>
+                            </select>
+                        </div>
+                        <div class="sched-modal-actions">
+                            <button id="replaceSlotConfirm" class="sched-modal-btn primary">Replace</button>
+                            <button id="replaceSlotCancel" class="sched-modal-btn">Cancel</button>
+                        </div>
+                    </div>
+                </div>
             `;
 
             const branchTabs = tableWrap.querySelectorAll(".branch-tab");
@@ -168,6 +194,97 @@ window.renderScheduleModule = function(tableWrap) {
             function closeAddSlotModal() {
                 document.getElementById('addSlotOverlay').style.display = 'none';
                 _addSlotPending = null;
+            }
+
+            // ── Replace Slot Modal ──────────────────────────────────────
+            let _replaceSlotPending = null;
+
+            document.getElementById('replaceSlotCancel').addEventListener('click', closeReplaceSlotModal);
+            document.getElementById('replaceSlotOverlay').addEventListener('click', e => {
+                if (e.target === document.getElementById('replaceSlotOverlay')) closeReplaceSlotModal();
+            });
+            document.getElementById('replaceSlotConfirm').addEventListener('click', async () => {
+                if (!_replaceSlotPending) return;
+                const studentSel = document.getElementById('replaceSlotStudent');
+                const replacement_booking_id = studentSel.value;
+                if (!replacement_booking_id) return alert('Please select a replacement student');
+
+                const instructor = document.getElementById('replaceSlotInstructor').value.trim();
+                const { date, time, car_name, original_booking_id, original_time, refreshFn } = _replaceSlotPending;
+
+                const confirmBtn = document.getElementById('replaceSlotConfirm');
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = 'Replacing…';
+
+                try {
+                    // Mark original as absent for this date+time
+                    await window.api(`/api/attendance/${original_booking_id}`, {
+                        method: 'POST',
+                        body: { date, time: original_time, value: 0 }
+                    });
+                    // Add ad-hoc slot for replacement student
+                    const res = await window.api('/api/schedule-slots', {
+                        method: 'POST',
+                        body: { booking_id: Number(replacement_booking_id), date, time, car_name, instructor_name: instructor }
+                    });
+                    if (!res.success) throw new Error(res.error || 'Failed to add replacement slot');
+                    closeReplaceSlotModal();
+                    refreshFn();
+                } catch (err) {
+                    alert(err.message || 'Failed to replace slot');
+                } finally {
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = 'Replace';
+                }
+            });
+
+            async function openReplaceSlotModal({ date, time, car_name, branch, original_booking_id, original_customer, original_time, branchBookings, refreshFn }) {
+                _replaceSlotPending = { date, time, car_name, original_booking_id, original_time, refreshFn };
+                document.getElementById('replaceSlotOriginal').textContent = original_customer;
+                document.getElementById('replaceSlotTime').textContent = to12HourFormat(time);
+
+                const instrSel = document.getElementById('replaceSlotInstructor');
+                instrSel.innerHTML = '<option value="">— Loading… —</option>';
+                instrSel.disabled = true;
+
+                const studentSel = document.getElementById('replaceSlotStudent');
+                studentSel.innerHTML = '<option value="">— Select student —</option>';
+                branchBookings
+                    .filter(b => b.id !== original_booking_id)
+                    .forEach(b => {
+                        const opt = document.createElement('option');
+                        opt.value = b.id;
+                        opt.textContent = `${b.customer_name} (${b.present_days}/${b.training_days || 15})`;
+                        opt.dataset.instructor = b.instructor_name || '';
+                        studentSel.appendChild(opt);
+                    });
+
+                document.getElementById('replaceSlotOverlay').style.display = 'flex';
+
+                try {
+                    const res = await window.api(`/api/instructors?branch=${encodeURIComponent(branch)}`);
+                    const instructors = (res.success ? res.instructors : []).filter(i => i.is_active);
+                    instrSel.innerHTML = '<option value="">— Select instructor —</option>';
+                    instructors.forEach(i => {
+                        const opt = document.createElement('option');
+                        opt.value = i.instructor_name;
+                        opt.textContent = i.instructor_name;
+                        instrSel.appendChild(opt);
+                    });
+                } catch {
+                    instrSel.innerHTML = '<option value="">— Failed to load —</option>';
+                }
+                instrSel.disabled = false;
+
+                studentSel.onchange = () => {
+                    const chosen = studentSel.selectedOptions[0];
+                    if (chosen?.dataset.instructor) instrSel.value = chosen.dataset.instructor;
+                };
+            }
+
+            function closeReplaceSlotModal() {
+                document.getElementById('replaceSlotOverlay').style.display = 'none';
+                _replaceSlotPending = null;
             }
 
             // ── Day navigation ──────────────────────────────────────────
@@ -295,18 +412,28 @@ window.renderScheduleModule = function(tableWrap) {
                         const car = (s.car_name || '').trim();
                         const key = s.time.substring(0,5); // HH:MM
                         if (!bookedSlots[car]) bookedSlots[car] = {};
-                        if (!bookedSlots[car][key]) {
-                            const totalDays = Number(s.training_days) || 15;
-                            bookedSlots[car][key] = {
-                                customer: `${s.customer_name} (${s.present_days}/${totalDays})`,
-                                rowspan: 1,
-                                instructor_name: s.instructor_name || 'N/A',
-                                booking_id: s.booking_id,
-                                mobile_no: s.mobile_no || '',
-                                ad_hoc: true,
-                                slot_id: s.id,
-                                ad_hoc_present: Number(s.present)
-                            };
+                        const totalDays = Number(s.training_days) || 15;
+                        const adHocEntry = {
+                            customer: `${s.customer_name} (${s.present_days}/${totalDays})`,
+                            rowspan: 1,
+                            instructor_name: s.instructor_name || 'N/A',
+                            booking_id: s.booking_id,
+                            mobile_no: s.mobile_no || '',
+                            ad_hoc: true,
+                            slot_id: s.id,
+                            ad_hoc_present: Number(s.present)
+                        };
+                        const existing = bookedSlots[car][key];
+                        if (existing && !existing.ad_hoc) {
+                            // Regular slot already here — override only if original is absent (replacement)
+                            const existingDayMap = attendanceMap[existing.booking_id]?.[dateStr];
+                            const existingPv = existingDayMap?.[key] ?? existingDayMap?.[''] ?? null;
+                            if (existingPv === 0) {
+                                adHocEntry.replacedCustomer = existing.customer.split(' (')[0];
+                                bookedSlots[car][key] = adHocEntry;
+                            }
+                        } else if (!existing) {
+                            bookedSlots[car][key] = adHocEntry;
                         }
                     });
 
@@ -391,6 +518,7 @@ window.renderScheduleModule = function(tableWrap) {
                                                     data-booking-id="${slot.booking_id}"
                                                     data-date="${dateStr}"
                                                     data-time="${t}"
+                                                    data-car="${carName}"
                                                     data-present="${slotPv}"
                                                     ${slot.ad_hoc ? `data-slot-id="${slot.slot_id}" data-adhoc="1"` : ''}>
                                                     <div class="slot-content">
@@ -401,6 +529,7 @@ window.renderScheduleModule = function(tableWrap) {
                                                             <button class="att-btn att-present" title="Mark Present" data-action="present" ${isPresent ? 'disabled' : ''}>✓</button>
                                                             <button class="att-btn att-absent" title="Mark Absent" data-action="absent" ${!isPresent ? 'disabled' : ''}>✗</button>
                                                             ` : ''}
+                                                            ${!slot.ad_hoc && !slot.historical && !slot.completed ? `<button class="att-btn att-replace" title="Replace for today" data-action="replace">⇄</button>` : ''}
                                                             <span class="info-tooltip">
                                                                 ℹ
                                                                 <span class="tooltip-text">${slot.instructor_name}</span>
@@ -408,6 +537,7 @@ window.renderScheduleModule = function(tableWrap) {
                                                             ${slot.mobile_no ? `<a class="phone-icon" href="tel:${slot.mobile_no}" title="Call ${slot.mobile_no}" onclick="event.stopPropagation()">📞</a>` : ''}
                                                             ${slot.ad_hoc ? `<button class="att-btn att-remove" title="Remove ad-hoc slot" data-action="remove">✕</button>` : ''}
                                                         </div>
+                                                        ${slot.replacedCustomer ? `<span class="slot-replaced-label">↩ ${slot.replacedCustomer}</span>` : ''}
                                                     </div>
                                                 </td>`;
                                         }
@@ -457,6 +587,22 @@ window.renderScheduleModule = function(tableWrap) {
                         const bookingId = td.dataset.bookingId;
                         const date      = td.dataset.date;
                         const action    = attBtn.dataset.action;
+
+                        if (action === 'replace') {
+                            const customerName = td.querySelector('.slot-name')?.textContent?.split(' (')[0] || 'Student';
+                            openReplaceSlotModal({
+                                date:                td.dataset.date,
+                                time:                td.dataset.time,
+                                car_name:            td.dataset.car,
+                                branch,
+                                original_booking_id: Number(td.dataset.bookingId),
+                                original_customer:   customerName,
+                                original_time:       td.dataset.time,
+                                branchBookings:      _latestBranchBookings,
+                                refreshFn:           renderDay
+                            });
+                            return;
+                        }
 
                         if (action === 'remove') {
                             const slotId = td.dataset.slotId;
@@ -516,7 +662,9 @@ window.renderScheduleModule = function(tableWrap) {
                             branchBookings: _latestBranchBookings,
                             refreshFn: renderDay
                         });
+                        return;
                     }
+
                 });
             }
 
