@@ -256,22 +256,23 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     // 4b. Completed bookings present on this date — same as schedule's completedOnDate
     const completedParams = branch ? [targetDateStr, branch.toLowerCase()] : [targetDateStr];
     const [completedRows] = await dbPool.query(
-      `SELECT b.branch, b.car_name, b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4,
-              a.time AS attended_time
+      `SELECT DISTINCT b.branch, b.car_name, b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4
        FROM attendance a
        JOIN bookings b ON a.booking_id = b.id
        WHERE DATE(a.date) = ? AND a.present >= 1 AND b.attendance_status = 'Completed'
          AND b.car_name IS NOT NULL AND b.car_name != ''
+         AND b.allotted_time IS NOT NULL AND b.allotted_time != ''
          ${branch ? 'AND TRIM(LOWER(b.branch)) = ?' : ''}`,
       completedParams
     );
     completedRows.forEach(b => {
       const branchName = (b.branch || '').trim();
       const car = (b.car_name || '').trim();
-      const key = b.attended_time.substring(0, 5);
       if (!bookedByBranch[branchName]) bookedByBranch[branchName] = {};
       if (!bookedByBranch[branchName][car]) bookedByBranch[branchName][car] = {};
-      bookedByBranch[branchName][car][key] = true;
+      [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
+        .filter(Boolean)
+        .forEach(t => { bookedByBranch[branchName][car][t.substring(0, 5)] = true; });
     });
 
     // 4c. Ad-hoc slots for this date — same as schedule merges them
@@ -319,7 +320,7 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
         Object.keys(carSlots).forEach(time => {
           const [h, m] = time.split(':').map(Number);
           const mins = h * 60 + m;
-          if (mins >= 6 * 60 && mins <= 22 * 60) active++;
+          if (mins >= 6 * 60 && mins <= 22 * 60 && m % 30 === 0) active++;
         });
       });
       const present = presentByBranch[branchName] || 0;
