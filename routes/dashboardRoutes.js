@@ -253,7 +253,28 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
         .forEach(t => { bookedByBranch[branchName][car][t.substring(0, 5)] = true; });
     });
 
-    // 4b. Ad-hoc slots for this date — same as schedule merges them
+    // 4b. Completed bookings present on this date — same as schedule's completedOnDate
+    const completedParams = branch ? [targetDateStr, branch.toLowerCase()] : [targetDateStr];
+    const [completedRows] = await dbPool.query(
+      `SELECT b.branch, b.car_name, b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4,
+              a.time AS attended_time
+       FROM attendance a
+       JOIN bookings b ON a.booking_id = b.id
+       WHERE DATE(a.date) = ? AND a.present >= 1 AND b.attendance_status = 'Completed'
+         AND b.car_name IS NOT NULL AND b.car_name != ''
+         ${branch ? 'AND TRIM(LOWER(b.branch)) = ?' : ''}`,
+      completedParams
+    );
+    completedRows.forEach(b => {
+      const branchName = (b.branch || '').trim();
+      const car = (b.car_name || '').trim();
+      const key = b.attended_time.substring(0, 5);
+      if (!bookedByBranch[branchName]) bookedByBranch[branchName] = {};
+      if (!bookedByBranch[branchName][car]) bookedByBranch[branchName][car] = {};
+      bookedByBranch[branchName][car][key] = true;
+    });
+
+    // 4c. Ad-hoc slots for this date — same as schedule merges them
     const adHocParams = [targetDateStr];
     let adHocWhere = 'DATE(ss.date) = ?';
     if (branch) { adHocWhere += ' AND TRIM(LOWER(ss.car_name)) IN (SELECT TRIM(LOWER(car_name)) FROM cars WHERE TRIM(LOWER(branch)) = ?)'; adHocParams.push(branch.toLowerCase()); }
