@@ -1,5 +1,5 @@
 import express from 'express';
-import { dbPool, requireAdmin } from '../server.js'; // adjust path if needed
+import { dbPool, requireAdmin } from '../server.js';
 
 const router = express.Router();
 
@@ -8,7 +8,7 @@ const router = express.Router();
  */
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await dbPool.query('SELECT * FROM driving_packages ORDER BY id ASC');
+    const [rows] = await dbPool.query('SELECT * FROM driving_packages WHERE school_id = 1 ORDER BY id ASC');
     res.json({ success: true, packages: rows });
   } catch (err) {
     console.error('Fetch driving packages error:', err);
@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const [rows] = await dbPool.query('SELECT * FROM driving_packages WHERE id=?', [req.params.id]);
+    const [rows] = await dbPool.query('SELECT * FROM driving_packages WHERE id=? AND school_id = 1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ success: false, error: 'Package not found' });
     res.json({ success: true, package: rows[0] });
   } catch (err) {
@@ -39,8 +39,8 @@ router.post('/', requireAdmin, async (req, res) => {
 
     const [result] = await dbPool.query(
       `INSERT INTO driving_packages
-      (badge, title, description, practical_sessions, session_duration, daily_distance, extra_features)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      (badge, title, description, practical_sessions, session_duration, daily_distance, extra_features, school_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         badge || null,
         title,
@@ -48,7 +48,8 @@ router.post('/', requireAdmin, async (req, res) => {
         practical_sessions || null,
         session_duration || null,
         daily_distance || null,
-        extra_features ? JSON.stringify(extra_features) : null
+        extra_features ? JSON.stringify(extra_features) : null,
+        req.schoolId
       ]
     );
 
@@ -67,7 +68,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
     const { badge, title, description, practical_sessions, session_duration, daily_distance, extra_features } = req.body;
 
     await dbPool.query(
-      `UPDATE driving_packages SET badge=?, title=?, description=?, practical_sessions=?, session_duration=?, daily_distance=?, extra_features=? WHERE id=?`,
+      `UPDATE driving_packages SET badge=?, title=?, description=?, practical_sessions=?, session_duration=?, daily_distance=?, extra_features=? WHERE id=? AND school_id=?`,
       [
         badge || null,
         title,
@@ -76,7 +77,8 @@ router.put('/:id', requireAdmin, async (req, res) => {
         session_duration || null,
         daily_distance || null,
         extra_features ? JSON.stringify(extra_features) : null,
-        req.params.id
+        req.params.id,
+        req.schoolId
       ]
     );
 
@@ -92,7 +94,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
  */
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
-    await dbPool.query('DELETE FROM driving_packages WHERE id=?', [req.params.id]);
+    await dbPool.query('DELETE FROM driving_packages WHERE id=? AND school_id=?', [req.params.id, req.schoolId]);
     res.json({ success: true, message: 'Package deleted successfully' });
   } catch (err) {
     console.error('Delete driving package error:', err);

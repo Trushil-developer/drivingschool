@@ -1,6 +1,6 @@
 import express from 'express';
 import { dbPool } from '../server.js';
-import { requireAdmin } from '../server.js'; 
+import { requireAdmin } from '../server.js';
 
 const router = express.Router();
 
@@ -10,8 +10,9 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const [rows] = await dbPool.query(`
-      SELECT id, days, is_active 
+      SELECT id, days, is_active
       FROM training_days
+      WHERE school_id = 1
       ORDER BY days ASC
     `);
     res.json({ success: true, training_days: rows });
@@ -31,8 +32,8 @@ router.post('/', requireAdmin, async (req, res) => {
 
   try {
     const [result] = await dbPool.query(
-      `INSERT INTO training_days (days, is_active) VALUES (?, 1)`,
-      [days]
+      `INSERT INTO training_days (days, is_active, school_id) VALUES (?, 1, ?)`,
+      [days, req.schoolId]
     );
     res.json({ success: true, id: result.insertId });
   } catch (err) {
@@ -52,8 +53,8 @@ router.put('/:id', requireAdmin, async (req, res) => {
 
   try {
     await dbPool.query(
-      `UPDATE training_days SET days=? WHERE id=?`,
-      [days, id]
+      `UPDATE training_days SET days=? WHERE id=? AND school_id=?`,
+      [days, id, req.schoolId]
     );
     res.json({ success: true });
   } catch (err) {
@@ -71,8 +72,8 @@ router.put('/:id/toggle', requireAdmin, async (req, res) => {
 
   try {
     await dbPool.query(
-      `UPDATE training_days SET is_active=? WHERE id=?`,
-      [is_active ? 1 : 0, id]
+      `UPDATE training_days SET is_active=? WHERE id=? AND school_id=?`,
+      [is_active ? 1 : 0, id, req.schoolId]
     );
     res.json({ success: true });
   } catch (err) {
@@ -88,8 +89,8 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     const [result] = await dbPool.query(
-      `DELETE FROM training_days WHERE id = ?`,
-      [id]
+      `DELETE FROM training_days WHERE id = ? AND school_id=?`,
+      [id, req.schoolId]
     );
 
     if (result.affectedRows === 0) {

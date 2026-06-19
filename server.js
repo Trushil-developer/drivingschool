@@ -204,6 +204,7 @@ app.post('/api/login', loginLimiter, async (req, res, next) => {
 
     req.session.adminLoggedIn = true;
     req.session.adminId = admin.id;
+    req.session.school_id = admin.school_id || 1;
     res.json({ success: true });
   } catch (err) {
     console.error('LOGIN ERROR:', err);
@@ -282,8 +283,9 @@ INSERT INTO bookings (
   hold_from, resume_from, extended_days,
   duration_minutes, certificate_url,
   ac_facility, pickup_drop, has_licence,
-  apply_licence, licence_types, licence_fee
-) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  apply_licence, licence_types, licence_fee,
+  school_id
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 `;
 
     const values = [
@@ -326,7 +328,8 @@ INSERT INTO bookings (
       data.has_licence === "Yes" ? "Yes" : "No",
       data.apply_licence === "Yes" ? "Yes" : "No",
       data.licence_types || null,
-      Number(data.licence_fee) || 0
+      Number(data.licence_fee) || 0,
+      req.schoolId
     ];
 
     const [result] = await dbPool.query(sql, values);
@@ -369,8 +372,8 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
     const branch = (req.query.branch || '').trim();
     const status = (req.query.status || '').trim();
 
-    const conditions = [];
-    const params = [];
+    const conditions = ['school_id = ?'];
+    const params = [req.schoolId];
 
     if (search) {
       conditions.push('(customer_name LIKE ? OR mobile_no LIKE ? OR whatsapp_no LIKE ? OR branch LIKE ? OR car_name LIKE ? OR instructor_name LIKE ?)');
@@ -380,7 +383,7 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
     if (branch) { conditions.push('branch = ?'); params.push(branch); }
     if (status) { conditions.push('attendance_status = ?'); params.push(status); }
 
-    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const where = 'WHERE ' + conditions.join(' AND ');
     const selectCols = `
       id, branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
       sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
@@ -408,7 +411,7 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
 
 app.get('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   try {
-    const [rows] = await dbPool.query(`SELECT * FROM bookings WHERE id = ?`, [req.params.id]);
+    const [rows] = await dbPool.query(`SELECT * FROM bookings WHERE id = ? AND school_id = ?`, [req.params.id, req.schoolId]);
     if (!rows.length) return res.json({ success: false, error: 'Booking not found' });
     res.json({ success: true, booking: rows[0] });
   } catch (err) {
@@ -425,8 +428,8 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
 
   try {
     const [rows] = await dbPool.query(
-      `SELECT * FROM bookings WHERE id = ? LIMIT 1`,
-      [id]
+      `SELECT * FROM bookings WHERE id = ? AND school_id = ? LIMIT 1`,
+      [id, req.schoolId]
     );
 
     if (!rows.length) {
@@ -494,7 +497,7 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
         apply_licence=?,
         licence_types=?,
         licence_fee=?
-      WHERE id=?
+      WHERE id=? AND school_id=?
     `;
 
     const values = [
@@ -539,7 +542,8 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
         : current.apply_licence,
       data.licence_types ?? current.licence_types,
       Number(data.licence_fee ?? current.licence_fee),
-      id
+      id,
+      req.schoolId
     ];
 
     await dbPool.query(sql, values);
@@ -556,7 +560,7 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
 
 app.delete('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   try {
-    await dbPool.query('DELETE FROM bookings WHERE id=?', [req.params.id]);
+    await dbPool.query('DELETE FROM bookings WHERE id=? AND school_id=?', [req.params.id, req.schoolId]);
     res.json({ success: true });
   } catch (err) {
     console.error('BOOKING DELETE ERROR:', err);
@@ -701,10 +705,12 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
 app.get('/api/attendance-all', requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
-      SELECT booking_id, DATE_FORMAT(date, '%Y-%m-%d') AS date, time, present
-      FROM attendance
-      ORDER BY booking_id ASC, date ASC
-    `);
+      SELECT a.booking_id, DATE_FORMAT(a.date, '%Y-%m-%d') AS date, a.time, a.present
+      FROM attendance a
+      JOIN bookings b ON a.booking_id = b.id
+      WHERE b.school_id = ?
+      ORDER BY a.booking_id ASC, a.date ASC
+    `, [req.schoolId]);
 
     res.json({ success: true, records: rows });
   } catch (err) {
@@ -716,6 +722,9 @@ app.get('/api/attendance-all', requireAdmin, async (req, res, next) => {
 app.get('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
   const booking_id = req.params.booking_id;
   try {
+    const [[booking]] = await dbPool.query(`SELECT id FROM bookings WHERE id = ? AND school_id = ?`, [booking_id, req.schoolId]);
+    if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
+
     const [rows] = await dbPool.query(
       `SELECT id, DATE_FORMAT(date, '%Y-%m-%d') AS date, time, present,
               DATE_FORMAT(marked_at, '%Y-%m-%d %H:%i') AS marked_at
@@ -736,6 +745,9 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
     if (!date || typeof value !== 'number' || isNaN(value)) {
         return res.status(400).json({ success: false, error: 'Date and value required' });
     }
+
+    const [[bk]] = await dbPool.query(`SELECT id FROM bookings WHERE id = ? AND school_id = ?`, [booking_id, req.schoolId]);
+    if (!bk) return res.status(404).json({ success: false, error: 'Booking not found' });
 
     const mysqlDate = date.split("T")[0];
     const slotTime = (time || '').substring(0, 5);
@@ -817,6 +829,9 @@ app.delete('/api/attendance/:booking_id/:attendance_id', requireAdmin, async (re
         conn = await dbPool.getConnection();
         await conn.beginTransaction();
 
+        const [bkRows] = await conn.query(`SELECT id FROM bookings WHERE id = ? AND school_id = ?`, [booking_id, req.schoolId]);
+        if (!bkRows.length) { await conn.rollback(); return res.status(404).json({ success: false, error: 'Booking not found' }); }
+
         const [rows] = await conn.query(
             `SELECT id FROM attendance WHERE id = ? AND booking_id = ?`,
             [attendance_id, booking_id]
@@ -863,9 +878,9 @@ app.get('/api/schedule-slots', requireAdmin, async (req, res, next) => {
              b.customer_name, b.present_days, b.training_days, b.mobile_no
       FROM schedule_slots ss
       JOIN bookings b ON ss.booking_id = b.id
-      WHERE ss.date = ? AND b.branch = ?
+      WHERE ss.date = ? AND b.branch = ? AND b.school_id = ?
       ORDER BY ss.time ASC
-    `, [date, branch]);
+    `, [date, branch, req.schoolId]);
     res.json({ success: true, slots: rows });
   } catch (err) {
     console.error('GET SCHEDULE SLOTS ERROR:', err);
@@ -882,9 +897,12 @@ app.post('/api/schedule-slots', requireAdmin, async (req, res, next) => {
   try {
     await conn.beginTransaction();
 
+    const [[bk]] = await conn.query(`SELECT id FROM bookings WHERE id = ? AND school_id = ?`, [booking_id, req.schoolId]);
+    if (!bk) { await conn.rollback(); conn.release(); return res.status(404).json({ success: false, error: 'Booking not found' }); }
+
     const [result] = await conn.query(
-      `INSERT INTO schedule_slots (booking_id, date, time, car_name, instructor_name, present) VALUES (?, ?, ?, ?, ?, 0)`,
-      [booking_id, date, time, car_name || null, instructor_name || null]
+      `INSERT INTO schedule_slots (booking_id, date, time, car_name, instructor_name, present, school_id) VALUES (?, ?, ?, ?, ?, 0, ?)`,
+      [booking_id, date, time, car_name || null, instructor_name || null, req.schoolId]
     );
 
     // Recalculate present_days (new slot has present=0, not counted until marked)
@@ -915,7 +933,7 @@ app.delete('/api/schedule-slots/:id', requireAdmin, async (req, res, next) => {
   try {
     await conn.beginTransaction();
 
-    const [[slot]] = await conn.query(`SELECT * FROM schedule_slots WHERE id = ?`, [req.params.id]);
+    const [[slot]] = await conn.query(`SELECT ss.* FROM schedule_slots ss JOIN bookings b ON ss.booking_id = b.id WHERE ss.id = ? AND b.school_id = ?`, [req.params.id, req.schoolId]);
     if (!slot) {
       await conn.rollback();
       return res.json({ success: false, error: 'Slot not found' });
@@ -952,7 +970,7 @@ app.patch('/api/schedule-slots/:id/present', requireAdmin, async (req, res, next
   const conn = await dbPool.getConnection();
   try {
     await conn.beginTransaction();
-    const [[slot]] = await conn.query(`SELECT * FROM schedule_slots WHERE id = ?`, [req.params.id]);
+    const [[slot]] = await conn.query(`SELECT ss.* FROM schedule_slots ss JOIN bookings b ON ss.booking_id = b.id WHERE ss.id = ? AND b.school_id = ?`, [req.params.id, req.schoolId]);
     if (!slot) { await conn.rollback(); return res.json({ success: false, error: 'Slot not found' }); }
 
     await conn.query(`UPDATE schedule_slots SET present = ? WHERE id = ?`, [present ? 1 : 0, req.params.id]);
@@ -985,7 +1003,7 @@ app.get('/api/branches', async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
       SELECT id, branch_name, address, city, state, postal_code, mobile_no, email, created_at
-      FROM branches ORDER BY id DESC
+      FROM branches WHERE school_id = 1 ORDER BY id DESC
     `);
     res.json({ success: true, branches: rows });
   } catch (err) {
@@ -1000,11 +1018,11 @@ app.post('/api/branches', requireAdmin, async (req, res, next) => {
 
   try {
     const sql = `
-      INSERT INTO branches (branch_name, address, city, state, postal_code, mobile_no, email)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO branches (branch_name, address, city, state, postal_code, mobile_no, email, school_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
     const values = [data.branch_name, data.address || '', data.city || '', data.state || '',
-      data.postal_code || '', data.mobile_no || '', data.email || ''];
+      data.postal_code || '', data.mobile_no || '', data.email || '', req.schoolId];
     const [result] = await dbPool.query(sql, values);
     res.json({ success: true, branch_id: result.insertId });
   } catch (err) {
@@ -1021,10 +1039,10 @@ app.put('/api/branches/:id', requireAdmin, async (req, res, next) => {
   try {
     const sql = `
       UPDATE branches SET branch_name=?, address=?, city=?, state=?, postal_code=?, mobile_no=?, email=?
-      WHERE id=?
+      WHERE id=? AND school_id=?
     `;
     const values = [data.branch_name, data.address || '', data.city || '', data.state || '',
-      data.postal_code || '', data.mobile_no || '', data.email || '', id];
+      data.postal_code || '', data.mobile_no || '', data.email || '', id, req.schoolId];
     await dbPool.query(sql, values);
     res.json({ success: true });
   } catch (err) {
@@ -1036,7 +1054,7 @@ app.put('/api/branches/:id', requireAdmin, async (req, res, next) => {
 app.delete('/api/branches/:id', requireAdmin, async (req, res, next) => {
   const { id } = req.params;
   try {
-    await dbPool.query('DELETE FROM branches WHERE id=?', [id]);
+    await dbPool.query('DELETE FROM branches WHERE id=? AND school_id=?', [id, req.schoolId]);
     res.json({ success: true });
   } catch (err) {
     console.error('BRANCH DELETE ERROR:', err);
@@ -1174,7 +1192,10 @@ app.listen(PORT, '0.0.0.0', () => {
 
 
 export function requireAdmin(req, res, next) {
-  if (req.session && req.session.adminLoggedIn) return next();
+  if (req.session && req.session.adminLoggedIn) {
+    req.schoolId = req.session.school_id || 1;
+    return next();
+  }
   return res.status(401).json({ success: false, error: 'Unauthorized access' });
 }
 

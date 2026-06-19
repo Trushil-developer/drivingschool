@@ -70,7 +70,8 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- =====================================
 
 CREATE TABLE IF NOT EXISTS cars (
-    id INT AUTO_INCREMENT PRIMARY KEY
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id INT NOT NULL DEFAULT 1
 );
 
 -- =====================================
@@ -334,6 +335,12 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cars' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE cars ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='cars' AND index_name='idx_cars_school');
+SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_cars_school ON cars (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- INSTRUCTORS TABLE
 -- =====================================
@@ -348,7 +355,8 @@ CREATE TABLE IF NOT EXISTS instructors (
     drivers_license VARCHAR(30),
     adhar_no      VARCHAR(20),
     address       TEXT,
-    is_active     TINYINT(1) DEFAULT 1
+    is_active     TINYINT(1) DEFAULT 1,
+    school_id     INT NOT NULL DEFAULT 1
 );
 
 -- Ensure role column exists (for existing databases where table was already created)
@@ -364,11 +372,15 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- Backfill employee_no for any existing rows that have none
 UPDATE instructors SET employee_no = CONCAT('EMP', LPAD(id, 3, '0')) WHERE employee_no IS NULL OR employee_no = '';
 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- BOOKINGS TABLE
 -- =====================================
 CREATE TABLE IF NOT EXISTS bookings (
-    id INT AUTO_INCREMENT PRIMARY KEY
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id INT NOT NULL DEFAULT 1
 );
 
 -- branch
@@ -782,11 +794,18 @@ SET @sql := IF(
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='bookings' AND index_name='idx_bookings_school');
+SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_bookings_school ON bookings (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- ATTENDANCE TABLE
 -- =====================================
 CREATE TABLE IF NOT EXISTS attendance (
-    id INT AUTO_INCREMENT PRIMARY KEY
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id INT NOT NULL DEFAULT 1
 );
 
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='booking_id');
@@ -832,12 +851,39 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='marked_at');
 SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER present;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='idx_attendance_school');
+SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_attendance_school ON attendance (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- SCHOOLS TABLE (multi-tenant anchor)
+-- =====================================
+CREATE TABLE IF NOT EXISTS schools (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(150) NOT NULL,
+    slug        VARCHAR(100) NOT NULL UNIQUE,
+    owner_email VARCHAR(150),
+    mobile_no   VARCHAR(20),
+    address     VARCHAR(255),
+    city        VARCHAR(100),
+    state       VARCHAR(100),
+    logo_url    VARCHAR(255),
+    is_active   TINYINT(1) NOT NULL DEFAULT 1,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO schools (id, name, slug, is_active)
+VALUES (1, 'Dwarkesh Motor Driving School', 'dwarkesh', 1)
+ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 -- =====================================
 -- ADMINS TABLE
 -- =====================================
 CREATE TABLE IF NOT EXISTS admins (
-    id INT AUTO_INCREMENT PRIMARY KEY
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id INT NOT NULL DEFAULT 1
 );
 
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='username');
@@ -849,11 +895,18 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN password VARCHAR(255
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='created_at');
 SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='role');
+SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN role ENUM("superadmin","admin") NOT NULL DEFAULT "admin";','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- BRANCHES TABLE
 -- =====================================
 CREATE TABLE IF NOT EXISTS branches (
-    id INT AUTO_INCREMENT PRIMARY KEY
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id INT NOT NULL DEFAULT 1
 );
 
 -- Add branch_name
@@ -927,23 +980,28 @@ SET @sql := IF(@col_exists=0,
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Add created_at
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='branches' 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE table_schema='drivingschool'
+                      AND table_name='branches'
                       AND column_name='created_at');
 SET @sql := IF(@col_exists=0,
                'ALTER TABLE branches ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='branches' AND index_name='idx_branches_school');
+SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_branches_school ON branches (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- TRAINING DAYS TABLE
 -- =====================================
 
 CREATE TABLE IF NOT EXISTS training_days (
-    id INT AUTO_INCREMENT PRIMARY KEY
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id INT NOT NULL DEFAULT 1
 );
 
 -- Add 'days' column
@@ -970,12 +1028,15 @@ SET @sql := IF(@col_exists=0,
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='training_days' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE training_days ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- ENQUIRIES TABLE
 -- =====================================
 CREATE TABLE IF NOT EXISTS enquiries (
-    id INT AUTO_INCREMENT PRIMARY KEY
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id INT NOT NULL DEFAULT 1
 );
 
 -- full_name
@@ -1134,12 +1195,19 @@ SET @sql := IF(@col_exists = 0,
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE enquiries ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='enquiries' AND index_name='idx_enquiries_school');
+SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_enquiries_school ON enquiries (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- COURSES TABLE
 -- =====================================
 
 CREATE TABLE IF NOT EXISTS courses (
-    id INT AUTO_INCREMENT PRIMARY KEY
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id INT NOT NULL DEFAULT 1
 );
 
 -- course_name
@@ -1181,6 +1249,9 @@ SET @sql := IF(@col_exists=0,
                'ALTER TABLE courses ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE courses ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- EMAIL OTPS TABLE
@@ -1639,7 +1710,8 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- =====================================
 
 CREATE TABLE IF NOT EXISTS cms_pages (
-    id INT AUTO_INCREMENT PRIMARY KEY
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id INT NOT NULL DEFAULT 1
 );
 
 -- slug
@@ -1754,12 +1826,26 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- school_id for cms_pages
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE cms_pages ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Migrate slug unique from global to (school_id, slug) for multi-tenancy
+-- Drop old global unique on slug (if it still exists as a standalone constraint/index)
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND index_name='slug');
+SET @sql := IF(@idx_exists>0,'ALTER TABLE cms_pages DROP INDEX slug;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Add composite unique (school_id, slug)
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND index_name='uq_cms_school_slug');
+SET @sql := IF(@idx_exists=0,'ALTER TABLE cms_pages ADD UNIQUE KEY uq_cms_school_slug (school_id, slug);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- DRIVING PACKAGES TABLE
 -- =====================================
 
 CREATE TABLE IF NOT EXISTS driving_packages (
-    id INT AUTO_INCREMENT PRIMARY KEY
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id INT NOT NULL DEFAULT 1
 );
 
 -- badge
@@ -1888,6 +1974,9 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driving_packages' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driving_packages ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- PRACTICE PROGRESS TABLE
 -- =====================================
@@ -1940,8 +2029,12 @@ CREATE TABLE IF NOT EXISTS schedule_slots (
     instructor_name VARCHAR(100),
     present TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    school_id INT NOT NULL DEFAULT 1,
     CONSTRAINT fk_schedule_slots_booking FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
 );
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- ENQUIRY STATUS COLUMN
@@ -1968,6 +2061,7 @@ CREATE TABLE IF NOT EXISTS enquiry_actions (
     action_by VARCHAR(100) NOT NULL,
     action_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    school_id INT NOT NULL DEFAULT 1,
     CONSTRAINT fk_enquiry_actions_enquiry FOREIGN KEY (enquiry_id) REFERENCES enquiries(id) ON DELETE CASCADE
 );
 
@@ -1982,3 +2076,8 @@ SET @sql := IF(@idx_exists=0,
     'CREATE INDEX idx_enquiry_actions_enquiry ON enquiry_actions (enquiry_id);',
     'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='enquiry_actions' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE enquiry_actions ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================

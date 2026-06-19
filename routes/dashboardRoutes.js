@@ -7,32 +7,26 @@ const router = express.Router();
 /**
  * DASHBOARD OVERVIEW STATS
  */
-/**
- * DASHBOARD OVERVIEW STATS
- */
 router.get("/stats", requireAdmin, async (req, res) => {
   try {
     const { from, to, month, branch, joinDate } = req.query;
 
-    let whereClause = "";
-    let params = [];
+    let whereClause = "WHERE school_id = ?";
+    let params = [req.schoolId];
 
-    // Date range or month filter
     if (from && to) {
-      whereClause = "WHERE DATE(created_at) BETWEEN ? AND ?";
-      params = [from, to];
+      whereClause += " AND DATE(created_at) BETWEEN ? AND ?";
+      params.push(from, to);
     } else if (month) {
-      whereClause = "WHERE DATE_FORMAT(created_at, '%Y-%m') = ?";
-      params = [month];
+      whereClause += " AND DATE_FORMAT(created_at, '%Y-%m') = ?";
+      params.push(month);
     }
 
-    // Branch filter
     if (branch) {
-      whereClause += whereClause ? " AND TRIM(LOWER(branch)) = ?" : " WHERE TRIM(LOWER(branch)) = ?";
+      whereClause += " AND TRIM(LOWER(branch)) = ?";
       params.push(branch.toLowerCase());
     }
 
-    // Queries
     const [
       [totalBookings],
       [active],
@@ -42,18 +36,17 @@ router.get("/stats", requireAdmin, async (req, res) => {
       [revenue]
     ] = await Promise.all([
       dbPool.query(`SELECT COUNT(*) AS total FROM bookings ${whereClause}`, params),
-      dbPool.query(`SELECT COUNT(*) AS count FROM bookings ${whereClause} ${whereClause ? "AND" : "WHERE"} attendance_status='Active'`, params),
-      dbPool.query(`SELECT COUNT(*) AS count FROM bookings ${whereClause} ${whereClause ? "AND" : "WHERE"} attendance_status='Completed'`, params),
-      dbPool.query(`SELECT COUNT(*) AS count FROM bookings ${whereClause} ${whereClause ? "AND" : "WHERE"} attendance_status='Hold'`, params),
-      dbPool.query(`SELECT COUNT(*) AS count FROM bookings ${whereClause} ${whereClause ? "AND" : "WHERE"} attendance_status='Expired'`, params),
-      dbPool.query(`SELECT COALESCE(SUM(total_fees),0) AS training, COALESCE(SUM(COALESCE(advance,0)),0) AS collected, COALESCE(SUM(total_fees) - SUM(COALESCE(advance,0)),0) AS pending, COALESCE(SUM(COALESCE(licence_fee,0)),0) AS licence FROM bookings ${whereClause} ${whereClause ? "AND" : "WHERE"} attendance_status != 'Pending'`, params)
+      dbPool.query(`SELECT COUNT(*) AS count FROM bookings ${whereClause} AND attendance_status='Active'`, params),
+      dbPool.query(`SELECT COUNT(*) AS count FROM bookings ${whereClause} AND attendance_status='Completed'`, params),
+      dbPool.query(`SELECT COUNT(*) AS count FROM bookings ${whereClause} AND attendance_status='Hold'`, params),
+      dbPool.query(`SELECT COUNT(*) AS count FROM bookings ${whereClause} AND attendance_status='Expired'`, params),
+      dbPool.query(`SELECT COALESCE(SUM(total_fees),0) AS training, COALESCE(SUM(COALESCE(advance,0)),0) AS collected, COALESCE(SUM(total_fees) - SUM(COALESCE(advance,0)),0) AS pending, COALESCE(SUM(COALESCE(licence_fee,0)),0) AS licence FROM bookings ${whereClause} AND attendance_status != 'Pending'`, params)
     ]);
 
-    // Branch-aware "Joined Today" (supports custom date via joinDate param)
     const _jn = new Date();
     const joinDateStr = joinDate || `${_jn.getFullYear()}-${String(_jn.getMonth()+1).padStart(2,'0')}-${String(_jn.getDate()).padStart(2,'0')}`;
-    let todayQuery = "SELECT COUNT(*) AS count FROM bookings WHERE DATE(created_at)=?";
-    let todayParams = [joinDateStr];
+    let todayQuery = "SELECT COUNT(*) AS count FROM bookings WHERE school_id = ? AND DATE(created_at)=?";
+    let todayParams = [req.schoolId, joinDateStr];
     if (branch) {
       todayQuery += " AND TRIM(LOWER(branch)) = ?";
       todayParams.push(branch.toLowerCase());
@@ -89,23 +82,23 @@ router.get("/bookings-by-branch", requireAdmin, async (req, res) => {
   try {
     const { from, to, month } = req.query;
 
-    let dateFilter = "";
-    let params = [];
+    let dateFilter = "AND b.school_id = ?";
+    let params = [req.schoolId];
 
     if (from && to) {
-      dateFilter = "AND DATE(b.created_at) BETWEEN ? AND ?";
-      params = [from, to];
+      dateFilter += " AND DATE(b.created_at) BETWEEN ? AND ?";
+      params.push(from, to);
     } else if (month) {
-      dateFilter = "AND DATE_FORMAT(b.created_at, '%Y-%m') = ?";
-      params = [month];
+      dateFilter += " AND DATE_FORMAT(b.created_at, '%Y-%m') = ?";
+      params.push(month);
     }
-      
+
     const [rows] = await dbPool.query(`
-      SELECT 
+      SELECT
         br.branch_name AS branch,
         COUNT(b.id) AS total
       FROM branches br
-      LEFT JOIN bookings b 
+      LEFT JOIN bookings b
         ON TRIM(LOWER(b.branch)) = TRIM(LOWER(br.branch_name))
         ${dateFilter}
       GROUP BY br.branch_name
@@ -131,24 +124,24 @@ router.post("/unlock-revenue", requireAdmin, async (req, res) => {
       return res.status(403).json({ success: false });
     }
 
-    let whereClause = "";
-    let params = [];
+    let whereClause = "WHERE school_id = ?";
+    let params = [req.schoolId];
 
     if (from && to) {
-      whereClause = "WHERE DATE(created_at) BETWEEN ? AND ?";
-      params = [from, to];
+      whereClause += " AND DATE(created_at) BETWEEN ? AND ?";
+      params.push(from, to);
     } else if (month) {
-      whereClause = "WHERE DATE_FORMAT(created_at, '%Y-%m') = ?";
-      params = [month];
+      whereClause += " AND DATE_FORMAT(created_at, '%Y-%m') = ?";
+      params.push(month);
     }
 
     if (branch) {
-      whereClause += whereClause ? " AND branch = ?" : " WHERE branch = ?";
+      whereClause += " AND branch = ?";
       params.push(branch);
     }
 
     const [[row]] = await dbPool.query(
-      `SELECT COALESCE(SUM(total_fees),0) AS training, COALESCE(SUM(COALESCE(advance,0)),0) AS collected, COALESCE(SUM(total_fees) - SUM(COALESCE(advance,0)),0) AS pending, COALESCE(SUM(COALESCE(licence_fee,0)),0) AS licence FROM bookings ${whereClause} ${whereClause ? "AND" : "WHERE"} attendance_status != 'Pending'`,
+      `SELECT COALESCE(SUM(total_fees),0) AS training, COALESCE(SUM(COALESCE(advance,0)),0) AS collected, COALESCE(SUM(total_fees) - SUM(COALESCE(advance,0)),0) AS pending, COALESCE(SUM(COALESCE(licence_fee,0)),0) AS licence FROM bookings ${whereClause} AND attendance_status != 'Pending'`,
       params
     );
 
@@ -170,7 +163,7 @@ router.post("/unlock-revenue", requireAdmin, async (req, res) => {
  */
 router.get("/branches", requireAdmin, async (req, res) => {
   try {
-    const [rows] = await dbPool.query(`SELECT branch_name FROM branches ORDER BY branch_name`);
+    const [rows] = await dbPool.query(`SELECT branch_name FROM branches WHERE school_id = ? ORDER BY branch_name`, [req.schoolId]);
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error(err);
@@ -178,9 +171,6 @@ router.get("/branches", requireAdmin, async (req, res) => {
   }
 });
 
-/**
- * TODAY'S SLOT STATS (ACTIVE / AVAILABLE)
- */
 /**
  * TODAY'S SLOT STATS + STUDENTS PRESENT TODAY
  */
@@ -192,13 +182,11 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     const targetDateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth()+1).padStart(2,'0')}-${String(targetDate.getDate()).padStart(2,'0')}`;
     const selectedTime = targetDate.getTime();
 
-    // 1. Get cars grouped by their branch (same as schedule: cars.filter(c => c.branch === branch))
-    const [allCars] = await dbPool.query(
-      branch
-        ? "SELECT car_name, branch FROM cars WHERE TRIM(LOWER(branch)) = ? AND car_name IS NOT NULL AND car_name != ''"
-        : "SELECT car_name, branch FROM cars WHERE car_name IS NOT NULL AND car_name != ''",
-      branch ? [branch.toLowerCase()] : []
-    );
+    // 1. Get cars for this school grouped by branch
+    const carParams = [req.schoolId];
+    let carWhere = "school_id = ? AND car_name IS NOT NULL AND car_name != ''";
+    if (branch) { carWhere += " AND TRIM(LOWER(branch)) = ?"; carParams.push(branch.toLowerCase()); }
+    const [allCars] = await dbPool.query(`SELECT car_name, branch FROM cars WHERE ${carWhere}`, carParams);
 
     const carsByBranch = {};
     allCars.forEach(c => {
@@ -207,9 +195,9 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       carsByBranch[b].add(c.car_name.trim());
     });
 
-    // 2. Get bookings — same status + conditions as schedule
-    const bookingParams = [];
-    let bookingWhere = `attendance_status IN ('Active','Pending') AND starting_from IS NOT NULL AND allotted_time IS NOT NULL AND allotted_time != ''`;
+    // 2. Get bookings for this school
+    const bookingParams = [req.schoolId];
+    let bookingWhere = `school_id = ? AND attendance_status IN ('Active','Pending') AND starting_from IS NOT NULL AND allotted_time IS NOT NULL AND allotted_time != ''`;
     if (branch) {
       bookingWhere += ` AND TRIM(LOWER(branch)) = ?`;
       bookingParams.push(branch.toLowerCase());
@@ -222,7 +210,6 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       bookingParams
     );
 
-    // 3. Apply same date-range filter as schedule
     const bookings = rawBookings.filter(b => {
       const start = new Date(b.starting_from);
       const end   = new Date(start);
@@ -238,8 +225,6 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       return selectedTime >= start.getTime() && selectedTime <= end.getTime();
     });
 
-    // 4. Build bookedSlots[bookingBranch][car] — same as schedule builds bookedSlots[car]
-    //    but keyed by booking's branch so we can look up per branch
     const bookedByBranch = {};
     bookings.forEach(b => {
       if (!b.car_name || !b.allotted_time) return;
@@ -247,19 +232,19 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       const car = b.car_name.trim();
       if (!bookedByBranch[branchName]) bookedByBranch[branchName] = {};
       if (!bookedByBranch[branchName][car]) bookedByBranch[branchName][car] = {};
-
       [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
         .filter(Boolean)
         .forEach(t => { bookedByBranch[branchName][car][t.substring(0, 5)] = true; });
     });
 
-    // 4b. Completed bookings present on this date — same as schedule's completedOnDate
-    const completedParams = branch ? [targetDateStr, branch.toLowerCase()] : [targetDateStr];
+    // 4b. Completed bookings present on this date
+    const completedParams = [req.schoolId, targetDateStr];
+    if (branch) completedParams.push(branch.toLowerCase());
     const [completedRows] = await dbPool.query(
       `SELECT DISTINCT b.branch, b.car_name, b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4
        FROM attendance a
        JOIN bookings b ON a.booking_id = b.id
-       WHERE DATE(a.date) = ? AND a.present >= 1 AND b.attendance_status = 'Completed'
+       WHERE b.school_id = ? AND DATE(a.date) = ? AND a.present >= 1 AND b.attendance_status = 'Completed'
          AND b.car_name IS NOT NULL AND b.car_name != ''
          AND b.allotted_time IS NOT NULL AND b.allotted_time != ''
          ${branch ? 'AND TRIM(LOWER(b.branch)) = ?' : ''}`,
@@ -275,9 +260,9 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
         .forEach(t => { bookedByBranch[branchName][car][t.substring(0, 5)] = true; });
     });
 
-    // 4c. Ad-hoc slots for this date — same as schedule merges them
-    const adHocParams = [targetDateStr];
-    let adHocWhere = 'DATE(ss.date) = ?';
+    // 4c. Ad-hoc slots for this date
+    const adHocParams = [req.schoolId, targetDateStr];
+    let adHocWhere = 'b.school_id = ? AND DATE(ss.date) = ?';
     if (branch) { adHocWhere += ' AND TRIM(LOWER(ss.car_name)) IN (SELECT TRIM(LOWER(car_name)) FROM cars WHERE TRIM(LOWER(branch)) = ?)'; adHocParams.push(branch.toLowerCase()); }
     const [adHocRows] = await dbPool.query(
       `SELECT ss.car_name, ss.time, TRIM(b.branch) AS branch
@@ -295,20 +280,21 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       if (!bookedByBranch[branchName][car][key]) bookedByBranch[branchName][car][key] = true;
     });
 
-    // 5. Attendance per branch for target date (slot-level count, matching schedule)
+    // 5. Attendance per branch for target date
+    const attParams = [req.schoolId, targetDateStr];
+    if (branch) attParams.push(branch.toLowerCase());
     const [attendanceRows] = await dbPool.query(`
       SELECT TRIM(b.branch) AS branch, COUNT(a.id) AS present
       FROM attendance a
       JOIN bookings b ON a.booking_id = b.id
-      WHERE DATE(a.date) = ? AND a.present >= 1
+      WHERE b.school_id = ? AND DATE(a.date) = ? AND a.present >= 1
       ${branch ? 'AND TRIM(LOWER(b.branch)) = ?' : ''}
       GROUP BY TRIM(b.branch)
-    `, branch ? [targetDateStr, branch.toLowerCase()] : [targetDateStr]);
+    `, attParams);
 
     const presentByBranch = {};
     attendanceRows.forEach(r => { presentByBranch[r.branch] = Number(r.present); });
 
-    // 6. Count active slots per branch — each booked time row counted individually
     let totalActiveSlots = 0;
     let totalPresent = 0;
     const branchStats = Object.keys(carsByBranch).sort().map(branchName => {
@@ -342,8 +328,6 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
   }
 });
 
-
-
 /**
  * MONTHLY BOOKING TRENDS (Last 6 months)
  */
@@ -351,11 +335,11 @@ router.get("/monthly-trends", requireAdmin, async (req, res) => {
   try {
     const { branch } = req.query;
 
-    let branchFilter = "";
-    let params = [];
+    let whereClause = "WHERE school_id = ? AND attendance_status != 'Pending'";
+    let params = [req.schoolId];
 
     if (branch) {
-      branchFilter = "WHERE TRIM(LOWER(branch)) = ?";
+      whereClause += " AND TRIM(LOWER(branch)) = ?";
       params.push(branch.toLowerCase());
     }
 
@@ -365,14 +349,12 @@ router.get("/monthly-trends", requireAdmin, async (req, res) => {
         COUNT(*) AS bookings,
         COALESCE(SUM(total_fees + COALESCE(licence_fee,0)), 0) AS revenue
       FROM bookings
-      ${branchFilter}
-      ${branchFilter ? "AND" : "WHERE"} attendance_status != 'Pending'
+      ${whereClause}
       GROUP BY DATE_FORMAT(created_at, '%Y-%m')
       ORDER BY month DESC
       LIMIT 6
     `, params);
 
-    // Reverse to show oldest to newest
     res.json({ success: true, data: rows.reverse() });
 
   } catch (err) {
@@ -419,20 +401,18 @@ router.get("/package-popularity", requireAdmin, async (req, res) => {
   try {
     const { branch } = req.query;
 
-    let branchFilter = "";
-    let params = [];
+    let whereClause = "WHERE school_id = ?";
+    let params = [req.schoolId];
 
     if (branch) {
-      branchFilter = "WHERE TRIM(LOWER(branch)) = ?";
+      whereClause += " AND TRIM(LOWER(branch)) = ?";
       params.push(branch.toLowerCase());
     }
 
     const [rows] = await dbPool.query(`
-      SELECT
-        training_days AS package,
-        COUNT(*) AS count
+      SELECT training_days AS package, COUNT(*) AS count
       FROM bookings
-      ${branchFilter}
+      ${whereClause}
       GROUP BY training_days
       ORDER BY count DESC
     `, params);
@@ -452,23 +432,18 @@ router.get("/instructor-workload", requireAdmin, async (req, res) => {
   try {
     const { branch } = req.query;
 
-    let branchFilter = "";
-    let params = [];
+    let whereClause = "WHERE b.school_id = ? AND b.attendance_status = 'Active' AND b.instructor_name IS NOT NULL AND b.instructor_name != ''";
+    let params = [req.schoolId];
 
     if (branch) {
-      branchFilter = "WHERE TRIM(LOWER(b.branch)) = ?";
+      whereClause += " AND TRIM(LOWER(b.branch)) = ?";
       params.push(branch.toLowerCase());
     }
 
     const [rows] = await dbPool.query(`
-      SELECT
-        b.instructor_name AS instructor,
-        COUNT(*) AS activeStudents
+      SELECT b.instructor_name AS instructor, COUNT(*) AS activeStudents
       FROM bookings b
-      ${branchFilter}
-      ${branchFilter ? "AND" : "WHERE"} b.attendance_status = 'Active'
-      AND b.instructor_name IS NOT NULL
-      AND b.instructor_name != ''
+      ${whereClause}
       GROUP BY b.instructor_name
       ORDER BY activeStudents DESC
       LIMIT 10
@@ -489,23 +464,19 @@ router.get("/car-workload", requireAdmin, async (req, res) => {
   try {
     const { branch } = req.query;
 
-    let branchFilter = "";
-    let params = [];
+    let whereClause = "WHERE b.school_id = ? AND b.attendance_status = 'Active' AND b.car_name IS NOT NULL AND b.car_name != ''";
+    let params = [req.schoolId];
 
     if (branch) {
-      branchFilter = "WHERE TRIM(LOWER(c.branch)) = ?";
+      whereClause += " AND TRIM(LOWER(c.branch)) = ?";
       params.push(branch.toLowerCase());
     }
 
     const [rows] = await dbPool.query(`
-      SELECT
-        b.car_name AS car,
-        COUNT(*) AS activeStudents
+      SELECT b.car_name AS car, COUNT(*) AS activeStudents
       FROM bookings b
       JOIN cars c ON c.car_name = b.car_name
-      ${branchFilter}
-      ${branchFilter ? "AND" : "WHERE"} b.attendance_status = 'Active'
-      AND b.car_name IS NOT NULL AND b.car_name != ''
+      ${whereClause}
       GROUP BY b.car_name
       ORDER BY activeStudents DESC
       LIMIT 10
@@ -526,17 +497,16 @@ router.get("/enquiry-trends", requireAdmin, async (req, res) => {
   try {
     const { branch, heard_about, granularity = 'day' } = req.query;
 
-
-    let whereClause = "";
-    let params = [];
+    let whereClause = "WHERE e.school_id = ?";
+    let params = [req.schoolId];
 
     if (branch) {
-      whereClause = "WHERE TRIM(LOWER(b.branch_name)) = ?";
+      whereClause += " AND TRIM(LOWER(b.branch_name)) = ?";
       params.push(branch.toLowerCase());
     }
 
     if (heard_about) {
-      whereClause += whereClause ? " AND e.hear_about = ?" : " WHERE e.hear_about = ?";
+      whereClause += " AND e.hear_about = ?";
       params.push(heard_about);
     }
 
@@ -567,9 +537,9 @@ router.get("/heard-about-options", requireAdmin, async (req, res) => {
   try {
     const [rows] = await dbPool.query(`
       SELECT DISTINCT hear_about FROM enquiries
-      WHERE hear_about IS NOT NULL AND hear_about != ''
+      WHERE school_id = ? AND hear_about IS NOT NULL AND hear_about != ''
       ORDER BY hear_about
-    `);
+    `, [req.schoolId]);
     res.json({ success: true, data: rows.map(r => r.hear_about) });
   } catch (err) {
     console.error("HEARD ABOUT OPTIONS ERROR:", err);
@@ -584,11 +554,11 @@ router.get("/enrollment-trends", requireAdmin, async (req, res) => {
   try {
     const { branch, granularity = 'day' } = req.query;
 
-    let whereClause = "";
-    let params = [];
+    let whereClause = "WHERE school_id = ? AND attendance_status != 'Pending'";
+    let params = [req.schoolId];
 
     if (branch) {
-      whereClause = "WHERE TRIM(LOWER(branch)) = ?";
+      whereClause += " AND TRIM(LOWER(branch)) = ?";
       params.push(branch.toLowerCase());
     }
 
@@ -599,7 +569,6 @@ router.get("/enrollment-trends", requireAdmin, async (req, res) => {
         COALESCE(SUM(total_fees + COALESCE(licence_fee,0)), 0) AS revenue
       FROM bookings
       ${whereClause}
-      ${whereClause ? "AND" : "WHERE"} attendance_status != 'Pending'
       GROUP BY period
       ORDER BY period DESC
       LIMIT ${granularity === 'day' ? 30 : (granularity === 'year' ? 10 : 12)}
@@ -625,15 +594,13 @@ router.get("/attendance-trends", requireAdmin, async (req, res) => {
     let rows;
 
     if (granularity === 'day') {
-      // Daily: last 30 days — marked attendance + today's untracked Active bookings (blue)
       const nums = Array.from({length: 30}, (_, i) => `SELECT ${i} AS seq`).join(' UNION ALL ');
 
-      // Count Active bookings not yet marked today (for blue bar on today's date)
-      const untrackedParams = [...branchParam];
+      const untrackedParams = [req.schoolId, ...branchParam];
       const [untrackedRows] = await dbPool.query(`
         SELECT COUNT(*) AS cnt
         FROM bookings b
-        WHERE b.attendance_status = 'Active'
+        WHERE b.school_id = ? AND b.attendance_status = 'Active'
           AND b.starting_from IS NOT NULL
           AND b.starting_from <= CURDATE()
           ${branchFilter}
@@ -643,7 +610,6 @@ router.get("/attendance-trends", requireAdmin, async (req, res) => {
           )
       `, untrackedParams);
       const untrackedToday = Number(untrackedRows[0].cnt);
-      // Use IST date to match MySQL CURDATE() on IST server
       const _istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
       const todayStr = _istNow.toISOString().slice(0, 10);
 
@@ -660,14 +626,13 @@ router.get("/attendance-trends", requireAdmin, async (req, res) => {
             SUM(CASE WHEN a.present = 0  THEN 1 ELSE 0 END) AS absent_count
           FROM attendance a
           JOIN bookings b ON a.booking_id = b.id
-          WHERE b.attendance_status IN ('Active','Completed','Expired','Hold')
+          WHERE b.school_id = ? AND b.attendance_status IN ('Active','Completed','Expired','Hold')
             ${branchFilter}
           GROUP BY DATE_FORMAT(DATE(a.date), '%Y-%m-%d')
         ) att ON att.dt = DATE_FORMAT(cal.dt, '%Y-%m-%d')
         ORDER BY cal.dt ASC
-      `, branchParam);
+      `, [req.schoolId, ...branchParam]);
 
-      // Add untracked count to today's row
       rows = r.map(row => {
         const isToday = String(row.period) === todayStr;
         return {
@@ -676,7 +641,6 @@ router.get("/attendance-trends", requireAdmin, async (req, res) => {
         };
       });
     } else {
-      // Month/year: group by attendance date — shows actual marked records
       const periodExpr = granularity === 'year'
         ? 'YEAR(a.date)'
         : "DATE_FORMAT(a.date, '%Y-%m')";
@@ -689,12 +653,12 @@ router.get("/attendance-trends", requireAdmin, async (req, res) => {
           COUNT(*) AS total
         FROM attendance a
         JOIN bookings b ON a.booking_id = b.id
-        WHERE b.attendance_status IN ('Active','Completed','Expired','Hold')
+        WHERE b.school_id = ? AND b.attendance_status IN ('Active','Completed','Expired','Hold')
           ${branchFilter}
         GROUP BY period
         ORDER BY period DESC
         LIMIT ${limit}
-      `, branchParam);
+      `, [req.schoolId, ...branchParam]);
       rows = r.reverse();
     }
 

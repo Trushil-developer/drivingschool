@@ -10,11 +10,11 @@ router.get('/', async (req, res) => {
   try {
     const role = (req.query.role || '').trim();
     const branch = (req.query.branch || '').trim();
-    const conditions = [];
-    const params = [];
+    const conditions = ['school_id = ?'];
+    const params = [1];
     if (role) { conditions.push('role = ?'); params.push(role); }
     if (branch) { conditions.push('branch = ?'); params.push(branch); }
-    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const where = 'WHERE ' + conditions.join(' AND ');
 
     const [rows] = await dbPool.query(`
       SELECT id, employee_no, role, instructor_name, email, mobile_no, branch,
@@ -41,9 +41,9 @@ router.post('/', requireAdmin, async (req, res) => {
   try {
     const [result] = await dbPool.query(`
       INSERT INTO instructors
-      (instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address, role, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '', role || 'Instructor']);
+      (instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address, role, is_active, school_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '', role || 'Instructor', req.schoolId]);
 
     const newId = result.insertId;
     const employee_no = `EMP${String(newId).padStart(3, '0')}`;
@@ -69,8 +69,8 @@ router.put('/:id', requireAdmin, async (req, res) => {
     await dbPool.query(`
       UPDATE instructors SET
         instructor_name=?, email=?, mobile_no=?, branch=?, drivers_license=?, adhar_no=?, address=?, role=?
-      WHERE id=?
-    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '', role || 'Instructor', id]);
+      WHERE id=? AND school_id=?
+    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '', role || 'Instructor', id, req.schoolId]);
 
     res.json({ success: true });
   } catch (err) {
@@ -83,15 +83,15 @@ router.put('/:id', requireAdmin, async (req, res) => {
   TOGGLE instructor active/inactive
 */
 router.patch('/:id/active', requireAdmin, async (req, res) => {
-    const { id } = req.params;
-    const { is_active } = req.body;
-    try {
-        await dbPool.query(`UPDATE instructors SET is_active=? WHERE id=?`, [is_active ? 1 : 0, id]);
-        res.json({ success: true });
-    } catch(err) {
-        console.error('INSTRUCTOR STATUS TOGGLE ERROR:', err);
-        res.status(500).json({ success: false, error: 'Internal error' });
-    }
+  const { id } = req.params;
+  const { is_active } = req.body;
+  try {
+    await dbPool.query(`UPDATE instructors SET is_active=? WHERE id=? AND school_id=?`, [is_active ? 1 : 0, id, req.schoolId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('INSTRUCTOR STATUS TOGGLE ERROR:', err);
+    res.status(500).json({ success: false, error: 'Internal error' });
+  }
 });
 
 /*
@@ -100,7 +100,7 @@ router.patch('/:id/active', requireAdmin, async (req, res) => {
 router.delete('/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
-    const [result] = await dbPool.query('DELETE FROM instructors WHERE id=?', [id]);
+    const [result] = await dbPool.query('DELETE FROM instructors WHERE id=? AND school_id=?', [id, req.schoolId]);
 
     if (result.affectedRows === 0) return res.status(404).json({ success: false, error: 'Instructor not found' });
 
