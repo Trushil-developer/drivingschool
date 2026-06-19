@@ -233,6 +233,46 @@ app.post('/api/login', loginLimiter, async (req, res, next) => {
   }
 });
 
+app.post('/api/driver-login', async (req, res, next) => {
+  const { employee_no, password } = req.body;
+  try {
+    if (!employee_no || !password) return res.json({ success: false, error: 'Employee number and password required' });
+    const [rows] = await dbPool.query(
+      'SELECT * FROM instructors WHERE BINARY employee_no = ? AND is_active = 1 LIMIT 1',
+      [employee_no.trim()]
+    );
+    if (!rows || rows.length === 0) return res.json({ success: false, error: 'Invalid credentials' });
+    const instructor = rows[0];
+    const mobileClean = (instructor.mobile_no || '').replace(/\D/g, '');
+    const passClean   = (password || '').replace(/\D/g, '');
+    if (passClean !== mobileClean) return res.json({ success: false, error: 'Invalid credentials' });
+
+    req.session.adminLoggedIn = true;
+    req.session.adminId       = instructor.id;
+    req.session.school_id     = instructor.school_id || 1;
+    await new Promise((resolve, reject) =>
+      req.session.save((err) => (err ? reject(err) : resolve(undefined))),
+    );
+    const secret = process.env.SESSION_SECRET || 'supersecretkey';
+    const signed = 's:' + cookieSign(req.session.id, secret);
+    const sessionToken = `session_cookie=${encodeURIComponent(signed)}`;
+    res.json({
+      success: true,
+      sessionToken,
+      instructor: {
+        id:          instructor.id,
+        name:        instructor.instructor_name,
+        branch:      instructor.branch,
+        employee_no: instructor.employee_no,
+        mobile_no:   instructor.mobile_no,
+      },
+    });
+  } catch (err) {
+    console.error('DRIVER LOGIN ERROR:', err);
+    next(err);
+  }
+});
+
 app.post('/api/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
