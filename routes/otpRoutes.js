@@ -2,6 +2,7 @@ import express from "express";
 import { dbPool } from "../server.js";
 import { generateOTP, getExpiryTime } from "../public/utils/otpUtils.js";
 import { sendOtpEmail } from "../public/service/sesEmail.service.js";
+import { sign as cookieSign } from "cookie-signature";
 
 const router = express.Router();
 const MAX_SENDS_PER_HOUR = 5;
@@ -131,7 +132,11 @@ router.post("/verify-email-otp", async (req, res) => {
     // Explicitly save session before responding so checkSession() sees it
     req.session.save((err) => {
       if (err) console.error("Session save error:", err);
-      res.json({ success: true });
+      // Return signed session token for mobile clients (iOS strips Set-Cookie headers)
+      const secret = process.env.SESSION_SECRET || 'supersecretkey';
+      const signed = 's:' + cookieSign(req.session.id, secret);
+      const sessionToken = `session_cookie=${encodeURIComponent(signed)}`;
+      res.json({ success: true, sessionToken });
     });
 
   } catch (err) {

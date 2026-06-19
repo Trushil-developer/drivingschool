@@ -262,13 +262,17 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
 
     // 4c. Ad-hoc slots for this date
     const adHocParams = [req.schoolId, targetDateStr];
-    let adHocWhere = 'b.school_id = ? AND DATE(ss.date) = ?';
-    if (branch) { adHocWhere += ' AND TRIM(LOWER(ss.car_name)) IN (SELECT TRIM(LOWER(car_name)) FROM cars WHERE TRIM(LOWER(branch)) = ?)'; adHocParams.push(branch.toLowerCase()); }
+    let adHocJoin = '';
+    if (branch) {
+      adHocJoin = 'JOIN cars c ON c.car_name COLLATE utf8mb4_unicode_ci = ss.car_name COLLATE utf8mb4_unicode_ci AND LOWER(c.branch) COLLATE utf8mb4_unicode_ci = ?';
+      adHocParams.unshift(branch.toLowerCase());
+    }
     const [adHocRows] = await dbPool.query(
       `SELECT ss.car_name, ss.time, TRIM(b.branch) AS branch
        FROM schedule_slots ss
        JOIN bookings b ON ss.booking_id = b.id
-       WHERE ${adHocWhere}`,
+       ${adHocJoin}
+       WHERE b.school_id = ? AND DATE(ss.date) = ?`,
       adHocParams
     );
     adHocRows.forEach(s => {

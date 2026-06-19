@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import MySQLStoreImport from 'express-mysql-session';
 import cron from 'node-cron';
+import { sign as cookieSign } from 'cookie-signature';
 import updateBookingsStatus from './scripts/updateBookings.js';
 import trainingDaysRoute from './routes/trainingDays.js';
 import instructorsRoute from './routes/instructorsRoutes.js';
@@ -90,6 +91,18 @@ app.use((req, res, next) => {
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Mobile auth bridge: iOS strips Cookie headers, so mobile sends token via X-Session-Token.
+// Inject it into req.headers.cookie so express-session can read it normally.
+app.use((req, res, next) => {
+  const mobileToken = req.headers['x-session-token'];
+  if (mobileToken) {
+    req.headers.cookie = req.headers.cookie
+      ? `${req.headers.cookie}; ${mobileToken}`
+      : mobileToken;
+  }
+  next();
+});
 
 if (!process.env.SESSION_SECRET) {
   console.warn('WARNING: SESSION_SECRET env var not set. Using insecure fallback. Set it in .env before going to production.');
@@ -205,7 +218,15 @@ app.post('/api/login', loginLimiter, async (req, res, next) => {
     req.session.adminLoggedIn = true;
     req.session.adminId = admin.id;
     req.session.school_id = admin.school_id || 1;
-    res.json({ success: true });
+    await new Promise((resolve, reject) =>
+      req.session.save((err) => (err ? reject(err) : resolve(undefined))),
+    );
+    // Return the signed session token in the body so mobile clients
+    // can store it manually (iOS strips Set-Cookie headers in NSURLSession)
+    const secret = process.env.SESSION_SECRET || 'supersecretkey';
+    const signed = 's:' + cookieSign(req.session.id, secret);
+    const sessionToken = `session_cookie=${encodeURIComponent(signed)}`;
+    res.json({ success: true, sessionToken });
   } catch (err) {
     console.error('LOGIN ERROR:', err);
     next(err);
@@ -329,7 +350,7 @@ INSERT INTO bookings (
       data.apply_licence === "Yes" ? "Yes" : "No",
       data.licence_types || null,
       Number(data.licence_fee) || 0,
-      req.schoolId
+      req.schoolId || 1
     ];
 
     const [result] = await dbPool.query(sql, values);
@@ -353,6 +374,7 @@ app.get('/api/bookings/availability', async (req, res, next) => {
         attendance_status
       FROM bookings
       WHERE attendance_status IN ('Active', 'Pending')
+      AND school_id = 1
       ${excludeId ? 'AND id != ?' : ''}
     `;
     const params = excludeId ? [excludeId] : [];
@@ -576,7 +598,8 @@ app.post("/api/bookings/:id/certificate", requireAdmin, upload.single("file"), a
         const bookingId = req.params.id;
         if (!req.file) return res.json({ success: false, error: "No file uploaded" });
 
-        const [rows] = await dbPool.query('SELECT certificate_url FROM bookings WHERE id = ?', [bookingId]);
+        const [rows] = await dbPool.query('SELECT certificate_url FROM bookings WHERE id = ? AND school_id = ?', [bookingId, req.schoolId]);
+        if (!rows.length) return res.status(404).json({ success: false, error: "Booking not found" });
         const oldKey = rows[0]?.certificate_url;
 
         // Delete old file if exists
@@ -598,7 +621,7 @@ app.post("/api/bookings/:id/certificate", requireAdmin, upload.single("file"), a
         }).promise();
 
         // Update DB
-        await dbPool.query("UPDATE bookings SET certificate_url = ? WHERE id = ?", [s3Key, bookingId]);
+        await dbPool.query("UPDATE bookings SET certificate_url = ? WHERE id = ? AND school_id = ?", [s3Key, bookingId, req.schoolId]);
 
         res.json({ success: true, message: "Certificate uploaded successfully" });
     } catch (err) {
@@ -614,8 +637,8 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
     try {
         const bookingId = req.params.id;
 
-        const [rows] = await dbPool.query('SELECT certificate_url FROM bookings WHERE id = ?', [bookingId]);
-        if (!rows.length || !rows[0].certificate_url) 
+        const [rows] = await dbPool.query('SELECT certificate_url FROM bookings WHERE id = ? AND school_id = ?', [bookingId, req.schoolId]);
+        if (!rows.length || !rows[0].certificate_url)
             return res.status(404).json({ success: false, error: 'Certificate not found' });
 
         const key = rows[0].certificate_url; 
@@ -1116,7 +1139,7 @@ app.get("/api/public/certificates", async (req, res) => {
 
       // Fetch booking details
       const [rows] = await dbPool.query(
-        `SELECT customer_name, car_name, starting_from FROM bookings WHERE id = ? LIMIT 1`,
+        `SELECT customer_name, car_name, starting_from FROM bookings WHERE id = ? AND school_id = 1 LIMIT 1`,
         [bookingId]
       );
 

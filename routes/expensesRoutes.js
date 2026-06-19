@@ -3,20 +3,13 @@ import { dbPool, requireAdmin } from "../server.js";
 
 const router = express.Router();
 
-// Helper: get the school_id from the session.
-// Currently defaults to 1 (single school). When multi-school support is added,
-// the login route sets req.session.school_id and this picks it up automatically.
-function getSchoolId(req) {
-    return req.session.school_id || 1;
-}
-
 // =====================
 // EXPENSE CATEGORIES
 // =====================
 
 // Returns global defaults (school_id=0) + this school's custom ones
 router.get("/categories", requireAdmin, async (req, res, next) => {
-    const schoolId = getSchoolId(req);
+    const schoolId = req.schoolId;
     try {
         const [rows] = await dbPool.query(
             "SELECT * FROM expense_categories WHERE school_id = ? ORDER BY id ASC",
@@ -29,7 +22,7 @@ router.get("/categories", requireAdmin, async (req, res, next) => {
 });
 
 router.post("/categories", requireAdmin, async (req, res, next) => {
-    const schoolId = getSchoolId(req);
+    const schoolId = req.schoolId;
     const { name, extra_field } = req.body;
     if (!name || !name.trim()) return res.json({ success: false, error: "Category name required" });
     const validExtra = ['car', 'employee', null, ''];
@@ -47,7 +40,7 @@ router.post("/categories", requireAdmin, async (req, res, next) => {
 });
 
 router.put("/categories/:id", requireAdmin, async (req, res, next) => {
-    const schoolId = getSchoolId(req);
+    const schoolId = req.schoolId;
     const { id } = req.params;
     const { name, extra_field } = req.body;
     if (!name || !name.trim()) return res.json({ success: false, error: "Category name required" });
@@ -72,7 +65,7 @@ router.put("/categories/:id", requireAdmin, async (req, res, next) => {
 });
 
 router.delete("/categories/:id", requireAdmin, async (req, res, next) => {
-    const schoolId = getSchoolId(req);
+    const schoolId = req.schoolId;
     const { id } = req.params;
     try {
         const [rows] = await dbPool.query(
@@ -94,7 +87,7 @@ router.delete("/categories/:id", requireAdmin, async (req, res, next) => {
 
 // Returns global defaults (school_id=0) + this school's custom ones
 router.get("/payment-modes", requireAdmin, async (req, res, next) => {
-    const schoolId = getSchoolId(req);
+    const schoolId = req.schoolId;
     try {
         const [rows] = await dbPool.query(
             "SELECT * FROM payment_modes WHERE school_id = 0 OR school_id = ? ORDER BY is_custom ASC, id ASC",
@@ -107,7 +100,7 @@ router.get("/payment-modes", requireAdmin, async (req, res, next) => {
 });
 
 router.post("/payment-modes", requireAdmin, async (req, res, next) => {
-    const schoolId = getSchoolId(req);
+    const schoolId = req.schoolId;
     const { name } = req.body;
     if (!name || !name.trim()) return res.json({ success: false, error: "Mode name required" });
     try {
@@ -122,7 +115,7 @@ router.post("/payment-modes", requireAdmin, async (req, res, next) => {
 });
 
 router.delete("/payment-modes/:id", requireAdmin, async (req, res, next) => {
-    const schoolId = getSchoolId(req);
+    const schoolId = req.schoolId;
     const { id } = req.params;
     try {
         const [rows] = await dbPool.query(
@@ -143,7 +136,7 @@ router.delete("/payment-modes/:id", requireAdmin, async (req, res, next) => {
 // =====================
 
 router.get("/", requireAdmin, async (req, res, next) => {
-    const schoolId = getSchoolId(req);
+    const schoolId = req.schoolId;
     try {
         const page = req.query.page ? parseInt(req.query.page) : null;
         const limit = Math.min(parseInt(req.query.limit) || 50, 200);
@@ -191,7 +184,7 @@ router.get("/", requireAdmin, async (req, res, next) => {
 });
 
 router.post("/", requireAdmin, async (req, res, next) => {
-    const schoolId = getSchoolId(req);
+    const schoolId = req.schoolId;
     const { branch, debitor, employee_name, category_id, car_id, amount, payment_mode_id, note, expense_date } = req.body;
 
     if (!branch || !debitor || !category_id || !payment_mode_id || !expense_date) {
@@ -211,7 +204,7 @@ router.post("/", requireAdmin, async (req, res, next) => {
 });
 
 router.put("/:id", requireAdmin, async (req, res, next) => {
-    const schoolId = getSchoolId(req);
+    const schoolId = req.schoolId;
     const { id } = req.params;
     const { branch, debitor, employee_name, category_id, car_id, amount, payment_mode_id, note, expense_date } = req.body;
 
@@ -233,7 +226,7 @@ router.put("/:id", requireAdmin, async (req, res, next) => {
 });
 
 router.delete("/:id", requireAdmin, async (req, res, next) => {
-    const schoolId = getSchoolId(req);
+    const schoolId = req.schoolId;
     const { id } = req.params;
     try {
         // Only delete if it belongs to this school
