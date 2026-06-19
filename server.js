@@ -717,7 +717,7 @@ app.get('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
   const booking_id = req.params.booking_id;
   try {
     const [rows] = await dbPool.query(
-      `SELECT DATE_FORMAT(date, '%Y-%m-%d') AS date, time, present,
+      `SELECT id, DATE_FORMAT(date, '%Y-%m-%d') AS date, time, present,
               DATE_FORMAT(marked_at, '%Y-%m-%d %H:%i') AS marked_at
        FROM attendance WHERE booking_id=? ORDER BY date DESC, time ASC`,
       [booking_id]
@@ -808,6 +808,50 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
 
 
 
+
+// ---------- DELETE ATTENDANCE RECORD ----------
+app.delete('/api/attendance/:booking_id/:attendance_id', requireAdmin, async (req, res, next) => {
+    const { booking_id, attendance_id } = req.params;
+    let conn;
+    try {
+        conn = await dbPool.getConnection();
+        await conn.beginTransaction();
+
+        const [rows] = await conn.query(
+            `SELECT id FROM attendance WHERE id = ? AND booking_id = ?`,
+            [attendance_id, booking_id]
+        );
+        if (!rows.length) {
+            await conn.rollback();
+            return res.status(404).json({ success: false, error: 'Record not found' });
+        }
+
+        await conn.query(`DELETE FROM attendance WHERE id = ?`, [attendance_id]);
+
+        const [presentSumRows] = await conn.query(
+            `SELECT COUNT(*) AS total_present FROM attendance WHERE booking_id = ? AND present = 1`,
+            [booking_id]
+        );
+        const totalPresent = Number(presentSumRows[0].total_present);
+
+        await conn.query(`UPDATE bookings SET present_days = ? WHERE id = ?`, [totalPresent, booking_id]);
+
+        const [bookingRows] = await conn.query(
+            `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?`,
+            [booking_id]
+        );
+        const newStatus = computeAttendanceStatus(bookingRows[0]);
+        await conn.query(`UPDATE bookings SET attendance_status = ? WHERE id = ?`, [newStatus, booking_id]);
+
+        await conn.commit();
+        res.json({ success: true, present_days: totalPresent, attendance_status: newStatus });
+    } catch (err) {
+        if (conn) await conn.rollback().catch(() => {});
+        next(err);
+    } finally {
+        if (conn) conn.release();
+    }
+});
 
 // ---------- SCHEDULE AD-HOC SLOTS ----------
 app.get('/api/schedule-slots', requireAdmin, async (req, res, next) => {

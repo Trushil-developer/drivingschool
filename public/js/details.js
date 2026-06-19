@@ -290,9 +290,10 @@ import { openSlotPicker } from "./globals/slotPicker.js";
                                 <th>Slot</th>
                                 <th>Status</th>
                                 <th>Marked At</th>
+                                <th></th>
                             </tr>
                         </thead>
-                        <tbody id="ahBody"><tr><td colspan="4" class="ah-empty">Loading…</td></tr></tbody>
+                        <tbody id="ahBody"><tr><td colspan="5" class="ah-empty">Loading…</td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -313,33 +314,55 @@ import { openSlotPicker } from "./globals/slotPicker.js";
             const tbody = overlay.querySelector('#ahBody');
 
             if (records.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="ah-empty">No attendance recorded yet.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="ah-empty">No attendance recorded yet.</td></tr>`;
                 overlay.querySelector('#ahTotal').textContent = 0;
                 overlay.querySelector('#ahPresent').textContent = 0;
                 overlay.querySelector('#ahAbsent').textContent = 0;
                 return;
             }
 
-            const presentCount = records.filter(r => r.present == 1).length;
-            const absentCount  = records.filter(r => r.present == 0).length;
-            overlay.querySelector('#ahTotal').textContent   = records.length;
-            overlay.querySelector('#ahPresent').textContent = presentCount;
-            overlay.querySelector('#ahAbsent').textContent  = absentCount;
+            const renderRows = (recs) => {
+                const presentCount = recs.filter(r => r.present == 1).length;
+                const absentCount  = recs.filter(r => r.present == 0).length;
+                overlay.querySelector('#ahTotal').textContent   = recs.length;
+                overlay.querySelector('#ahPresent').textContent = presentCount;
+                overlay.querySelector('#ahAbsent').textContent  = absentCount;
 
-            tbody.innerHTML = records.map(r => {
-                const slotLabel = r.time ? to12HourFromDB(r.time) : '—';
-                const isPresent = r.present == 1;
-                const badge = isPresent
-                    ? `<span class="ah-badge ah-badge--present">Present</span>`
-                    : `<span class="ah-badge ah-badge--absent">Absent</span>`;
-                return `
-                    <tr>
-                        <td>${r.date}</td>
-                        <td>${slotLabel}</td>
-                        <td>${badge}</td>
-                        <td style="color:#64748b; font-size:12px;">${r.marked_at || '—'}</td>
-                    </tr>`;
-            }).join('');
+                tbody.innerHTML = recs.map(r => {
+                    const slotLabel = r.time ? to12HourFromDB(r.time) : '—';
+                    const isPresent = r.present == 1;
+                    const badge = isPresent
+                        ? `<span class="ah-badge ah-badge--present">Present</span>`
+                        : `<span class="ah-badge ah-badge--absent">Absent</span>`;
+                    return `
+                        <tr data-id="${r.id}">
+                            <td>${r.date}</td>
+                            <td>${slotLabel}</td>
+                            <td>${badge}</td>
+                            <td style="color:#64748b; font-size:12px;">${r.marked_at || '—'}</td>
+                            <td><button class="ah-delete-btn" data-id="${r.id}" title="Delete">🗑</button></td>
+                        </tr>`;
+                }).join('');
+
+                tbody.querySelectorAll('.ah-delete-btn').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        if (!confirm('Delete this attendance record?')) return;
+                        const recId = btn.dataset.id;
+                        try {
+                            const del = await window.api(`/api/attendance/${bk.id}/${recId}`, { method: 'DELETE' });
+                            if (!del.success) return alert('Failed to delete.');
+                            const updated = records.filter(r => String(r.id) !== String(recId));
+                            records.length = 0;
+                            updated.forEach(r => records.push(r));
+                            renderRows(records);
+                        } catch (e) {
+                            alert('Error deleting record.');
+                        }
+                    });
+                });
+            };
+
+            renderRows(records);
 
         } catch (err) {
             overlay.querySelector('#ahBody').innerHTML =
