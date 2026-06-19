@@ -761,6 +761,33 @@ app.get('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
   }
 });
 
+// Returns attendance for all bookings on a specific date (for the Schedule tab)
+app.get('/api/attendance-by-date', requireAdmin, async (req, res, next) => {
+  try {
+    const { date, branch } = req.query;
+    if (!date) return res.status(400).json({ success: false, error: 'date required' });
+
+    let sql = `
+      SELECT a.booking_id, DATE_FORMAT(a.date, '%Y-%m-%d') AS date, a.time, a.present
+      FROM attendance a
+      JOIN bookings b ON a.booking_id = b.id
+      WHERE b.school_id = ? AND DATE(a.date) = ?
+    `;
+    const params = [req.schoolId, date];
+    if (branch) {
+      sql += ' AND TRIM(LOWER(b.branch)) = ?';
+      params.push(branch.toLowerCase());
+    }
+    sql += ' ORDER BY a.booking_id, a.time';
+
+    const [rows] = await dbPool.query(sql, params);
+    res.json({ success: true, records: rows });
+  } catch (err) {
+    console.error('ATTENDANCE-BY-DATE ERROR:', err);
+    next(err);
+  }
+});
+
 app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
     const booking_id = req.params.booking_id;
     const { date, time, value } = req.body;

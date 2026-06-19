@@ -172,6 +172,31 @@ router.get("/branches", requireAdmin, async (req, res) => {
 });
 
 /**
+ * MOST RECENT DATE THAT HAS ATTENDANCE RECORDS
+ */
+router.get("/last-attendance-date", requireAdmin, async (req, res, next) => {
+  try {
+    const { branch } = req.query;
+    let sql = `
+      SELECT DATE_FORMAT(MAX(a.date), '%Y-%m-%d') AS last_date
+      FROM attendance a
+      JOIN bookings b ON a.booking_id = b.id
+      WHERE b.school_id = ? AND a.present >= 1
+    `;
+    const params = [req.schoolId];
+    if (branch) {
+      sql += ' AND TRIM(LOWER(b.branch)) = ?';
+      params.push(branch.toLowerCase());
+    }
+    const [[row]] = await dbPool.query(sql, params);
+    res.json({ success: true, date: row.last_date || null });
+  } catch (err) {
+    console.error('LAST-ATTENDANCE-DATE ERROR:', err);
+    next(err);
+  }
+});
+
+/**
  * TODAY'S SLOT STATS + STUDENTS PRESENT TODAY
  */
 router.get("/today-slots", requireAdmin, async (req, res) => {
