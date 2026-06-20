@@ -88,6 +88,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// 301 redirect: /index.html → /
+app.use((req, res, next) => {
+  if (req.path === '/index.html') {
+    const qs = req.url.slice('/index.html'.length); // preserve any query string
+    return res.redirect(301, '/' + qs);
+  }
+  next();
+});
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));

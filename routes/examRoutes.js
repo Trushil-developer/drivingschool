@@ -455,6 +455,46 @@ router.get("/admin/practice-progress", requireAdmin, async (req, res) => {
 });
 
 /* =========================
+   ADMIN: PRACTICE ACTIVITY LOGS
+========================= */
+router.get("/admin/practice-logs", requireAdmin, async (req, res) => {
+    const { from, to } = req.query;
+
+    try {
+        const params = [];
+        let whereClause;
+        if (from && to) {
+            whereClause = `WHERE DATE(pp.answered_at) BETWEEN ? AND ?`;
+            params.push(from, to);
+        } else {
+            whereClause = `WHERE pp.answered_at >= DATE_SUB(NOW(), INTERVAL 60 DAY)`;
+        }
+
+        const [rows] = await dbPool.query(`
+            SELECT
+                DATE_FORMAT(pp.answered_at, '%Y-%m-%d')                                AS date,
+                eu.email,
+                COUNT(*)                                                                AS questions_answered,
+                SUM(pp.is_correct)                                                      AS correct,
+                MIN(DATE_FORMAT(pp.answered_at, '%H:%i'))                              AS first_time,
+                MAX(DATE_FORMAT(pp.answered_at, '%H:%i'))                              AS last_time,
+                GROUP_CONCAT(DISTINCT pp.category ORDER BY pp.category SEPARATOR ', ') AS categories
+            FROM practice_progress pp
+            JOIN exam_users eu ON pp.user_id = eu.id
+            ${whereClause}
+            GROUP BY DATE_FORMAT(pp.answered_at, '%Y-%m-%d'), pp.user_id, eu.email
+            ORDER BY date DESC, questions_answered DESC
+            LIMIT 500
+        `, params);
+
+        res.json({ success: true, logs: rows });
+    } catch (err) {
+        console.error("PRACTICE LOGS ERROR:", err);
+        res.status(500).json({ success: false });
+    }
+});
+
+/* =========================
    ADMIN: RESET USER ATTEMPTS
 ========================= */
 router.delete("/admin/users/:id/attempts", requireAdmin, async (req, res) => {

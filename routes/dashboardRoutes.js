@@ -207,20 +207,7 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     const targetDateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth()+1).padStart(2,'0')}-${String(targetDate.getDate()).padStart(2,'0')}`;
     const selectedTime = targetDate.getTime();
 
-    // 1. Get cars for this school grouped by branch
-    const carParams = [req.schoolId];
-    let carWhere = "school_id = ? AND car_name IS NOT NULL AND car_name != ''";
-    if (branch) { carWhere += " AND TRIM(LOWER(branch)) = ?"; carParams.push(branch.toLowerCase()); }
-    const [allCars] = await dbPool.query(`SELECT car_name, branch FROM cars WHERE ${carWhere}`, carParams);
-
-    const carsByBranch = {};
-    allCars.forEach(c => {
-      const b = (c.branch || '').trim();
-      if (!carsByBranch[b]) carsByBranch[b] = new Set();
-      carsByBranch[b].add(c.car_name.trim());
-    });
-
-    // 2. Get bookings for this school
+    // 1. Get active/pending bookings for this school to determine expected students today
     const bookingParams = [req.schoolId];
     let bookingWhere = `school_id = ? AND attendance_status IN ('Active','Pending') AND starting_from IS NOT NULL AND allotted_time IS NOT NULL AND allotted_time != ''`;
     if (branch) {
@@ -250,63 +237,13 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       return selectedTime >= start.getTime() && selectedTime <= end.getTime();
     });
 
-    const bookedByBranch = {};
+    // Count expected slots per branch today (match schedule grid — each allotted_time = 1 slot)
+    const expectedByBranch = {};
     bookings.forEach(b => {
-      if (!b.car_name || !b.allotted_time) return;
       const branchName = (b.branch || '').trim();
-      const car = b.car_name.trim();
-      if (!bookedByBranch[branchName]) bookedByBranch[branchName] = {};
-      if (!bookedByBranch[branchName][car]) bookedByBranch[branchName][car] = {};
-      [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
-        .filter(Boolean)
-        .forEach(t => { bookedByBranch[branchName][car][t.substring(0, 5)] = true; });
-    });
-
-    // 4b. Completed bookings present on this date
-    const completedParams = [req.schoolId, targetDateStr];
-    if (branch) completedParams.push(branch.toLowerCase());
-    const [completedRows] = await dbPool.query(
-      `SELECT DISTINCT b.branch, b.car_name, b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4
-       FROM attendance a
-       JOIN bookings b ON a.booking_id = b.id
-       WHERE b.school_id = ? AND DATE(a.date) = ? AND a.present >= 1 AND b.attendance_status = 'Completed'
-         AND b.car_name IS NOT NULL AND b.car_name != ''
-         AND b.allotted_time IS NOT NULL AND b.allotted_time != ''
-         ${branch ? 'AND TRIM(LOWER(b.branch)) = ?' : ''}`,
-      completedParams
-    );
-    completedRows.forEach(b => {
-      const branchName = (b.branch || '').trim();
-      const car = (b.car_name || '').trim();
-      if (!bookedByBranch[branchName]) bookedByBranch[branchName] = {};
-      if (!bookedByBranch[branchName][car]) bookedByBranch[branchName][car] = {};
-      [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
-        .filter(Boolean)
-        .forEach(t => { bookedByBranch[branchName][car][t.substring(0, 5)] = true; });
-    });
-
-    // 4c. Ad-hoc slots for this date
-    const adHocParams = [req.schoolId, targetDateStr];
-    let adHocJoin = '';
-    if (branch) {
-      adHocJoin = 'JOIN cars c ON c.car_name COLLATE utf8mb4_unicode_ci = ss.car_name COLLATE utf8mb4_unicode_ci AND LOWER(c.branch) COLLATE utf8mb4_unicode_ci = ?';
-      adHocParams.unshift(branch.toLowerCase());
-    }
-    const [adHocRows] = await dbPool.query(
-      `SELECT ss.car_name, ss.time, TRIM(b.branch) AS branch
-       FROM schedule_slots ss
-       JOIN bookings b ON ss.booking_id = b.id
-       ${adHocJoin}
-       WHERE b.school_id = ? AND DATE(ss.date) = ?`,
-      adHocParams
-    );
-    adHocRows.forEach(s => {
-      const branchName = (s.branch || '').trim();
-      const car = (s.car_name || '').trim();
-      const key = s.time.substring(0, 5);
-      if (!bookedByBranch[branchName]) bookedByBranch[branchName] = {};
-      if (!bookedByBranch[branchName][car]) bookedByBranch[branchName][car] = {};
-      if (!bookedByBranch[branchName][car][key]) bookedByBranch[branchName][car][key] = true;
+      const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
+        .filter(t => t != null && t !== '').length;
+      expectedByBranch[branchName] = (expectedByBranch[branchName] || 0) + Math.max(1, slots);
     });
 
     // 5. Present + Absent counts per branch from attendance records
@@ -333,23 +270,49 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     const absentByBranch = {};
     absentRows.forEach(r => { absentByBranch[r.branch] = Number(r.cnt); });
 
+    // Add ad-hoc slots to expected (they also show in schedule)
+    const adHocExpParams = [req.schoolId, targetDateStr];
+    if (branch) adHocExpParams.push(branch.toLowerCase());
+    const [adHocExpRows] = await dbPool.query(`
+      SELECT TRIM(b.branch) AS branch, COUNT(ss.id) AS cnt
+      FROM schedule_slots ss JOIN bookings b ON ss.booking_id = b.id
+      WHERE b.school_id = ? AND DATE(ss.date) = ? ${branch ? 'AND TRIM(LOWER(b.branch)) = ?' : ''}
+      GROUP BY TRIM(b.branch)
+    `, adHocExpParams);
+    adHocExpRows.forEach(r => {
+      const br = r.branch;
+      expectedByBranch[br] = (expectedByBranch[br] || 0) + Number(r.cnt);
+    });
+
+    // Add completed bookings that have attendance today (schedule shows these too)
+    const completedParams = [req.schoolId, targetDateStr];
+    if (branch) completedParams.push(branch.toLowerCase());
+    const [completedBookings] = await dbPool.query(`
+      SELECT DISTINCT b.id, TRIM(b.branch) AS branch,
+             b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4
+      FROM attendance a JOIN bookings b ON a.booking_id = b.id
+      WHERE b.school_id = ? AND DATE(a.date) = ? AND b.attendance_status = 'Completed' AND a.present >= 1
+      ${branch ? 'AND TRIM(LOWER(b.branch)) = ?' : ''}
+    `, completedParams);
+    completedBookings.forEach(b => {
+      const br = (b.branch || '').trim();
+      const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
+        .filter(t => t != null && t !== '').length;
+      expectedByBranch[br] = (expectedByBranch[br] || 0) + Math.max(1, slots);
+    });
+
     let totalPresent = 0, totalAbsent = 0, totalMissing = 0;
-    const branchStats = Object.keys(carsByBranch).sort().map(branchName => {
-      const branchCars = carsByBranch[branchName];
-      const branchBooked = bookedByBranch[branchName] || {};
-      let activeSlots = 0;
-      branchCars.forEach(carName => {
-        const carSlots = branchBooked[carName] || {};
-        Object.keys(carSlots).forEach(time => {
-          const [h, m] = time.split(':').map(Number);
-          const mins = h * 60 + m;
-          if (mins >= 6 * 60 && mins <= 22 * 60 && m % 30 === 0) activeSlots++;
-        });
-      });
-      const present = presentByBranch[branchName] || 0;
-      const absent  = absentByBranch[branchName]  || 0;
-      const missing = Math.max(0, activeSlots - present - absent);
-      const total   = present + absent + missing;
+    const allBranches = new Set([
+      ...Object.keys(expectedByBranch),
+      ...Object.keys(presentByBranch),
+      ...Object.keys(absentByBranch)
+    ]);
+    const branchStats = [...allBranches].sort().map(branchName => {
+      const present  = presentByBranch[branchName]  || 0;
+      const absent   = absentByBranch[branchName]   || 0;
+      const expected = expectedByBranch[branchName] || 0;
+      const missing  = Math.max(0, expected - present - absent);
+      const total    = present + absent + missing;
       totalPresent += present;
       totalAbsent  += absent;
       totalMissing += missing;

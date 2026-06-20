@@ -496,17 +496,18 @@ window.renderScheduleModule = function(tableWrap) {
                                             const now = new Date();
                                             const slotDateTime = new Date(`${dateStr}T${t}:00`);
 
-                                            // Ad-hoc: own present field. Regular: look up by time, fall back to '' for old records
+                                            // Ad-hoc: own present field. Regular: look up by time, fall back to null (no record)
                                             const dayMap = attendanceMap[slot.booking_id]?.[dateStr];
                                             const slotPv = slot.ad_hoc
                                                 ? slot.ad_hoc_present
-                                                : (dayMap?.[t] ?? dayMap?.[''] ?? 0);
-                                            const isPresent = slotPv > 0;
+                                                : (dayMap?.[t] ?? dayMap?.[''] ?? null);
+                                            const isPresent = slotPv != null && slotPv > 0;
+                                            const isAbsent  = slotPv != null && slotPv === 0;
 
                                             let slotClass = "slot";
                                             if (isPresent) {
                                                 slotClass += " slot-present";
-                                            } else if (slotDateTime < now) {
+                                            } else if (isAbsent) {
                                                 slotClass += " slot-absent";
                                             }
                                             if (slot.ad_hoc) slotClass += " slot-adhoc";
@@ -519,7 +520,7 @@ window.renderScheduleModule = function(tableWrap) {
                                                     data-date="${dateStr}"
                                                     data-time="${t}"
                                                     data-car="${carName}"
-                                                    data-present="${slotPv}"
+                                                    data-present="${slotPv ?? ''}"
                                                     ${slot.ad_hoc ? `data-slot-id="${slot.slot_id}" data-adhoc="1"` : ''}>
                                                     <div class="slot-content">
                                                         <span class="slot-name">${slot.customer}</span>
@@ -527,7 +528,7 @@ window.renderScheduleModule = function(tableWrap) {
                                                         <div class="slot-actions">
                                                             ${!slot.completed ? `
                                                             <button class="att-btn att-present" title="Mark Present" data-action="present" ${isPresent ? 'disabled' : ''}>✓</button>
-                                                            <button class="att-btn att-absent" title="Mark Absent" data-action="absent" ${!isPresent ? 'disabled' : ''}>✗</button>
+                                                            <button class="att-btn att-absent" title="Mark Absent" data-action="absent" ${isAbsent ? 'disabled' : ''}>✗</button>
                                                             ` : ''}
                                                             ${!slot.ad_hoc && !slot.historical && !slot.completed ? `<button class="att-btn att-replace" title="Replace for today" data-action="replace">⇄</button>` : ''}
                                                             <span class="info-tooltip">
@@ -615,8 +616,8 @@ window.renderScheduleModule = function(tableWrap) {
                             return;
                         }
 
-                        // Password required to change an already-set attendance
-                        if (action === 'absent') {
+                        // Password required only when undoing a present mark (present → absent)
+                        if (action === 'absent' && td.dataset.present !== '' && Number(td.dataset.present) > 0) {
                             const pwd = prompt('Enter password to change attendance:');
                             if (pwd !== '1234') {
                                 alert('Incorrect password.');

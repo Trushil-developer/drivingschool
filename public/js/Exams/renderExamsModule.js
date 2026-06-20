@@ -19,14 +19,16 @@ export function renderExamsModule(container) {
                     <button class="tab-btn active" data-tab="overview">Overview</button>
                     <button class="tab-btn" data-tab="users">Students</button>
                     <button class="tab-btn" data-tab="attempts">Exam History</button>
+                    <button class="tab-btn" data-tab="practiceLogs">Practice Logs</button>
                     <button class="tab-btn" data-tab="questions">Question Bank</button>
                 </div>
 
                 <div class="exams-content">
-                    <div id="examOverview"  class="tab-content active"></div>
-                    <div id="examUsers"     class="tab-content hidden"></div>
-                    <div id="examAttempts"  class="tab-content hidden"></div>
-                    <div id="examQuestions" class="tab-content hidden"></div>
+                    <div id="examOverview"      class="tab-content active"></div>
+                    <div id="examUsers"         class="tab-content hidden"></div>
+                    <div id="examAttempts"      class="tab-content hidden"></div>
+                    <div id="examPracticeLogs"  class="tab-content hidden"></div>
+                    <div id="examQuestions"     class="tab-content hidden"></div>
                 </div>
             </div>
         `;
@@ -38,11 +40,13 @@ export function renderExamsModule(container) {
                 btn.classList.add('active');
                 container.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
                 const tabId = btn.dataset.tab;
-                document.getElementById(`exam${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`).classList.remove('hidden');
+                const panelId = `exam${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`;
+                document.getElementById(panelId).classList.remove('hidden');
 
-                if (tabId === 'users')    loadUsers();
-                else if (tabId === 'attempts') loadAttempts();
-                else if (tabId === 'questions') loadQuestions();
+                if (tabId === 'users')           loadUsers();
+                else if (tabId === 'attempts')   loadAttempts();
+                else if (tabId === 'practiceLogs') loadPracticeLogs();
+                else if (tabId === 'questions')  loadQuestions();
             });
         });
 
@@ -824,6 +828,165 @@ async function saveQuestion() {
         if (res.success) { alert(res.message); closeQuestionModal(); loadQuestions(); }
         else alert(res.message || 'Failed to save');
     } catch (err) { alert('Failed to save'); }
+}
+
+// ─────────────────────────────────────────────
+// PRACTICE LOGS TAB
+// ─────────────────────────────────────────────
+async function loadPracticeLogs(from = '', to = '') {
+    const container = document.getElementById('examPracticeLogs');
+    container.innerHTML = '<div class="loading">Loading…</div>';
+
+    try {
+        const qs = from && to ? `?from=${from}&to=${to}` : '';
+        const res = await window.api(`/api/exam/admin/practice-logs${qs}`);
+        if (!res.success) throw new Error('Failed to load logs');
+
+        const logs = res.logs; // [{date, email, questions_answered, correct, first_time, last_time, categories}]
+
+        // Build daily chart data from flat rows
+        const dayMap = {};
+        logs.forEach(r => {
+            if (!dayMap[r.date]) dayMap[r.date] = { users: 0, questions: 0 };
+            dayMap[r.date].users++;
+            dayMap[r.date].questions += Number(r.questions_answered);
+        });
+        const chartDays = Object.keys(dayMap).sort();
+
+        container.innerHTML = `
+            <div class="pl-header">
+                <h3>Practice Activity Logs</h3>
+                <div class="pl-date-range">
+                    <input type="date" id="plFrom" class="filter-input" value="${from}">
+                    <span>–</span>
+                    <input type="date" id="plTo" class="filter-input" value="${to}">
+                    <button class="btn btn-sm btn-primary" id="plApply">Apply</button>
+                    <button class="btn btn-sm" id="plReset">Reset</button>
+                </div>
+            </div>
+
+            <div class="pl-chart-wrap">
+                <canvas id="practiceLogsChart" height="120"></canvas>
+            </div>
+
+            <div class="exam-table-wrap" style="margin-top:16px;">
+                <table class="exam-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Student</th>
+                            <th>Questions</th>
+                            <th>Correct</th>
+                            <th>Accuracy</th>
+                            <th>Time</th>
+                            <th>Categories</th>
+                        </tr>
+                    </thead>
+                    <tbody id="plTableBody">${renderLogRows(logs)}</tbody>
+                </table>
+            </div>
+        `;
+
+        renderLogsChart(chartDays, dayMap);
+
+        document.getElementById('plApply')?.addEventListener('click', () => {
+            const f = document.getElementById('plFrom').value;
+            const t = document.getElementById('plTo').value;
+            if (f && t) loadPracticeLogs(f, t);
+        });
+        document.getElementById('plReset')?.addEventListener('click', () => loadPracticeLogs());
+
+    } catch (err) {
+        console.error('Practice logs error:', err);
+        container.innerHTML = '<div class="error">Failed to load practice logs</div>';
+    }
+}
+
+function formatLogDate(dateStr) {
+    // dateStr is always 'YYYY-MM-DD' from DATE_FORMAT in MySQL
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+}
+
+function renderLogRows(logs) {
+    if (!logs.length) return `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:24px;">No practice activity found</td></tr>`;
+
+    let lastDate = null;
+    return logs.map(r => {
+        const acc = r.questions_answered > 0
+            ? Math.round((Number(r.correct) / r.questions_answered) * 100) : 0;
+        const accColor = acc >= 70 ? '#10b981' : acc >= 50 ? '#f59e0b' : '#ef4444';
+
+        const isNewDate = r.date !== lastDate;
+        lastDate = r.date;
+
+        const dateCell = isNewDate
+            ? `<td class="pl-date-cell" rowspan="1" style="font-weight:600; color:#1e293b; white-space:nowrap;">${formatLogDate(r.date)}</td>`
+            : `<td class="pl-date-cell pl-date-blank"></td>`;
+
+        return `
+            <tr class="${isNewDate ? 'pl-row-first' : ''}">
+                ${dateCell}
+                <td style="font-size:13px;">${r.email}</td>
+                <td style="font-weight:600;">${r.questions_answered}</td>
+                <td>${Number(r.correct)}</td>
+                <td><span style="color:${accColor}; font-weight:600;">${acc}%</span></td>
+                <td style="font-size:12px; color:#64748b;">${r.first_time}–${r.last_time}</td>
+                <td style="font-size:11px; color:#64748b; max-width:180px; white-space:normal;">${r.categories || '—'}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderLogsChart(days, dayMap) {
+    const ctx = document.getElementById('practiceLogsChart')?.getContext('2d');
+    if (!ctx) return;
+    if (examChartInstances.practiceLogs) examChartInstances.practiceLogs.destroy();
+
+    const labels = days.map(d => {
+        const [y, m, day] = d.split('-').map(Number);
+        return new Date(y, m - 1, day).toLocaleDateString('en-US', { month:'short', day:'numeric' });
+    });
+
+    examChartInstances.practiceLogs = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Questions Answered',
+                    data: days.map(d => dayMap[d].questions),
+                    backgroundColor: 'rgba(139,92,246,0.7)',
+                    borderRadius: 4,
+                    yAxisID: 'yQ'
+                },
+                {
+                    label: 'Active Users',
+                    data: days.map(d => dayMap[d].users),
+                    type: 'line',
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245,158,11,0.15)',
+                    tension: 0.3,
+                    pointRadius: 4,
+                    fill: false,
+                    yAxisID: 'yU'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'bottom' },
+                datalabels: { display: false }
+            },
+            scales: {
+                yQ: { beginAtZero: true, position: 'left',  title: { display: true, text: 'Questions' }, ticks: { stepSize: 1 } },
+                yU: { beginAtZero: true, position: 'right', title: { display: true, text: 'Users' },     ticks: { stepSize: 1 }, grid: { drawOnChartArea: false } }
+            }
+        }
+    });
 }
 
 // ─────────────────────────────────────────────

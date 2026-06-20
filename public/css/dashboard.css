@@ -176,6 +176,11 @@
     color: #b91c1c;
 }
 
+.dashboard-cards .card.slots .pat-m {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
 .dashboard-cards .card.slots .pat-t {
     background: #e0f2fe;
     color: #0369a1;

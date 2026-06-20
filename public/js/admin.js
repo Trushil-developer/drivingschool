@@ -501,7 +501,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
         else if (currentTab === "trainingDays") openTrainingDaysModal(tabRenderers, currentTab);
         else if (currentTab === "courses") window.openCourseAddModal(tabRenderers, currentTab)();
         else if (currentTab === "packages") window.openPackageAddModal(tabRenderers, currentTab)();
-        else window.location.href = "index.html";
+        else window.location.href = "/";
     });
 
     tableWrap.addEventListener('click', async e => {

@@ -1,20 +1,4 @@
 /* =====================================================
-   TRAINING DAYS GUARD
-===================================================== */
-(function enforceTrainingDaysGuard() {
-    const params = new URLSearchParams(window.location.search);
-    const trainingDays =
-        history.state?.training_days ||
-        window.training_days ||
-        sessionStorage.getItem("training_days") ||
-        localStorage.getItem("training_days") ||
-        params.get("training_days");
-    if (!trainingDays) {
-        window.location.replace("index.html");
-    }
-})();
-
-/* =====================================================
    DOM CONTENT LOADED
 ===================================================== */
 document.addEventListener("DOMContentLoaded", init);
@@ -826,7 +810,7 @@ function attachPersonalSubmit() {
             modal.style.display = "flex";
 
             document.getElementById("modalOkBtn").onclick = () => {
-                window.location.href = "index.html";
+                window.location.href = "/";
             };
         } catch (err) {
             console.error(err);

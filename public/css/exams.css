@@ -1311,3 +1311,88 @@
         max-width: 60px;
     }
 }
+
+/* ==============================
+   PRACTICE LOGS TAB
+================================ */
+.pl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.pl-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+
+.pl-date-range {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.pl-date-range span {
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.filter-input {
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #1e293b;
+    background: #fff;
+}
+
+.pl-chart-wrap {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+    height: 220px;
+    margin-bottom: 4px;
+}
+
+.pl-drilldown {
+    margin-top: 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+}
+
+.pl-drilldown.hidden {
+    display: none;
+}
+
+.pl-drill-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #1e293b;
+}
+
+.pl-row-first td {
+    border-top: 2px solid #e2e8f0;
+}
+
+.pl-date-blank {
+    border-top: none !important;
+}
+
+@media (max-width: 640px) {
+    .pl-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
