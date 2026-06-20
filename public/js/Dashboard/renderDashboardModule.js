@@ -268,13 +268,13 @@ async function loadDashboardData(query = "") {
     const joinedDateLabel = formatAttendanceDateLabel(joinedDate);
 
     const branchRowsHtml = branchStats.map(b => {
-      const absent = b.activeSlots - b.present;
       return `<div class="branch-slot-row">
         <span class="branch-slot-name">${b.branch}</span>
         <span class="branch-slot-pat">
           <span class="pat-p">P ${b.present}</span>
-          <span class="pat-a">A ${absent}</span>
-          <span class="pat-t">T ${b.activeSlots}</span>
+          <span class="pat-a">A ${b.absent}</span>
+          <span class="pat-m">M ${b.missing}</span>
+          <span class="pat-t">T ${b.total}</span>
         </span>
       </div>`;
     }).join('');
@@ -303,7 +303,7 @@ async function loadDashboardData(query = "") {
             ${isToday ? '' : '<button class="att-nav-btn" id="attNextBtn">&#8250;</button>'}
           </div>
           <div class="branch-slots-list">${branchRowsHtml}</div>
-          <p class="slots-total">Total Students: ${studentsPresent}</p>
+          <p class="slots-total">P ${slotsRes.studentsPresent || 0} &nbsp; A ${slotsRes.studentsAbsent || 0} &nbsp; M ${slotsRes.studentsMissing || 0} &nbsp; T ${(slotsRes.studentsPresent || 0) + (slotsRes.studentsAbsent || 0) + (slotsRes.studentsMissing || 0)}</p>
       </div>
       <div class="card revenue">
           <h4>Revenue</h4>

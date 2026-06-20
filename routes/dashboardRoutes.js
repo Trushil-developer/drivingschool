@@ -309,45 +309,58 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
       if (!bookedByBranch[branchName][car][key]) bookedByBranch[branchName][car][key] = true;
     });
 
-    // 5. Attendance per branch for target date
+    // 5. Present + Absent counts per branch from attendance records
     const attParams = [req.schoolId, targetDateStr];
     if (branch) attParams.push(branch.toLowerCase());
-    const [attendanceRows] = await dbPool.query(`
-      SELECT TRIM(b.branch) AS branch, COUNT(a.id) AS present
-      FROM attendance a
-      JOIN bookings b ON a.booking_id = b.id
-      WHERE b.school_id = ? AND DATE(a.date) = ? AND a.present >= 1
-      ${branch ? 'AND TRIM(LOWER(b.branch)) = ?' : ''}
+    const branchFilter = branch ? 'AND TRIM(LOWER(b.branch)) = ?' : '';
+
+    const [presentRows] = await dbPool.query(`
+      SELECT TRIM(b.branch) AS branch, COUNT(a.id) AS cnt
+      FROM attendance a JOIN bookings b ON a.booking_id = b.id
+      WHERE b.school_id = ? AND DATE(a.date) = ? AND a.present >= 1 ${branchFilter}
+      GROUP BY TRIM(b.branch)
+    `, attParams);
+
+    const [absentRows] = await dbPool.query(`
+      SELECT TRIM(b.branch) AS branch, COUNT(a.id) AS cnt
+      FROM attendance a JOIN bookings b ON a.booking_id = b.id
+      WHERE b.school_id = ? AND DATE(a.date) = ? AND a.present = 0 ${branchFilter}
       GROUP BY TRIM(b.branch)
     `, attParams);
 
     const presentByBranch = {};
-    attendanceRows.forEach(r => { presentByBranch[r.branch] = Number(r.present); });
+    presentRows.forEach(r => { presentByBranch[r.branch] = Number(r.cnt); });
+    const absentByBranch = {};
+    absentRows.forEach(r => { absentByBranch[r.branch] = Number(r.cnt); });
 
-    let totalActiveSlots = 0;
-    let totalPresent = 0;
+    let totalPresent = 0, totalAbsent = 0, totalMissing = 0;
     const branchStats = Object.keys(carsByBranch).sort().map(branchName => {
       const branchCars = carsByBranch[branchName];
       const branchBooked = bookedByBranch[branchName] || {};
-      let active = 0;
+      let activeSlots = 0;
       branchCars.forEach(carName => {
         const carSlots = branchBooked[carName] || {};
         Object.keys(carSlots).forEach(time => {
           const [h, m] = time.split(':').map(Number);
           const mins = h * 60 + m;
-          if (mins >= 6 * 60 && mins <= 22 * 60 && m % 30 === 0) active++;
+          if (mins >= 6 * 60 && mins <= 22 * 60 && m % 30 === 0) activeSlots++;
         });
       });
       const present = presentByBranch[branchName] || 0;
-      totalActiveSlots += active;
+      const absent  = absentByBranch[branchName]  || 0;
+      const missing = Math.max(0, activeSlots - present - absent);
+      const total   = present + absent + missing;
       totalPresent += present;
-      return { branch: branchName, activeSlots: active, present };
+      totalAbsent  += absent;
+      totalMissing += missing;
+      return { branch: branchName, present, absent, missing, total };
     });
 
     res.json({
       success: true,
-      activeSlots: totalActiveSlots,
       studentsPresent: totalPresent,
+      studentsAbsent: totalAbsent,
+      studentsMissing: totalMissing,
       branchStats
     });
 
