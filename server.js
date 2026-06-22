@@ -282,6 +282,104 @@ app.post('/api/driver-login', async (req, res, next) => {
   }
 });
 
+// ── Driver Leave Requests ──────────────────────────────────────────────────────
+
+app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
+  const { leave_from, leave_to, leave_type, reason } = req.body;
+  const instructorId = req.session.adminId;
+  if (!leave_from || !leave_to || !leave_type) return res.json({ success: false, error: 'From date, to date and type required' });
+  if (leave_to < leave_from) return res.json({ success: false, error: 'To date must be on or after from date' });
+  const ensureTable = () => dbPool.query(`
+    CREATE TABLE IF NOT EXISTS leave_requests (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      instructor_id INT NOT NULL,
+      instructor_name VARCHAR(100),
+      branch VARCHAR(100),
+      leave_from DATE NOT NULL,
+      leave_to DATE NOT NULL,
+      leave_type ENUM('Full Day','Half Day') NOT NULL DEFAULT 'Full Day',
+      reason TEXT,
+      status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+      created_at DATETIME NOT NULL
+    )
+  `);
+  try {
+    const [rows] = await dbPool.query(
+      'SELECT instructor_name, branch FROM instructors WHERE id = ? LIMIT 1', [instructorId]
+    );
+    const name   = rows[0]?.instructor_name ?? 'Unknown';
+    const branch = rows[0]?.branch ?? '';
+    const [result] = await dbPool.query(
+      `INSERT INTO leave_requests (instructor_id, instructor_name, branch, leave_from, leave_to, leave_type, reason, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())`,
+      [instructorId, name, branch, leave_from, leave_to, leave_type, reason || null]
+    );
+    res.json({ success: true, id: result.insertId });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') {
+      await ensureTable();
+      const [rows] = await dbPool.query('SELECT instructor_name, branch FROM instructors WHERE id = ? LIMIT 1', [instructorId]);
+      const name = rows[0]?.instructor_name ?? ''; const branch = rows[0]?.branch ?? '';
+      const [result] = await dbPool.query(
+        `INSERT INTO leave_requests (instructor_id, instructor_name, branch, leave_from, leave_to, leave_type, reason, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())`,
+        [instructorId, name, branch, leave_from, leave_to, leave_type, reason || null]
+      );
+      return res.json({ success: true, id: result.insertId });
+    }
+    next(err);
+  }
+});
+
+app.get('/api/driver-leave', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  try {
+    const [rows] = await dbPool.query(
+      `SELECT id, leave_from, leave_to, leave_type, reason, status, created_at
+       FROM leave_requests WHERE instructor_id = ? ORDER BY leave_from DESC LIMIT 30`,
+      [instructorId]
+    );
+    res.json({ success: true, leaves: rows });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, leaves: [] });
+    next(err);
+  }
+});
+
+// Admin: view all leave requests for the school
+app.get('/api/admin/leave-requests', requireAdmin, async (req, res, next) => {
+  const schoolId = req.session.school_id || 1;
+  const { status } = req.query;
+  try {
+    let q = `SELECT lr.id, lr.instructor_id, lr.instructor_name, lr.branch,
+                    lr.leave_from, lr.leave_to, lr.leave_type, lr.reason, lr.status, lr.created_at,
+                    i.employee_no
+             FROM leave_requests lr
+             LEFT JOIN instructors i ON lr.instructor_id = i.id
+             WHERE i.school_id = ?`;
+    const params = [schoolId];
+    if (status) { q += ' AND lr.status = ?'; params.push(status); }
+    q += ' ORDER BY lr.created_at DESC LIMIT 200';
+    const [rows] = await dbPool.query(q, params);
+    res.json({ success: true, requests: rows });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, requests: [] });
+    next(err);
+  }
+});
+
+// Admin: approve or reject a leave request
+app.patch('/api/admin/leave-requests/:id', requireAdmin, async (req, res, next) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  if (!['Approved', 'Rejected'].includes(status))
+    return res.json({ success: false, error: 'Status must be Approved or Rejected' });
+  try {
+    await dbPool.query('UPDATE leave_requests SET status = ? WHERE id = ?', [status, id]);
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
 app.post('/api/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
