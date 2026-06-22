@@ -536,10 +536,11 @@ app.get('/api/bookings/availability', async (req, res, next) => {
 app.get('/api/bookings', requireAdmin, async (req, res, next) => {
   try {
     const page = req.query.page ? parseInt(req.query.page) : null;
-    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const limit = Math.min(parseInt(req.query.limit) || 50, 2000);
     const search = (req.query.search || '').trim();
     const branch = (req.query.branch || '').trim();
     const status = (req.query.status || '').trim();
+    const instructor = (req.query.instructor || '').trim();
 
     const conditions = ['school_id = ?'];
     const params = [req.schoolId];
@@ -551,6 +552,7 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
     }
     if (branch) { conditions.push('branch = ?'); params.push(branch); }
     if (status) { conditions.push('attendance_status = ?'); params.push(status); }
+    if (instructor) { conditions.push('instructor_name = ?'); params.push(instructor); }
 
     const where = 'WHERE ' + conditions.join(' AND ');
     const selectCols = `
