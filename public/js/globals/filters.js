@@ -113,7 +113,7 @@ export function filterData(tab, items, query) {
     const pendingSelected = document.getElementById("filterPending")?.value || "";
     if (pendingSelected && (tab === "bookings" || tab === "upcoming")) {
         filtered = filtered.filter(item => {
-            const pending = Number(item.total_fees || 0) - Number(item.advance || 0);
+            const pending = Math.round((parseFloat(item.total_fees || 0) - parseFloat(item.advance || 0)) * 100) / 100;
             if (pendingSelected === "pending") return pending > 0;
             if (pendingSelected === "paid") return pending <= 0;
             return true;

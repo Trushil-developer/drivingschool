@@ -174,8 +174,8 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                                     <td class="status-${(b.attendance_status || '').toLowerCase()}">${b.attendance_status || '-'}</td>
                                     <td>
                                         ${b.advance || 0}/${b.total_fees || 0}
-                                        ${(Number(b.total_fees || 0) - Number(b.advance || 0)) > 0
-                                            ? `<span class="pending-badge">₹${Number(b.total_fees || 0) - Number(b.advance || 0)} due</span>`
+                                        ${Math.round((parseFloat(b.total_fees || 0) - parseFloat(b.advance || 0)) * 100) / 100 > 0
+                                            ? `<span class="pending-badge">₹${Math.round((parseFloat(b.total_fees || 0) - parseFloat(b.advance || 0)) * 100) / 100} due</span>`
                                             : ''}
                                     </td>
                                     <td>${b.starting_from ? formatDate(b.starting_from) : '-'}</td>
@@ -307,8 +307,8 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                                     <td class="status-${b.attendance_status.toLowerCase()}">${b.attendance_status || '-'}</td>
                                     <td>
                                         ${b.advance || 0}/${b.total_fees || 0}
-                                        ${(Number(b.total_fees || 0) - Number(b.advance || 0)) > 0
-                                            ? `<span class="pending-badge">₹${Number(b.total_fees || 0) - Number(b.advance || 0)} due</span>`
+                                        ${Math.round((parseFloat(b.total_fees || 0) - parseFloat(b.advance || 0)) * 100) / 100 > 0
+                                            ? `<span class="pending-badge">₹${Math.round((parseFloat(b.total_fees || 0) - parseFloat(b.advance || 0)) * 100) / 100} due</span>`
                                             : ''}
                                     </td>
                                     <td>${b.starting_from ? formatDate(b.starting_from) : '-'}</td>
