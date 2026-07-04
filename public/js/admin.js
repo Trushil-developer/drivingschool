@@ -172,7 +172,12 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                                     <td>${b.branch || '-'}</td>
                                     <td>${b.present_days || 0}/${b.training_days || '-'}</td>
                                     <td class="status-${(b.attendance_status || '').toLowerCase()}">${b.attendance_status || '-'}</td>
-                                    <td>${b.advance || 0}/${b.total_fees || 0}</td>
+                                    <td>
+                                        ${b.advance || 0}/${b.total_fees || 0}
+                                        ${(Number(b.total_fees || 0) - Number(b.advance || 0)) > 0
+                                            ? `<span class="pending-badge">₹${Number(b.total_fees || 0) - Number(b.advance || 0)} due</span>`
+                                            : ''}
+                                    </td>
                                     <td>${b.starting_from ? formatDate(b.starting_from) : '-'}</td>
                                     <td>
                                         ${
@@ -281,6 +286,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                                 <th>Branch</th>
                                 <th>Attendance</th>
                                 <th>Status</th>
+                                <th>Fees (Paid/Total)</th>
                                 <th>Starting From</th>
                                 <th>Actions</th>
                             </tr>
@@ -299,6 +305,12 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                                     <td>${b.branch || '-'}</td>
                                     <td>${b.present_days || 0}/${b.training_days || '-'}</td>
                                     <td class="status-${b.attendance_status.toLowerCase()}">${b.attendance_status || '-'}</td>
+                                    <td>
+                                        ${b.advance || 0}/${b.total_fees || 0}
+                                        ${(Number(b.total_fees || 0) - Number(b.advance || 0)) > 0
+                                            ? `<span class="pending-badge">₹${Number(b.total_fees || 0) - Number(b.advance || 0)} due</span>`
+                                            : ''}
+                                    </td>
                                     <td>${b.starting_from ? formatDate(b.starting_from) : '-'}</td>
                                     <td>
                                         <button class="btn attendance" data-id="${b.id}">Attendance</button>

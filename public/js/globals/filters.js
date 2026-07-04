@@ -1,20 +1,18 @@
 export function attachFilterListeners(tabRenderers, getCurrentTab) {
     const filterBranch = document.getElementById("filterBranch");
     const filterStatus = document.getElementById("filterStatus");
+    const filterPending = document.getElementById("filterPending");
 
     if (!filterBranch || !filterStatus) return;
 
-    // When branch is changed --> re-render current tab
-    filterBranch.addEventListener("change", () => {
+    const rerender = () => {
         const tab = getCurrentTab();
         if (tabRenderers[tab]) tabRenderers[tab]();
-    });
+    };
 
-    // When status is changed --> re-render current tab
-    filterStatus.addEventListener("change", () => {
-        const tab = getCurrentTab();
-        if (tabRenderers[tab]) tabRenderers[tab]();
-    });
+    filterBranch.addEventListener("change", rerender);
+    filterStatus.addEventListener("change", rerender);
+    if (filterPending) filterPending.addEventListener("change", rerender);
 }
 
 export async function loadFilterBranches() {
@@ -109,6 +107,17 @@ export function filterData(tab, items, query) {
         filtered = filtered.filter(item =>
             (item.attendance_status || "") === statusSelected
         );
+    }
+
+    // ---- Pending Payment Filter ----
+    const pendingSelected = document.getElementById("filterPending")?.value || "";
+    if (pendingSelected && (tab === "bookings" || tab === "upcoming")) {
+        filtered = filtered.filter(item => {
+            const pending = Number(item.total_fees || 0) - Number(item.advance || 0);
+            if (pendingSelected === "pending") return pending > 0;
+            if (pendingSelected === "paid") return pending <= 0;
+            return true;
+        });
     }
 
     return filtered;
