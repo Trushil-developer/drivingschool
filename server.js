@@ -898,12 +898,12 @@ app.get('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
     if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
 
     const [rows] = await dbPool.query(
-      `SELECT id, DATE_FORMAT(date, '%Y-%m-%d') AS date, time, present,
+      `SELECT id, DATE_FORMAT(date, '%Y-%m-%d') AS date, CONVERT(time USING utf8mb4) AS time, present,
               DATE_FORMAT(marked_at, '%Y-%m-%d %H:%i') AS marked_at,
               'regular' AS source
        FROM attendance WHERE booking_id=?
        UNION ALL
-       SELECT id, DATE_FORMAT(date, '%Y-%m-%d') AS date, time, present,
+       SELECT id, DATE_FORMAT(date, '%Y-%m-%d') AS date, CONVERT(time USING utf8mb4) AS time, present,
               NULL AS marked_at,
               'ad_hoc' AS source
        FROM schedule_slots WHERE booking_id=?
