@@ -199,38 +199,6 @@ export function renderDashboardModule(container) {
     document.getElementById("expenseSubFilter").addEventListener("change", loadExpenseChart);
     document.getElementById("expenseGranularity").addEventListener("change", loadExpenseChart);
 
-    // Revenue unlock logic
-    document.addEventListener("click", async (e) => {
-      if (e.target.id === "revenueValue") {
-        const pwd = prompt("Enter admin password to view revenue:");
-        if (!pwd) return;
-
-        const body = { password: pwd };
-        if (fromDate.value && toDate.value) { body.from = fromDate.value; body.to = toDate.value; }
-        else if (monthPicker.value) { body.month = monthPicker.value; }
-        if (branchFilter.value) body.branch = branchFilter.value;
-
-        const res = await window.api("/api/dashboard/unlock-revenue", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
-
-        if (res.success) {
-          const fmt = n => `₹${Number(n).toLocaleString('en-IN')}`;
-          e.target.textContent = fmt(res.trainingRevenue);
-          e.target.classList.remove('revenue-locked');
-          const breakdown = document.getElementById('revenueBreakdown');
-          if (breakdown) {
-            document.getElementById('revTraining').textContent   = fmt(res.trainingRevenue);
-            document.getElementById('revCollected').textContent  = fmt(res.collectedRevenue);
-            document.getElementById('revPending').textContent    = fmt(res.pendingRevenue);
-            document.getElementById('revLicence').textContent    = fmt(res.licenceRevenue);
-            breakdown.style.display = 'block';
-          }
-        } else alert("Incorrect password");
-      }
-    });
 
     async function updateDashboard() {
       const params = new URLSearchParams();
@@ -307,12 +275,12 @@ async function loadDashboardData(query = "") {
       </div>
       <div class="card revenue">
           <h4>Revenue</h4>
-          <p id="revenueValue" class="revenue-locked">🔒 Click to unlock</p>
-          <div id="revenueBreakdown" class="revenue-breakdown" style="display:none;">
-              <div class="rev-row"><span>Total Fees</span><span id="revTraining">—</span></div>
-              <div class="rev-row rev-row--collected"><span>Collected</span><span id="revCollected">—</span></div>
-              <div class="rev-row rev-row--pending"><span>Pending</span><span id="revPending">—</span></div>
-              <div class="rev-row rev-row--licence"><span>Licence Fees</span><span id="revLicence">—</span></div>
+          <p id="revenueValue">₹${Number(s.trainingRevenue).toLocaleString('en-IN')}</p>
+          <div id="revenueBreakdown" class="revenue-breakdown">
+              <div class="rev-row"><span>Total Fees</span><span id="revTraining">₹${Number(s.trainingRevenue).toLocaleString('en-IN')}</span></div>
+              <div class="rev-row rev-row--collected"><span>Collected</span><span id="revCollected">₹${Number(s.collectedRevenue).toLocaleString('en-IN')}</span></div>
+              <div class="rev-row rev-row--pending"><span>Pending</span><span id="revPending">₹${Number(s.pendingRevenue).toLocaleString('en-IN')}</span></div>
+              <div class="rev-row rev-row--licence"><span>Licence Fees</span><span id="revLicence">₹${Number(s.licenceRevenue).toLocaleString('en-IN')}</span></div>
           </div>
       </div>
     `;
