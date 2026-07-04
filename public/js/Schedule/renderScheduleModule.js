@@ -353,8 +353,14 @@ window.renderScheduleModule = function(tableWrap) {
                         const doneSessions   = Number(b.present_days) || 0;
                         const remaining      = totalSessions - doneSessions;
 
+                        if (remaining <= 0) return false;
+
                         if (remaining < totalSessions / 2) {
-                            end.setTime(currentDate.getTime());
+                            // Use today's real date, not the viewed date, so the window
+                            // doesn't slide forward as you navigate the calendar
+                            const today = new Date();
+                            today.setHours(23, 59, 59, 999);
+                            end.setTime(today.getTime());
                             end.setDate(end.getDate() + remaining + 3);
                         } else {
                             end.setDate(start.getDate() + 29);
