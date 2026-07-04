@@ -221,6 +221,10 @@ async function loadDashboardData(query = "") {
     if (!statsRes.success) return;
     const s = statsRes.stats;
 
+    // Fetch expense summary with same filters
+    const expRes = await window.api(`/api/dashboard/expense-summary?${query}`);
+    const exp = expRes.success ? expRes : { total: 0, salary: 0, fuel: 0, maintenance: 0, rent: 0, other: 0 };
+
     // Fetch slots + students present for selected attendance date
     const attendanceDateParam = formatAttendanceDateParam(attendanceDate);
     const slotsQuery = query ? `${query}&date=${attendanceDateParam}` : `date=${attendanceDateParam}`;
@@ -281,6 +285,17 @@ async function loadDashboardData(query = "") {
               <div class="rev-row rev-row--collected"><span>Collected</span><span id="revCollected">₹${Number(s.collectedRevenue).toLocaleString('en-IN')}</span></div>
               <div class="rev-row rev-row--pending"><span>Pending</span><span id="revPending">₹${Number(s.pendingRevenue).toLocaleString('en-IN')}</span></div>
               <div class="rev-row rev-row--licence"><span>Licence Fees</span><span id="revLicence">₹${Number(s.licenceRevenue).toLocaleString('en-IN')}</span></div>
+          </div>
+      </div>
+      <div class="card revenue" style="--card-accent:#ef4444;">
+          <h4>Expenses</h4>
+          <p>₹${Number(exp.total).toLocaleString('en-IN')}</p>
+          <div class="revenue-breakdown">
+              <div class="rev-row"><span>Salary</span><span style="color:#ef4444;font-weight:600;">₹${Number(exp.salary).toLocaleString('en-IN')}</span></div>
+              <div class="rev-row"><span>Fuel</span><span style="color:#f59e0b;font-weight:600;">₹${Number(exp.fuel).toLocaleString('en-IN')}</span></div>
+              <div class="rev-row"><span>Maintenance</span><span style="color:#8b5cf6;font-weight:600;">₹${Number(exp.maintenance).toLocaleString('en-IN')}</span></div>
+              <div class="rev-row"><span>Rent</span><span style="color:#0369a1;font-weight:600;">₹${Number(exp.rent).toLocaleString('en-IN')}</span></div>
+              <div class="rev-row"><span>Other</span><span style="color:#64748b;font-weight:600;">₹${Number(exp.other).toLocaleString('en-IN')}</span></div>
           </div>
       </div>
     `;
@@ -718,13 +733,9 @@ async function loadExpenseChart() {
       subFilterSelect.style.display = 'none';
     }
 
-    // Determine which categories to show as stacked segments
-    const visibleCategories = categoryFilter
-      ? [categoryFilter]
-      : [...new Set(data.map(e => e.category).filter(Boolean))].sort();
-
-    // Build period → category → total map
+    // Build period → total map
     const periodMap = {};
+    const periodCatMap = {};
     data.forEach(e => {
       if (!e.expense_date) return;
       const d = new Date(e.expense_date);
@@ -733,25 +744,21 @@ async function loadExpenseChart() {
       else if (granularity === 'year') period = d.toLocaleDateString('en-CA', { timeZone: _IST_TZ }).slice(0, 4);
       else                             period = d.toLocaleDateString('en-CA', { timeZone: _IST_TZ }).slice(0, 7);
 
-      if (!periodMap[period]) periodMap[period] = {};
       const cat = e.category || 'Other';
-      periodMap[period][cat] = (periodMap[period][cat] || 0) + Number(e.amount || 0);
+      periodMap[period] = (periodMap[period] || 0) + Number(e.amount || 0);
+      if (!periodCatMap[period]) periodCatMap[period] = {};
+      periodCatMap[period][cat] = (periodCatMap[period][cat] || 0) + Number(e.amount || 0);
     });
 
     const labels = Object.keys(periodMap).sort();
 
-    // Color palette for categories
-    const palette = [
-      COLORS.danger, COLORS.primary, COLORS.warning, COLORS.success,
-      COLORS.purple, COLORS.cyan, COLORS.indigo, COLORS.pink,
-      '#f97316', '#14b8a6'
-    ];
-
-    const datasets = visibleCategories.map((cat, i) => {
-      const color = palette[i % palette.length];
-      return {
-        label: cat,
-        data: labels.map(p => periodMap[p]?.[cat] || 0),
+    let datasets;
+    if (categoryFilter) {
+      // Single category selected — show that category's line
+      const color = COLORS.danger;
+      datasets = [{
+        label: categoryFilter,
+        data: labels.map(p => periodCatMap[p]?.[categoryFilter] || 0),
         borderColor: color,
         backgroundColor: color + '28',
         fill: true,
@@ -760,8 +767,22 @@ async function loadExpenseChart() {
         pointHoverRadius: 6,
         pointBackgroundColor: color,
         borderWidth: 2
-      };
-    });
+      }];
+    } else {
+      // No category filter — show single Total Expenses line
+      datasets = [{
+        label: 'Total Expenses',
+        data: labels.map(p => periodMap[p] || 0),
+        borderColor: COLORS.danger,
+        backgroundColor: COLORS.danger + '28',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: COLORS.danger,
+        borderWidth: 2
+      }];
+    }
 
     const ctx = document.getElementById('expenseDashboardChart')?.getContext('2d');
     if (!ctx) return;

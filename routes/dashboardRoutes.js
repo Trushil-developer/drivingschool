@@ -159,6 +159,55 @@ router.post("/unlock-revenue", requireAdmin, async (req, res) => {
 });
 
 /**
+ * EXPENSE SUMMARY FOR DASHBOARD
+ */
+router.get("/expense-summary", requireAdmin, async (req, res) => {
+  try {
+    const { from, to, month, branch } = req.query;
+
+    const conditions = ['e.school_id = ?'];
+    const params = [req.schoolId];
+
+    if (from && to) {
+      conditions.push('e.expense_date BETWEEN ? AND ?');
+      params.push(from, to);
+    } else if (month) {
+      conditions.push("DATE_FORMAT(e.expense_date, '%Y-%m') = ?");
+      params.push(month);
+    }
+    if (branch) { conditions.push('e.branch = ?'); params.push(branch); }
+
+    const where = 'WHERE ' + conditions.join(' AND ');
+
+    const [[row]] = await dbPool.query(`
+      SELECT
+        COALESCE(SUM(e.amount), 0) AS total,
+        COALESCE(SUM(CASE WHEN ec.name LIKE '%Salary%' OR ec.name = 'OVER TIME' THEN e.amount ELSE 0 END), 0) AS salary,
+        COALESCE(SUM(CASE WHEN ec.name LIKE '%Fuel%' THEN e.amount ELSE 0 END), 0) AS fuel,
+        COALESCE(SUM(CASE WHEN ec.name LIKE '%Repair%' OR ec.name LIKE '%Wash%' OR ec.name LIKE 'AMC%' OR ec.name LIKE '%insurance%' THEN e.amount ELSE 0 END), 0) AS maintenance,
+        COALESCE(SUM(CASE WHEN ec.name LIKE '%Rent%' THEN e.amount ELSE 0 END), 0) AS rent,
+        COALESCE(SUM(CASE WHEN ec.name NOT LIKE '%Salary%' AND ec.name != 'OVER TIME' AND ec.name NOT LIKE '%Fuel%' AND ec.name NOT LIKE '%Repair%' AND ec.name NOT LIKE '%Wash%' AND ec.name NOT LIKE 'AMC%' AND ec.name NOT LIKE '%insurance%' AND ec.name NOT LIKE '%Rent%' THEN e.amount ELSE 0 END), 0) AS other
+      FROM expenses e
+      LEFT JOIN expense_categories ec ON e.category_id = ec.id
+      ${where}
+    `, params);
+
+    res.json({
+      success: true,
+      total:       Number(row.total),
+      salary:      Number(row.salary),
+      fuel:        Number(row.fuel),
+      maintenance: Number(row.maintenance),
+      rent:        Number(row.rent),
+      other:       Number(row.other)
+    });
+  } catch (err) {
+    console.error("EXPENSE SUMMARY ERROR:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+/**
  * GET ALL BRANCHES
  */
 router.get("/branches", requireAdmin, async (req, res) => {
