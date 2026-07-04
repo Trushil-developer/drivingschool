@@ -69,6 +69,7 @@ export function renderDashboardModule(container) {
                 </select>
                 <select id="enquiryGranularity" class="chart-filter-select">
                   <option value="day" selected>By Day</option>
+                  <option value="week">By Week</option>
                   <option value="month">By Month</option>
                   <option value="year">By Year</option>
                 </select>
@@ -87,6 +88,7 @@ export function renderDashboardModule(container) {
                 </select>
                 <select id="enrollmentGranularity" class="chart-filter-select">
                   <option value="day" selected>By Day</option>
+                  <option value="week">By Week</option>
                   <option value="month">By Month</option>
                   <option value="year">By Year</option>
                 </select>
@@ -105,6 +107,7 @@ export function renderDashboardModule(container) {
                 </select>
                 <select id="attendanceGranularity" class="chart-filter-select">
                   <option value="day" selected>By Day</option>
+                  <option value="week">By Week</option>
                   <option value="month">By Month</option>
                   <option value="year">By Year</option>
                 </select>
@@ -129,6 +132,7 @@ export function renderDashboardModule(container) {
                 </select>
                 <select id="expenseGranularity" class="chart-filter-select">
                   <option value="day" selected>By Day</option>
+                  <option value="week">By Week</option>
                   <option value="month">By Month</option>
                   <option value="year">By Year</option>
                 </select>
@@ -672,6 +676,9 @@ function formatPeriodLabel(period, granularity) {
   } else if (granularity === 'day') {
     const date = new Date(period);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } else if (granularity === 'week') {
+    // period format: YYYY-Www (e.g. 2026-W27)
+    return period;
   } else {
     // month format: YYYY-MM
     const [year, month] = period.split('-');
@@ -740,9 +747,13 @@ async function loadExpenseChart() {
       if (!e.expense_date) return;
       const d = new Date(e.expense_date);
       let period;
-      if (granularity === 'day')       period = e.expense_date.split('T')[0];
-      else if (granularity === 'year') period = d.toLocaleDateString('en-CA', { timeZone: _IST_TZ }).slice(0, 4);
-      else                             period = d.toLocaleDateString('en-CA', { timeZone: _IST_TZ }).slice(0, 7);
+      if (granularity === 'day')        period = e.expense_date.split('T')[0];
+      else if (granularity === 'year')  period = d.toLocaleDateString('en-CA', { timeZone: _IST_TZ }).slice(0, 4);
+      else if (granularity === 'week') {
+        const jan1 = new Date(d.getFullYear(), 0, 1);
+        const weekNo = Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+        period = `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+      } else                            period = d.toLocaleDateString('en-CA', { timeZone: _IST_TZ }).slice(0, 7);
 
       const cat = e.category || 'Other';
       periodMap[period] = (periodMap[period] || 0) + Number(e.amount || 0);

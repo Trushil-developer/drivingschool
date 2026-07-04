@@ -564,16 +564,20 @@ router.get("/enquiry-trends", requireAdmin, async (req, res) => {
       params.push(heard_about);
     }
 
+    const periodExpr = granularity === 'year' ? 'YEAR(e.created_at)'
+      : granularity === 'week' ? "DATE_FORMAT(e.created_at, '%x-W%v')"
+      : granularity === 'day'  ? 'DATE(e.created_at)'
+      : "DATE_FORMAT(e.created_at, '%Y-%m')";
+    const limitVal = granularity === 'day' ? 30 : granularity === 'week' ? 16 : granularity === 'year' ? 10 : 12;
+
     const [rows] = await dbPool.query(`
-      SELECT
-        ${granularity === 'year' ? 'YEAR(e.created_at)' : (granularity === 'day' ? 'DATE(e.created_at)' : "DATE_FORMAT(e.created_at, '%Y-%m')")} AS period,
-        COUNT(*) AS count
+      SELECT ${periodExpr} AS period, COUNT(*) AS count
       FROM enquiries e
       LEFT JOIN branches b ON e.branch_id = b.id
       ${whereClause}
       GROUP BY period
       ORDER BY period DESC
-      LIMIT ${granularity === 'day' ? 30 : (granularity === 'year' ? 10 : 12)}
+      LIMIT ${limitVal}
     `, params);
 
     res.json({ success: true, data: rows.reverse() });
@@ -616,16 +620,20 @@ router.get("/enrollment-trends", requireAdmin, async (req, res) => {
       params.push(branch.toLowerCase());
     }
 
+    const periodExpr = granularity === 'year' ? 'YEAR(created_at)'
+      : granularity === 'week' ? "DATE_FORMAT(created_at, '%x-W%v')"
+      : granularity === 'day'  ? 'DATE(created_at)'
+      : "DATE_FORMAT(created_at, '%Y-%m')";
+    const limitVal = granularity === 'day' ? 30 : granularity === 'week' ? 16 : granularity === 'year' ? 10 : 12;
+
     const [rows] = await dbPool.query(`
-      SELECT
-        ${granularity === 'year' ? 'YEAR(created_at)' : (granularity === 'day' ? 'DATE(created_at)' : "DATE_FORMAT(created_at, '%Y-%m')")} AS period,
-        COUNT(*) AS count,
-        COALESCE(SUM(total_fees + COALESCE(licence_fee,0)), 0) AS revenue
+      SELECT ${periodExpr} AS period, COUNT(*) AS count,
+             COALESCE(SUM(total_fees + COALESCE(licence_fee,0)), 0) AS revenue
       FROM bookings
       ${whereClause}
       GROUP BY period
       ORDER BY period DESC
-      LIMIT ${granularity === 'day' ? 30 : (granularity === 'year' ? 10 : 12)}
+      LIMIT ${limitVal}
     `, params);
 
     res.json({ success: true, data: rows.reverse() });
@@ -695,10 +703,10 @@ router.get("/attendance-trends", requireAdmin, async (req, res) => {
         };
       });
     } else {
-      const periodExpr = granularity === 'year'
-        ? 'YEAR(a.date)'
+      const periodExpr = granularity === 'year' ? 'YEAR(a.date)'
+        : granularity === 'week' ? "DATE_FORMAT(a.date, '%x-W%v')"
         : "DATE_FORMAT(a.date, '%Y-%m')";
-      const limit = granularity === 'year' ? 5 : 12;
+      const limit = granularity === 'year' ? 5 : granularity === 'week' ? 16 : 12;
       const [r] = await dbPool.query(`
         SELECT
           ${periodExpr} AS period,
