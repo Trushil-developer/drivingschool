@@ -121,10 +121,12 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
             try {
                 const filterBranch = document.getElementById('filterBranch');
                 const filterStatus = document.getElementById('filterStatus');
+                const filterPending = document.getElementById('filterPending');
                 const params = new URLSearchParams({ page, limit: 50 });
                 if (lastSearch) params.set('search', lastSearch);
                 if (filterBranch?.value) params.set('branch', filterBranch.value);
                 if (filterStatus?.value) params.set('status', filterStatus.value);
+                if (filterPending?.value) params.set('pending', filterPending.value);
 
                 const res = await window.api(`/api/bookings?${params}`);
                 if (!res.success) throw new Error(res.error || 'Failed to fetch bookings');
