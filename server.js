@@ -899,9 +899,16 @@ app.get('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => {
 
     const [rows] = await dbPool.query(
       `SELECT id, DATE_FORMAT(date, '%Y-%m-%d') AS date, time, present,
-              DATE_FORMAT(marked_at, '%Y-%m-%d %H:%i') AS marked_at
-       FROM attendance WHERE booking_id=? ORDER BY date DESC, time ASC`,
-      [booking_id]
+              DATE_FORMAT(marked_at, '%Y-%m-%d %H:%i') AS marked_at,
+              'regular' AS source
+       FROM attendance WHERE booking_id=?
+       UNION ALL
+       SELECT id, DATE_FORMAT(date, '%Y-%m-%d') AS date, time, present,
+              NULL AS marked_at,
+              'ad_hoc' AS source
+       FROM schedule_slots WHERE booking_id=?
+       ORDER BY date DESC, time ASC`,
+      [booking_id, booking_id]
     );
     res.json({ success: true, records: rows });
   } catch (err) {

@@ -331,16 +331,23 @@ import { openSlotPicker } from "./globals/slotPicker.js";
                 tbody.innerHTML = recs.map(r => {
                     const slotLabel = r.time ? to12HourFromDB(r.time) : '—';
                     const isPresent = r.present == 1;
+                    const isAdHoc  = r.source === 'ad_hoc';
                     const badge = isPresent
                         ? `<span class="ah-badge ah-badge--present">Present</span>`
                         : `<span class="ah-badge ah-badge--absent">Absent</span>`;
+                    const sourceTag = isAdHoc
+                        ? `<span style="font-size:10px;color:#7c3aed;background:#ede9fe;padding:1px 5px;border-radius:3px;margin-left:4px;">Ad-hoc</span>`
+                        : '';
+                    const deleteBtn = isAdHoc
+                        ? ''
+                        : `<button class="ah-delete-btn" data-id="${r.id}" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>`;
                     return `
                         <tr data-id="${r.id}">
                             <td>${r.date}</td>
-                            <td>${slotLabel}</td>
+                            <td>${slotLabel}${sourceTag}</td>
                             <td>${badge}</td>
                             <td style="color:#64748b; font-size:12px;">${r.marked_at || '—'}</td>
-                            <td><button class="ah-delete-btn" data-id="${r.id}" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></td>
+                            <td>${deleteBtn}</td>
                         </tr>`;
                 }).join('');
 
@@ -351,7 +358,7 @@ import { openSlotPicker } from "./globals/slotPicker.js";
                         try {
                             const del = await window.api(`/api/attendance/${bk.id}/${recId}`, { method: 'DELETE' });
                             if (!del.success) return alert('Failed to delete.');
-                            const updated = records.filter(r => String(r.id) !== String(recId));
+                            const updated = records.filter(r => String(r.id) !== String(recId) || r.source === 'ad_hoc');
                             records.length = 0;
                             updated.forEach(r => records.push(r));
                             renderRows(records);
