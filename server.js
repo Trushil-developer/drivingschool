@@ -578,7 +578,8 @@ app.get('/api/bookings/availability', async (req, res, next) => {
       AND school_id = ?
       ${excludeId ? 'AND id != ?' : ''}
     `;
-    const params = excludeId ? [req.schoolId, excludeId] : [req.schoolId];
+    const schoolId = req.schoolId || req.session?.schoolId || 1;
+    const params = excludeId ? [schoolId, excludeId] : [schoolId];
     const [rows] = await dbPool.query(sql, params);
     res.json({ success: true, bookings: rows });
   } catch (err) {
