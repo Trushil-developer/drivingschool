@@ -685,3 +685,42 @@
         font-size: 13px;
     }
 }
+
+/* ── Upcoming Bookings Table ── */
+.upcoming-bookings-wrap {
+    margin-top: 32px;
+}
+
+.upcoming-bookings-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.upcoming-bookings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.upcoming-bookings-table th {
+    background: #f8fafc;
+    color: #64748b;
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.upcoming-bookings-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+}
+
+.upcoming-bookings-table tr:hover td {
+    background: #f8fafc;
+}

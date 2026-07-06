@@ -561,6 +561,56 @@ window.renderScheduleModule = function(tableWrap) {
                         </tbody>
                     </table>`;
 
+                    // ── Upcoming bookings table (starts in the future) ──
+                    const upcomingBookings = bookings.filter(b => {
+                        if (!b.starting_from) return false;
+                        if ((b.branch || '').trim().toLowerCase() !== branch.trim().toLowerCase()) return false;
+                        const status = (b.attendance_status || '').trim().toLowerCase();
+                        if (status !== 'pending') return false;
+                        const startDate = new Date(b.starting_from);
+                        startDate.setHours(0, 0, 0, 0);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return startDate > today;
+                    }).sort((a, b) => new Date(a.starting_from) - new Date(b.starting_from));
+
+                    if (upcomingBookings.length > 0) {
+                        const upcomingHtml = `
+                            <div class="upcoming-bookings-wrap">
+                                <h3 class="upcoming-bookings-title">Upcoming Bookings</h3>
+                                <table class="upcoming-bookings-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Car</th>
+                                            <th>Slots</th>
+                                            <th>Instructor</th>
+                                            <th>Starts On</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${upcomingBookings.map(b => {
+                                            const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
+                                                .filter(Boolean)
+                                                .map(t => to12HourFormat(t.substring(0, 5)))
+                                                .join(', ');
+                                            const startStr = new Date(b.starting_from).toLocaleDateString('en-IN', {
+                                                day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata'
+                                            });
+                                            return `<tr>
+                                                <td><a href="details.html?id=${b.id}" style="color:inherit;text-decoration:none;font-weight:600;">${b.customer_name || '-'}</a></td>
+                                                <td>${b.car_name || '-'}</td>
+                                                <td>${slots || '-'}</td>
+                                                <td>${b.instructor_name || '-'}</td>
+                                                <td>${startStr}</td>
+                                            </tr>`;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>`;
+                        html += upcomingHtml;
+                    }
+
                     const wrap = document.getElementById("scheduleTableWrap");
                     wrap.innerHTML = html;
                     wrap.style.pointerEvents = ''; // re-enable only after DOM is updated
