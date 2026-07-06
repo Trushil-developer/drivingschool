@@ -214,6 +214,49 @@ function normalizeSlots(selectedSlots = []) {
 }
 
 
+async function checkSlotConflicts(schoolId, branch, car, startingFrom, slots, excludeId = null) {
+  if (!branch || !car || !startingFrom) return null;
+  const newSlots = slots.filter(Boolean).map(t => t.substring(0, 5));
+  if (newSlots.length === 0) return null;
+
+  const myStart = new Date(startingFrom);
+  const myEnd   = new Date(myStart);
+  myEnd.setDate(myStart.getDate() + 30);
+
+  const params = [schoolId, branch, car];
+  const excludeClause = excludeId ? 'AND id != ?' : '';
+  if (excludeId) params.push(excludeId);
+
+  const [bookings] = await dbPool.query(`
+    SELECT customer_name, starting_from,
+           allotted_time, allotted_time2, allotted_time3, allotted_time4
+    FROM bookings
+    WHERE school_id = ? AND branch = ? AND car_name = ?
+      AND attendance_status IN ('Active', 'Pending')
+      ${excludeClause}
+  `, params);
+
+  for (const b of bookings) {
+    if (!b.starting_from) continue;
+    const bStart = new Date(b.starting_from);
+    const bEnd   = new Date(bStart);
+    bEnd.setDate(bStart.getDate() + 30);
+    if (bStart > myEnd || bEnd < myStart) continue;
+
+    const bSlots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
+      .filter(Boolean).map(t => t.substring(0, 5));
+
+    const conflict = newSlots.find(s => bSlots.includes(s));
+    if (conflict) {
+      const [hh, mm] = conflict.split(':').map(Number);
+      const ampm = hh >= 12 ? 'PM' : 'AM';
+      const h12 = hh % 12 || 12;
+      return `${h12}:${mm.toString().padStart(2,'0')} ${ampm} is already booked by ${b.customer_name}`;
+    }
+  }
+  return null;
+}
+
 // ---------- AUTH ----------
 app.post('/api/login', loginLimiter, async (req, res, next) => {
   const { username, password } = req.body;
@@ -421,6 +464,17 @@ app.post('/api/bookings', async (req, res, next) => {
   }
 
   try {
+    const conflictError = await checkSlotConflicts(
+      req.schoolId || 1,
+      data.branch,
+      data.car_name,
+      data.starting_from,
+      Object.values(slotTimes).filter(Boolean)
+    );
+    if (conflictError) {
+      return res.status(400).json({ success: false, error: conflictError });
+    }
+
     const initialPresentDays = 0;
     const initialHoldStatus = data.hold_status ? 1 : 0;
 
@@ -521,10 +575,10 @@ app.get('/api/bookings/availability', async (req, res, next) => {
         attendance_status
       FROM bookings
       WHERE attendance_status IN ('Active', 'Pending')
-      AND school_id = 1
+      AND school_id = ?
       ${excludeId ? 'AND id != ?' : ''}
     `;
-    const params = excludeId ? [excludeId] : [];
+    const params = excludeId ? [req.schoolId, excludeId] : [req.schoolId];
     const [rows] = await dbPool.query(sql, params);
     res.json({ success: true, bookings: rows });
   } catch (err) {
@@ -611,6 +665,20 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
     }
 
     const current = rows[0];
+
+    if (hasSelectedSlots) {
+      const conflictError = await checkSlotConflicts(
+        req.schoolId,
+        data.branch || current.branch,
+        data.car_name || current.car_name,
+        data.starting_from || current.starting_from,
+        Object.values(slotTimes).filter(Boolean),
+        Number(id)
+      );
+      if (conflictError) {
+        return res.status(400).json({ success: false, error: conflictError });
+      }
+    }
     const newHoldStatus = data.hold_status ? 1 : 0;
     let hold_from = current.hold_from;
     let extended_days = current.extended_days || 0;

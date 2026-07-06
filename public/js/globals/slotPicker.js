@@ -115,12 +115,12 @@ export async function openSlotPicker({ branch, car, startingFrom, durationMinute
             btn.textContent = to12Hr(t);
             btn.dataset.time = t;
 
-            if (takenSlots.has(t)) {
+            if (selected.has(t)) {
+                btn.classList.add('sp-slot--selected');
+            } else if (takenSlots.has(t)) {
                 btn.classList.add('sp-slot--taken');
                 btn.disabled = true;
                 btn.title = 'Already booked by another student';
-            } else if (selected.has(t)) {
-                btn.classList.add('sp-slot--selected');
             }
 
             if (!btn.disabled) {

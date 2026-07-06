@@ -814,7 +814,7 @@ function attachPersonalSubmit() {
             };
         } catch (err) {
             console.error(err);
-            alert("Server error. Please try again later.");
+            alert(err.message || "Server error. Please try again later.");
         } finally {
             isSubmitting = false;
             submitBookingBtn.disabled = false;
