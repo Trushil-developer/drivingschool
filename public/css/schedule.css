@@ -724,3 +724,318 @@
 .upcoming-bookings-table tr:hover td {
     background: #f8fafc;
 }
+
+/* ═══════════════════════════════════════
+   INSTRUCTOR CARDS SECTION
+═══════════════════════════════════════ */
+.instructor-chips {
+    margin: 0 0 20px;
+}
+
+.instr-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 10px;
+}
+
+.instr-section-empty {
+    font-size: 13px;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+.instr-cards-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.instr-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    background: #fff;
+    transition: all 0.18s ease;
+    text-align: left;
+    min-width: 160px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+}
+
+.instr-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.instr-card--busy {
+    border-color: #fcd34d;
+    background: #fffbeb;
+}
+
+.instr-card--busy:hover {
+    border-color: #f59e0b;
+    background: #fef3c7;
+}
+
+.instr-card--free {
+    border-color: #86efac;
+    background: #f0fdf4;
+}
+
+.instr-card--free:hover {
+    border-color: #4ade80;
+    background: #dcfce7;
+}
+
+.instr-card-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    color: #fff;
+}
+
+.instr-card--busy .instr-card-avatar  { background: #f59e0b; }
+.instr-card--free .instr-card-avatar  { background: #22c55e; }
+
+.instr-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.instr-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.instr-card-status {
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.instr-card--busy .instr-card-status { color: #b45309; }
+.instr-card--free .instr-card-status { color: #15803d; }
+
+/* ═══════════════════════════════════════
+   INSTRUCTOR SCHEDULE MODAL
+═══════════════════════════════════════ */
+.instr-sched-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,42,0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.instr-sched-modal {
+    background: #fff;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.22);
+    display: flex;
+    flex-direction: column;
+}
+
+.instr-sched-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 1;
+}
+
+.instr-sched-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.instr-sched-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.instr-sched-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 2px;
+}
+
+.instr-sched-header p {
+    font-size: 12px;
+    color: #94a3b8;
+    margin: 0;
+}
+
+.instr-sched-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+
+.instr-sched-close:hover { background: #e2e8f0; color: #0f172a; }
+
+/* Session rows */
+.instr-sched-sessions {
+    padding: 12px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.instr-sched-session {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    transition: background 0.15s;
+}
+
+.instr-sched-session:hover { background: #f8fafc; }
+
+.instr-sched-session.iss-present { border-left: 3px solid #22c55e; }
+.instr-sched-session.iss-absent  { border-left: 3px solid #ef4444; }
+.instr-sched-session.iss-unmarked { border-left: 3px solid #cbd5e1; }
+
+.iss-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.iss-time {
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+    min-width: 64px;
+    flex-shrink: 0;
+}
+
+.iss-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.iss-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.iss-name:hover { color: #3b82f6; text-decoration: underline; }
+
+.iss-progress {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.iss-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 20px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.iss-badge.iss-present  { background: #dcfce7; color: #15803d; }
+.iss-badge.iss-absent   { background: #fee2e2; color: #b91c1c; }
+.iss-badge.iss-unmarked { background: #f1f5f9; color: #94a3b8; }
+
+.instr-sched-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.instr-sched-empty-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+}
+
+/* Responsive cards */
+@media (max-width: 600px) {
+    .instr-card {
+        min-width: calc(50% - 5px);
+        flex: 1 1 calc(50% - 5px);
+    }
+}
+
+@media (max-width: 380px) {
+    .instr-card {
+        min-width: 100%;
+    }
+    .instr-sched-session {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .iss-badge {
+        margin-left: auto;
+    }
+}

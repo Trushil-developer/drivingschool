@@ -99,8 +99,25 @@ window.renderScheduleModule = function(tableWrap) {
                                     <span class="available-slots">Available Slots: 0</span>
                                 </div>
                             </div>
+                            <div id="instructorChips" class="instructor-chips"></div>
                             <div id="scheduleTableWrap">
                                 <div class="loading-overlay">Loading schedule...</div>
+                            </div>
+                        </div>
+                        <!-- Instructor Schedule Modal -->
+                        <div id="instrSchedOverlay" class="instr-sched-overlay" style="display:none">
+                            <div class="instr-sched-modal">
+                                <div class="instr-sched-header">
+                                    <div class="instr-sched-header-left">
+                                        <div class="instr-sched-avatar" id="instrSchedAvatar"></div>
+                                        <div>
+                                            <h3 id="instrSchedName"></h3>
+                                            <p id="instrSchedDate"></p>
+                                        </div>
+                                    </div>
+                                    <button id="instrSchedClose" class="instr-sched-close">&times;</button>
+                                </div>
+                                <div id="instrSchedBody"></div>
                             </div>
                         </div>
                     `;
@@ -291,6 +308,7 @@ window.renderScheduleModule = function(tableWrap) {
             async function initDayNavigation(branch) {
                 let currentDate = new Date();
                 let _latestBranchBookings = [];
+                let _currentView = 'car'; // 'car' | 'instructor'
 
                 async function renderDay() {
                     document.getElementById("currentDay").innerText = formatDate(currentDate);
@@ -611,11 +629,76 @@ window.renderScheduleModule = function(tableWrap) {
                         html += upcomingHtml;
                     }
 
+                    // ── Build per-instructor slot map for modal ──────────
+                    const instrSlotMap = {};
+                    [...allBranchBookings].forEach(b => {
+                        const instr = (b.instructor_name || '').trim();
+                        if (!instr) return;
+                        if (!instrSlotMap[instr]) instrSlotMap[instr] = [];
+                        const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4].filter(Boolean);
+                        const totalDays = Number(b.training_days) || 15;
+                        const dayMap = attendanceMap[b.id]?.[dateStr];
+                        slots.forEach(s => {
+                            const key = s.substring(0, 5);
+                            const pv = dayMap?.[key] ?? null;
+                            instrSlotMap[instr].push({
+                                time: key,
+                                customer: b.customer_name || '',
+                                progress: `${b.present_days}/${totalDays}`,
+                                booking_id: b.id,
+                                present: pv
+                            });
+                        });
+                    });
+                    adHocSlots.forEach(s => {
+                        const instr = (s.instructor_name || '').trim();
+                        if (!instr) return;
+                        if (!instrSlotMap[instr]) instrSlotMap[instr] = [];
+                        instrSlotMap[instr].push({
+                            time: s.time.substring(0, 5),
+                            customer: s.customer_name || '',
+                            progress: 'Ad-hoc',
+                            booking_id: s.booking_id,
+                            present: Number(s.present)
+                        });
+                    });
+
+                    // ── Populate instructor cards ────────────────────────
+                    const instrRes = await window.api(`/api/instructors?branch=${encodeURIComponent(branch)}`);
+                    const instructors = (instrRes.success ? instrRes.instructors : [])
+                        .filter(i => i.is_active && (i.role || '').toLowerCase() === 'instructor');
+
+                    const chipsEl = document.getElementById('instructorChips');
+                    if (chipsEl) {
+                        if (instructors.length) {
+                            const initials = name => name.trim().split(/\s+/).map(w => w[0]).join('').substring(0, 2).toUpperCase();
+                            chipsEl.innerHTML = `
+                                <div class="instr-section-label">Instructors</div>
+                                <div class="instr-cards-row">
+                                ${instructors.map(i => {
+                                    const busy = (instrSlotMap[i.instructor_name] || []).length;
+                                    const statusClass = busy ? 'instr-card--busy' : 'instr-card--free';
+                                    const statusText  = busy ? `${busy} session${busy !== 1 ? 's' : ''}` : 'Free today';
+                                    return `<button class="instr-card ${statusClass}" data-name="${i.instructor_name}">
+                                        <span class="instr-card-avatar">${initials(i.instructor_name)}</span>
+                                        <span class="instr-card-info">
+                                            <span class="instr-card-name">${i.instructor_name}</span>
+                                            <span class="instr-card-status">${statusText}</span>
+                                        </span>
+                                    </button>`;
+                                }).join('')}
+                                </div>`;
+                        } else {
+                            chipsEl.innerHTML = '<span class="instr-section-empty">No active instructors for this branch</span>';
+                        }
+                        chipsEl._slotMap = instrSlotMap;
+                        chipsEl._dateStr = formatDate(currentDate);
+                    }
+
                     const wrap = document.getElementById("scheduleTableWrap");
                     wrap.innerHTML = html;
-                    wrap.style.pointerEvents = ''; // re-enable only after DOM is updated
+                    wrap.style.pointerEvents = '';
                     initTooltips();
-                    // expose branchBookings to the outer-scope handler
                     _latestBranchBookings = branchBookings;
                 }
 
@@ -630,6 +713,57 @@ window.renderScheduleModule = function(tableWrap) {
                     currentDate.setDate(currentDate.getDate()+1);
                     renderDay();
                 };
+
+                // ── Instructor card click → show schedule modal ──────
+                document.getElementById('instructorChips').addEventListener('click', e => {
+                    const chip = e.target.closest('.instr-card');
+                    if (!chip) return;
+                    const name = chip.dataset.name;
+                    const chipsEl = document.getElementById('instructorChips');
+                    const slotMap = chipsEl._slotMap || {};
+                    const dateStr = chipsEl._dateStr || '';
+                    const slots = (slotMap[name] || []).sort((a, b) => a.time.localeCompare(b.time));
+
+                    document.getElementById('instrSchedName').textContent = name;
+                    document.getElementById('instrSchedDate').textContent = dateStr;
+                    const av = document.getElementById('instrSchedAvatar');
+                    if (av) av.textContent = name.trim().split(/\s+/).map(w => w[0]).join('').substring(0, 2).toUpperCase();
+
+                    const body = document.getElementById('instrSchedBody');
+                    if (slots.length === 0) {
+                        body.innerHTML = `<div class="instr-sched-empty">
+                            <div class="instr-sched-empty-icon">🎉</div>
+                            <div>Free all day — no sessions scheduled</div>
+                        </div>`;
+                    } else {
+                        body.innerHTML = `<div class="instr-sched-sessions">
+                            ${slots.map((s, idx) => {
+                                const presentClass = s.present === 1 ? 'iss-present' : s.present === 0 ? 'iss-absent' : 'iss-unmarked';
+                                const presentLabel = s.present === 1 ? 'Present' : s.present === 0 ? 'Absent' : 'Not marked';
+                                const presentIcon  = s.present === 1 ? '✓' : s.present === 0 ? '✗' : '–';
+                                return `<div class="instr-sched-session ${presentClass}">
+                                    <div class="iss-num">${idx + 1}</div>
+                                    <div class="iss-time">${to12HourFormat(s.time)}</div>
+                                    <div class="iss-info">
+                                        <a href="details.html?id=${s.booking_id}" class="iss-name">${s.customer}</a>
+                                        <span class="iss-progress">${s.progress}</span>
+                                    </div>
+                                    <div class="iss-badge ${presentClass}">${presentIcon} ${presentLabel}</div>
+                                </div>`;
+                            }).join('')}
+                        </div>`;
+                    }
+
+                    document.getElementById('instrSchedOverlay').style.display = 'flex';
+                });
+
+                document.getElementById('instrSchedClose').addEventListener('click', () => {
+                    document.getElementById('instrSchedOverlay').style.display = 'none';
+                });
+                document.getElementById('instrSchedOverlay').addEventListener('click', e => {
+                    if (e.target === document.getElementById('instrSchedOverlay'))
+                        document.getElementById('instrSchedOverlay').style.display = 'none';
+                });
 
                 await renderDay();
 
