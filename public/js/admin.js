@@ -468,6 +468,18 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 hideLoading();
             }
         },
+        tripLogs: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderTripLogsModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Trip Logs module not loaded</div>';
+                    return;
+                }
+                await window.renderTripLogsModule(tableWrap);
+            } finally {
+                hideLoading();
+            }
+        },
     };
 
     attachFilterListeners(tabRenderers, () => currentTab);
@@ -486,7 +498,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
             }
         }
 
-        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams' || tab === 'expenses') {
+        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams' || tab === 'expenses' || tab === 'tripLogs') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
         } else if (tab === 'trainingDays' || tab === 'courses' || tab === 'packages') {

@@ -1154,3 +1154,79 @@ body {
 .role-office-staff { background: #dcfce7; color: #15803d; }
 .role-manager { background: #fef9c3; color: #a16207; }
 .role-other { background: #f3f4f6; color: #6b7280; }
+
+/* ── Trip Logs ─────────────────────────────────────────────────── */
+.tl-wrap { padding: 20px; }
+
+.tl-header { margin-bottom: 20px; }
+.tl-title { font-size: 1.4rem; font-weight: 700; color: var(--text-primary, #111); margin: 0 0 4px; }
+.tl-subtitle { font-size: 0.88rem; color: var(--text-secondary, #666); margin: 0; }
+
+.tl-filters {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+    background: var(--card-bg, #fff); border: 1px solid var(--border, #e5e7eb);
+    border-radius: 10px; padding: 16px; margin-bottom: 20px;
+}
+.tl-filter-group { display: flex; flex-direction: column; gap: 4px; }
+.tl-filter-group label { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary, #555); text-transform: uppercase; letter-spacing: 0.04em; }
+.tl-filter-group input, .tl-filter-group select {
+    border: 1px solid var(--border, #d1d5db); border-radius: 6px;
+    padding: 7px 10px; font-size: 0.88rem; color: var(--text-primary, #111);
+    background: var(--input-bg, #fff); min-width: 140px;
+}
+.tl-apply-btn, .tl-clear-btn {
+    padding: 8px 18px; border-radius: 6px; font-size: 0.88rem; font-weight: 600; cursor: pointer; border: none; align-self: flex-end;
+}
+.tl-apply-btn { background: var(--primary, #2563eb); color: #fff; }
+.tl-apply-btn:hover { background: #1d4ed8; }
+.tl-clear-btn { background: var(--border, #e5e7eb); color: var(--text-primary, #374151); }
+.tl-clear-btn:hover { background: #d1d5db; }
+
+.tl-stat-cards { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+.tl-stat {
+    flex: 1; min-width: 110px; background: var(--card-bg, #fff);
+    border: 1px solid var(--border, #e5e7eb); border-radius: 10px;
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;
+}
+.tl-stat--active { border-color: #fcd34d; background: #fffbeb; }
+.tl-stat-val { font-size: 1.4rem; font-weight: 700; color: var(--text-primary, #111); }
+.tl-stat--active .tl-stat-val { color: #b45309; }
+.tl-stat-label { font-size: 0.78rem; color: var(--text-secondary, #666); font-weight: 500; }
+
+.tl-table-wrap { overflow-x: auto; border: 1px solid var(--border, #e5e7eb); border-radius: 10px; }
+.tl-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.tl-table thead { background: var(--table-head-bg, #f9fafb); }
+.tl-table th { padding: 10px 14px; text-align: left; font-size: 0.78rem; font-weight: 600; color: var(--text-secondary, #6b7280); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; border-bottom: 1px solid var(--border, #e5e7eb); }
+.tl-table td { padding: 11px 14px; border-bottom: 1px solid var(--border, #f3f4f6); vertical-align: middle; }
+.tl-table tbody tr:last-child td { border-bottom: none; }
+.tl-table tbody tr:hover { background: var(--row-hover, #f9fafb); }
+
+.tl-num { color: var(--text-secondary, #9ca3af); font-size: 0.82rem; }
+.tl-name { font-weight: 600; color: var(--text-primary, #111); }
+.tl-branch { color: var(--text-secondary, #555); }
+.tl-student { color: var(--text-primary, #111); }
+.tl-time { white-space: nowrap; color: var(--text-secondary, #555); font-size: 0.83rem; }
+.tl-dur { font-weight: 600; color: var(--text-primary, #374151); }
+
+.tl-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 100px; font-size: 0.78rem; font-weight: 600; }
+.tl-badge--active { background: #fef3c7; color: #b45309; }
+.tl-badge--done { background: #dcfce7; color: #15803d; }
+
+.tl-pulse {
+    width: 7px; height: 7px; border-radius: 50%; background: #f59e0b;
+    animation: tl-pulse-anim 1.4s ease-in-out infinite;
+}
+@keyframes tl-pulse-anim {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+.tl-empty { text-align: center; padding: 48px 24px; color: var(--text-secondary, #9ca3af); font-size: 0.95rem; }
+
+@media (max-width: 600px) {
+    .tl-filters { flex-direction: column; }
+    .tl-filter-group input, .tl-filter-group select { min-width: unset; width: 100%; }
+    .tl-apply-btn, .tl-clear-btn { width: 100%; }
+    .tl-stat-cards { gap: 8px; }
+    .tl-stat { min-width: calc(50% - 4px); }
+}

@@ -1704,6 +1704,38 @@ app.get('/api/driver-status/:instructor_id', async (req, res, next) => {
   }
 });
 
+// Admin: trip logs history
+app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
+  const schoolId = req.schoolId || req.session?.schoolId || 1;
+  const { date_from, date_to, instructor_id, status } = req.query;
+  try {
+    await ensureTripsTable();
+    const conditions = ['i.school_id = ?'];
+    const params = [schoolId];
+
+    if (date_from) { conditions.push('DATE(dt.started_at) >= ?'); params.push(date_from); }
+    if (date_to)   { conditions.push('DATE(dt.started_at) <= ?'); params.push(date_to); }
+    if (instructor_id) { conditions.push('dt.instructor_id = ?'); params.push(instructor_id); }
+    if (status && ['active','completed'].includes(status)) { conditions.push('dt.status = ?'); params.push(status); }
+
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const [rows] = await dbPool.query(`
+      SELECT dt.id, dt.instructor_id, dt.instructor_name, dt.booking_id, dt.student_name,
+             dt.started_at, dt.ended_at, dt.duration_mins, dt.status,
+             i.branch
+      FROM driver_trips dt
+      JOIN instructors i ON i.id = dt.instructor_id
+      ${where}
+      ORDER BY dt.started_at DESC
+      LIMIT 500
+    `, params);
+    res.json({ success: true, trips: rows });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, trips: [] });
+    next(err);
+  }
+});
+
 // Public HTML: student-facing driver status page
 app.get('/driver-status/:instructor_id', (req, res) => {
   const { instructor_id } = req.params;
