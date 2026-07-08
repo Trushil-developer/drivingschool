@@ -26,7 +26,7 @@ window.renderTripLogsModule = async function (tableWrap) {
     tableWrap.innerHTML = `
         <div class="tl-wrap">
             <div class="tl-header">
-                <h2 class="tl-title">Trip Logs</h2>
+                <h2 class="tl-title">Trips</h2>
                 <p class="tl-subtitle">History of all instructor driving sessions</p>
             </div>
 
