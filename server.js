@@ -1463,6 +1463,333 @@ app.use('/api/packages', packagesRoutes);
 app.use('/api/expenses', expensesRoutes);
 app.use('/api/reviews', reviewsRoute);
 
+// ── Driver Location Tracking ──────────────────────────────────────────────────
+
+const ensureLocationsTable = () => dbPool.query(`
+  CREATE TABLE IF NOT EXISTS driver_locations (
+    instructor_id INT PRIMARY KEY,
+    lat DECIMAL(10,7) NOT NULL,
+    lng DECIMAL(10,7) NOT NULL,
+    accuracy FLOAT,
+    updated_at DATETIME NOT NULL DEFAULT NOW()
+  )
+`);
+
+// Driver sends their GPS position (called every 10 s while on trip)
+app.post('/api/driver/location', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  const { lat, lng, accuracy } = req.body;
+  if (lat === undefined || lng === undefined) return res.json({ success: false, error: 'lat and lng required' });
+  try {
+    await dbPool.query(
+      `INSERT INTO driver_locations (instructor_id, lat, lng, accuracy, updated_at)
+       VALUES (?, ?, ?, ?, NOW())
+       ON DUPLICATE KEY UPDATE lat=VALUES(lat), lng=VALUES(lng), accuracy=VALUES(accuracy), updated_at=NOW()`,
+      [instructorId, lat, lng, accuracy ?? null]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') {
+      await ensureLocationsTable();
+      await dbPool.query(
+        `INSERT INTO driver_locations (instructor_id, lat, lng, accuracy, updated_at)
+         VALUES (?, ?, ?, ?, NOW())
+         ON DUPLICATE KEY UPDATE lat=VALUES(lat), lng=VALUES(lng), accuracy=VALUES(accuracy), updated_at=NOW()`,
+        [instructorId, lat, lng, accuracy ?? null]
+      );
+      return res.json({ success: true });
+    }
+    next(err);
+  }
+});
+
+// Public: get driver location by instructor_id
+app.get('/api/driver-location/:instructor_id', async (req, res, next) => {
+  const { instructor_id } = req.params;
+  try {
+    const [[loc]] = await dbPool.query(
+      `SELECT lat, lng, TIMESTAMPDIFF(SECOND, updated_at, NOW()) AS seconds_ago
+       FROM driver_locations WHERE instructor_id = ?`,
+      [instructor_id]
+    );
+    res.json({ success: true, location: loc ?? null });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, location: null });
+    next(err);
+  }
+});
+
+// Public: get driver location by instructor name (customer app uses name not id)
+app.get('/api/driver-location-by-name', async (req, res, next) => {
+  const name = (req.query.name || '').trim();
+  if (!name) return res.json({ success: false, error: 'name required' });
+  try {
+    const [[inst]] = await dbPool.query(
+      'SELECT id FROM instructors WHERE instructor_name = ? LIMIT 1', [name]
+    );
+    if (!inst) return res.json({ success: false, error: 'Driver not found' });
+    const [[loc]] = await dbPool.query(
+      `SELECT lat, lng, TIMESTAMPDIFF(SECOND, updated_at, NOW()) AS seconds_ago
+       FROM driver_locations WHERE instructor_id = ?`,
+      [inst.id]
+    );
+    res.json({ success: true, location: loc ?? null });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, location: null });
+    next(err);
+  }
+});
+
+// ── Driver Trips ──────────────────────────────────────────────────────────────
+
+const ensureTripsTable = () => dbPool.query(`
+  CREATE TABLE IF NOT EXISTS driver_trips (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    instructor_id INT NOT NULL,
+    instructor_name VARCHAR(100),
+    booking_id INT NOT NULL,
+    student_name VARCHAR(100),
+    started_at DATETIME NOT NULL,
+    ended_at DATETIME NULL,
+    duration_mins INT NOT NULL DEFAULT 30,
+    status ENUM('active','completed') NOT NULL DEFAULT 'active',
+    created_at DATETIME NOT NULL DEFAULT NOW()
+  )
+`);
+
+// Driver: start a trip
+app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  const { booking_id, duration_mins = 30 } = req.body;
+  if (!booking_id) return res.json({ success: false, error: 'booking_id required' });
+  try {
+    await ensureTripsTable();
+    // Auto-end any existing active trip
+    await dbPool.query(
+      `UPDATE driver_trips SET status='completed', ended_at=NOW() WHERE instructor_id=? AND status='active'`,
+      [instructorId]
+    );
+    const [[inst]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? LIMIT 1', [instructorId]);
+    const [[bk]]   = await dbPool.query('SELECT customer_name FROM bookings WHERE id=? LIMIT 1', [booking_id]);
+    const [result] = await dbPool.query(
+      `INSERT INTO driver_trips (instructor_id, instructor_name, booking_id, student_name, started_at, duration_mins, status)
+       VALUES (?, ?, ?, ?, NOW(), ?, 'active')`,
+      [instructorId, inst?.instructor_name ?? '', booking_id, bk?.customer_name ?? '', duration_mins]
+    );
+    const [[trip]] = await dbPool.query('SELECT * FROM driver_trips WHERE id=?', [result.insertId]);
+    const remainingSecs = trip.duration_mins * 60;
+    res.json({ success: true, trip: { ...trip, remaining_secs: remainingSecs } });
+  } catch (err) { next(err); }
+});
+
+// Driver: end a trip
+app.post('/api/driver/trip/end', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  const { trip_id } = req.body;
+  try {
+    await dbPool.query(
+      `UPDATE driver_trips SET status='completed', ended_at=NOW() WHERE id=? AND instructor_id=?`,
+      [trip_id, instructorId]
+    );
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// Driver: get own active trip
+app.get('/api/driver/trip/active', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  try {
+    const [rows] = await dbPool.query(
+      `SELECT *, GREATEST(0, duration_mins * 60 - TIMESTAMPDIFF(SECOND, started_at, NOW())) AS remaining_secs
+       FROM driver_trips WHERE instructor_id=? AND status='active' ORDER BY started_at DESC LIMIT 1`,
+      [instructorId]
+    );
+    res.json({ success: true, trip: rows[0] ?? null });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, trip: null });
+    next(err);
+  }
+});
+
+// Admin: all drivers' current status
+app.get('/api/driver/trips/status', requireAdmin, async (req, res, next) => {
+  try {
+    const [rows] = await dbPool.query(`
+      SELECT i.id, i.instructor_name, i.branch,
+             dt.id AS trip_id, dt.booking_id, dt.student_name,
+             GREATEST(0, COALESCE(dt.duration_mins,30)*60 - TIMESTAMPDIFF(SECOND, dt.started_at, NOW())) AS remaining_secs
+      FROM instructors i
+      LEFT JOIN driver_trips dt ON dt.instructor_id = i.id AND dt.status = 'active'
+      WHERE i.is_active = 1
+      ORDER BY i.branch, i.instructor_name
+    `);
+    const data = rows.map(r => ({
+      id: r.id, name: r.instructor_name, branch: r.branch,
+      on_trip: !!r.trip_id,
+      trip_id: r.trip_id ?? null,
+      student_name: r.student_name ?? null,
+      remaining_secs: Number(r.remaining_secs) || 0,
+    }));
+    res.json({ success: true, drivers: data });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, drivers: [] });
+    next(err);
+  }
+});
+
+// Public JSON: look up driver status by name (used by customer app)
+app.get('/api/driver-status-by-name', async (req, res, next) => {
+  const name = (req.query.name || '').trim();
+  if (!name) return res.json({ success: false, error: 'name required' });
+  try {
+    const [[inst]] = await dbPool.query(
+      'SELECT id, instructor_name FROM instructors WHERE instructor_name = ? LIMIT 1', [name]
+    );
+    if (!inst) return res.json({ success: false, error: 'Driver not found' });
+    const [trips] = await dbPool.query(
+      `SELECT student_name,
+              GREATEST(0, duration_mins*60 - TIMESTAMPDIFF(SECOND, started_at, NOW())) AS remaining_secs
+       FROM driver_trips WHERE instructor_id=? AND status='active' ORDER BY started_at DESC LIMIT 1`,
+      [inst.id]
+    );
+    const trip = trips[0] ?? null;
+    res.json({
+      success: true,
+      instructor_id: inst.id,
+      instructor_name: inst.instructor_name,
+      on_trip: !!trip,
+      remaining_secs: Number(trip?.remaining_secs) || 0,
+    });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') {
+      try {
+        const [[inst]] = await dbPool.query('SELECT id, instructor_name FROM instructors WHERE instructor_name=? LIMIT 1', [name]);
+        return res.json({ success: true, instructor_id: inst?.id, instructor_name: inst?.instructor_name ?? name, on_trip: false, remaining_secs: 0 });
+      } catch (_) {}
+    }
+    next(err);
+  }
+});
+
+// Public JSON: student checks driver availability
+app.get('/api/driver-status/:instructor_id', async (req, res, next) => {
+  const { instructor_id } = req.params;
+  try {
+    const [[inst]] = await dbPool.query(
+      'SELECT id, instructor_name FROM instructors WHERE id=? LIMIT 1', [instructor_id]
+    );
+    if (!inst) return res.json({ success: false, error: 'Driver not found' });
+    const [trips] = await dbPool.query(
+      `SELECT student_name,
+              GREATEST(0, duration_mins*60 - TIMESTAMPDIFF(SECOND, started_at, NOW())) AS remaining_secs
+       FROM driver_trips WHERE instructor_id=? AND status='active' ORDER BY started_at DESC LIMIT 1`,
+      [instructor_id]
+    );
+    const trip = trips[0] ?? null;
+    res.json({
+      success: true,
+      instructor_name: inst.instructor_name,
+      on_trip: !!trip,
+      student_name: trip?.student_name ?? null,
+      remaining_secs: Number(trip?.remaining_secs) || 0,
+    });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') {
+      try {
+        const [[inst]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? LIMIT 1', [instructor_id]);
+        return res.json({ success: true, instructor_name: inst?.instructor_name ?? 'Driver', on_trip: false, remaining_secs: 0 });
+      } catch (_) {}
+    }
+    next(err);
+  }
+});
+
+// Public HTML: student-facing driver status page
+app.get('/driver-status/:instructor_id', (req, res) => {
+  const { instructor_id } = req.params;
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Driver Status – Dwarkesh Driving School</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F5F7FA; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .card { background: white; border-radius: 20px; padding: 36px 28px; max-width: 380px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.08); text-align: center; }
+    .school { font-size: 12px; color: #aaa; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 24px; }
+    .avatar { width: 76px; height: 76px; border-radius: 38px; background: #1B5E20; color: white; font-size: 28px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+    .driver-name { font-size: 22px; font-weight: 700; color: #111; margin-bottom: 12px; }
+    .badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 100px; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
+    .badge.trip { background: #FFF3E0; color: #E65100; }
+    .badge.free { background: #E8F5E9; color: #1B5E20; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; }
+    .dot.trip { background: #E65100; animation: blink 1.4s infinite; }
+    .dot.free { background: #2E7D32; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+    .countdown { font-size: 56px; font-weight: 800; color: #E65100; letter-spacing: -2px; line-height: 1; }
+    .countdown-sub { font-size: 13px; color: #999; margin-top: 6px; margin-bottom: 20px; }
+    .note { background: #FFF8F2; border-radius: 12px; padding: 12px 16px; font-size: 13px; color: #777; }
+    .ready { font-size: 40px; font-weight: 800; color: #2E7D32; margin-bottom: 8px; }
+    .ready-sub { font-size: 14px; color: #888; }
+    .footer { font-size: 11px; color: #ccc; margin-top: 24px; }
+    .err { color: #c62828; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="school">Dwarkesh Driving School</div>
+    <div class="avatar" id="av">—</div>
+    <div class="driver-name" id="nm">Loading…</div>
+    <div id="body"></div>
+    <div class="footer" id="ft">Checking status…</div>
+  </div>
+  <script>
+    const id = ${JSON.stringify(instructor_id)};
+    let ticker = null;
+
+    function pad(n){ return String(n).padStart(2,'0'); }
+    function fmt(s){ return Math.floor(s/60)+':'+pad(s%60); }
+    function initials(n){ return (n||'').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?'; }
+
+    async function load(){
+      try {
+        const d = await fetch('/api/driver-status/'+id).then(r=>r.json());
+        if(!d.success){ document.getElementById('body').innerHTML='<p class="err">Driver not found.</p>'; return; }
+        document.getElementById('av').textContent = initials(d.instructor_name);
+        document.getElementById('nm').textContent = d.instructor_name;
+        if(ticker){ clearInterval(ticker); ticker=null; }
+        if(d.on_trip && d.remaining_secs > 0){
+          let s = d.remaining_secs;
+          document.getElementById('body').innerHTML =
+            '<div class="badge trip"><span class="dot trip"></span>On Trip</div>' +
+            '<div class="countdown" id="cd">'+fmt(s)+'</div>' +
+            '<div class="countdown-sub">minutes remaining</div>' +
+            '<div class="note">Your instructor is with another student.<br>They will be with you shortly.</div>';
+          ticker = setInterval(()=>{
+            s = Math.max(0,s-1);
+            const el = document.getElementById('cd');
+            if(el) el.textContent = fmt(s);
+            if(s===0){ clearInterval(ticker); load(); }
+          },1000);
+        } else {
+          document.getElementById('body').innerHTML =
+            '<div class="badge free"><span class="dot free"></span>Available</div>' +
+            '<div class="ready">Ready ✓</div>' +
+            '<div class="ready-sub">Your instructor is free</div>';
+        }
+        document.getElementById('ft').textContent = 'Last updated: '+new Date().toLocaleTimeString('en-IN') + ' · Refreshes every 30s';
+      } catch(e){
+        document.getElementById('body').innerHTML='<p class="err">Could not load status.</p>';
+      }
+    }
+    load();
+    setInterval(load, 30000);
+  </script>
+</body>
+</html>`);
+});
+
 // ---------- START SERVER ----------
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);

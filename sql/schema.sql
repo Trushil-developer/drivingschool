@@ -2081,3 +2081,52 @@ SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_
 SET @sql := IF(@col_exists=0,'ALTER TABLE enquiry_actions ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
+-- LEAVE REQUESTS TABLE
+-- =====================================
+CREATE TABLE IF NOT EXISTS leave_requests (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    instructor_id   INT NOT NULL,
+    instructor_name VARCHAR(100),
+    branch          VARCHAR(100),
+    leave_from      DATE NOT NULL,
+    leave_to        DATE NOT NULL,
+    leave_type      ENUM('Full Day','Half Day') NOT NULL DEFAULT 'Full Day',
+    reason          TEXT,
+    status          ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+    created_at      DATETIME NOT NULL
+);
+
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='leave_requests' AND index_name='idx_leave_requests_instructor');
+SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_leave_requests_instructor ON leave_requests (instructor_id);','SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- DRIVER TRIPS TABLE
+-- =====================================
+CREATE TABLE IF NOT EXISTS driver_trips (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    instructor_id   INT NOT NULL,
+    instructor_name VARCHAR(100),
+    booking_id      INT NOT NULL,
+    student_name    VARCHAR(100),
+    started_at      DATETIME NOT NULL,
+    ended_at        DATETIME NULL,
+    duration_mins   INT NOT NULL DEFAULT 30,
+    status          ENUM('active','completed') NOT NULL DEFAULT 'active',
+    created_at      DATETIME NOT NULL DEFAULT NOW()
+);
+
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND index_name='idx_driver_trips_instructor');
+SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_driver_trips_instructor ON driver_trips (instructor_id, status);','SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- DRIVER LOCATIONS TABLE
+-- =====================================
+CREATE TABLE IF NOT EXISTS driver_locations (
+    instructor_id INT PRIMARY KEY,
+    lat           DECIMAL(10,7) NOT NULL,
+    lng           DECIMAL(10,7) NOT NULL,
+    accuracy      FLOAT,
+    updated_at    DATETIME NOT NULL DEFAULT NOW()
+);
