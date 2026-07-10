@@ -290,7 +290,7 @@ app.post('/api/driver-login', async (req, res, next) => {
   try {
     if (!employee_no || !password) return res.json({ success: false, error: 'Employee number and password required' });
     const [rows] = await dbPool.query(
-      'SELECT * FROM instructors WHERE BINARY employee_no = ? AND is_active = 1 LIMIT 1',
+      "SELECT * FROM instructors WHERE BINARY employee_no = ? AND is_active = 1 AND LOWER(role) = 'instructor' LIMIT 1",
       [employee_no.trim()]
     );
     if (!rows || rows.length === 0) return res.json({ success: false, error: 'Invalid credentials' });
@@ -312,17 +312,50 @@ app.post('/api/driver-login', async (req, res, next) => {
       success: true,
       sessionToken,
       instructor: {
-        id:          instructor.id,
-        name:        instructor.instructor_name,
-        branch:      instructor.branch,
-        employee_no: instructor.employee_no,
-        mobile_no:   instructor.mobile_no,
+        id:              instructor.id,
+        name:            instructor.instructor_name,
+        branch:          instructor.branch,
+        employee_no:     instructor.employee_no,
+        mobile_no:       instructor.mobile_no,
+        email:           instructor.email,
+        drivers_license: instructor.drivers_license,
+        address:         instructor.address,
       },
     });
   } catch (err) {
     console.error('DRIVER LOGIN ERROR:', err);
     next(err);
   }
+});
+
+// ── Driver Profile ─────────────────────────────────────────────────────────────
+
+app.get('/api/driver/profile', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  try {
+    const [rows] = await dbPool.query(
+      'SELECT id, employee_no, instructor_name, role, email, mobile_no, branch, drivers_license, adhar_no, address FROM instructors WHERE id = ? LIMIT 1',
+      [instructorId]
+    );
+    if (!rows || rows.length === 0) return res.json({ success: false, error: 'Instructor not found' });
+    res.json({ success: true, instructor: rows[0] });
+  } catch (err) { next(err); }
+});
+
+app.patch('/api/driver/profile', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  const { email, mobile_no, address } = req.body;
+  const updates = [];
+  const params  = [];
+  if (email     !== undefined) { updates.push('email = ?');     params.push(email.trim() || null); }
+  if (mobile_no !== undefined) { updates.push('mobile_no = ?'); params.push(mobile_no.trim() || null); }
+  if (address   !== undefined) { updates.push('address = ?');   params.push(address.trim() || null); }
+  if (updates.length === 0) return res.json({ success: false, error: 'Nothing to update' });
+  params.push(instructorId);
+  try {
+    await dbPool.query(`UPDATE instructors SET ${updates.join(', ')} WHERE id = ?`, params);
+    res.json({ success: true });
+  } catch (err) { next(err); }
 });
 
 // ── Driver Leave Requests ──────────────────────────────────────────────────────
