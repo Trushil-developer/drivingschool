@@ -1704,7 +1704,7 @@ const ensureAppSettingsTable = async () => {
       value       TEXT         NOT NULL DEFAULT '',
       label       VARCHAR(200) NOT NULL DEFAULT '',
       description TEXT,
-      updated_at  DATETIME     NOT NULL DEFAULT NOW()
+      updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
   const defaults = [
