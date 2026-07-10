@@ -901,6 +901,9 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN school_id INT NOT NU
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='role');
 SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN role ENUM("superadmin","admin") NOT NULL DEFAULT "admin";','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='is_active');
+SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- BRANCHES TABLE
 -- =====================================
@@ -2135,11 +2138,12 @@ CREATE TABLE IF NOT EXISTS driver_locations (
 -- APP SETTINGS (Remote Config / Feature Flags)
 -- =====================================
 CREATE TABLE IF NOT EXISTS app_settings (
-    `key`       VARCHAR(100) PRIMARY KEY,
-    value       TEXT         NOT NULL DEFAULT '',
+    `key`       VARCHAR(100) NOT NULL,
+    value       TEXT         NOT NULL,
     label       VARCHAR(200) NOT NULL DEFAULT '',
     description TEXT,
-    updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`key`)
 );
 
 -- Seed default settings (INSERT IGNORE preserves any existing values)

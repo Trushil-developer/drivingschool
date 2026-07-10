@@ -262,7 +262,7 @@ app.post('/api/login', loginLimiter, async (req, res, next) => {
   const { username, password } = req.body;
   try {
     // ── Path 1: full admin account (admins table, bcrypt password) ──
-    const [adminRows] = await dbPool.query('SELECT * FROM admins WHERE username = ? LIMIT 1', [username]);
+    const [adminRows] = await dbPool.query('SELECT * FROM admins WHERE username = ? AND is_active = 1 LIMIT 1', [username]);
     if (adminRows && adminRows.length > 0) {
       const admin = adminRows[0];
       const match = await bcrypt.compare(password, admin.password);
@@ -672,21 +672,25 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
 
     const where = 'WHERE ' + conditions.join(' AND ');
     const selectCols = `
-      id, branch, training_days, customer_name, address, pincode, mobile_no, whatsapp_no,
-      sex, birth_date, cov_lmv, cov_mc, dl_no, dl_from, dl_to, email,
-      occupation, ref, allotted_time, allotted_time2, allotted_time3, allotted_time4, duration_minutes, starting_from, total_fees, advance,
-      car_name, instructor_name,
-      ac_facility, pickup_drop, has_licence,
-      present_days, hold_status, attendance_status, certificate_url,
-      created_at`;
+      b.id, b.branch, b.training_days, b.customer_name, b.address, b.pincode, b.mobile_no, b.whatsapp_no,
+      b.sex, b.birth_date, b.cov_lmv, b.cov_mc, b.dl_no, b.dl_from, b.dl_to, b.email,
+      b.occupation, b.ref, b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4, b.duration_minutes, b.starting_from, b.total_fees, b.advance,
+      b.car_name, b.instructor_name,
+      b.ac_facility, b.pickup_drop, b.has_licence,
+      COALESCE(att.present_days, 0) AS present_days,
+      b.hold_status, b.attendance_status, b.certificate_url,
+      b.created_at`;
+
+    const joinAtt = `LEFT JOIN (SELECT booking_id, COUNT(*) AS present_days FROM attendance WHERE present = 1 GROUP BY booking_id) att ON att.booking_id = b.id`;
+    const fromClause = `FROM bookings b ${joinAtt}`;
 
     if (page !== null) {
       const offset = (page - 1) * limit;
-      const [[{ total }]] = await dbPool.query(`SELECT COUNT(*) as total FROM bookings ${where}`, params);
-      const [rows] = await dbPool.query(`SELECT ${selectCols} FROM bookings ${where} ORDER BY id DESC LIMIT ? OFFSET ?`, [...params, limit, offset]);
+      const [[{ total }]] = await dbPool.query(`SELECT COUNT(*) as total FROM bookings b ${where}`, params);
+      const [rows] = await dbPool.query(`SELECT ${selectCols} ${fromClause} ${where} ORDER BY b.id DESC LIMIT ? OFFSET ?`, [...params, limit, offset]);
       res.json({ success: true, bookings: rows, total, page, limit });
     } else {
-      const [rows] = await dbPool.query(`SELECT ${selectCols} FROM bookings ${where} ORDER BY id DESC`, params);
+      const [rows] = await dbPool.query(`SELECT ${selectCols} ${fromClause} ${where} ORDER BY b.id DESC`, params);
       res.json({ success: true, bookings: rows });
     }
   } catch (err) {
@@ -1700,11 +1704,12 @@ app.get('/api/driver/trips/status', requireAdmin, async (req, res, next) => {
 const ensureAppSettingsTable = async () => {
   await dbPool.query(`
     CREATE TABLE IF NOT EXISTS app_settings (
-      \`key\`       VARCHAR(100) PRIMARY KEY,
-      value       TEXT         NOT NULL DEFAULT '',
+      \`key\`       VARCHAR(100) NOT NULL,
+      value       TEXT         NOT NULL,
       label       VARCHAR(200) NOT NULL DEFAULT '',
       description TEXT,
-      updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`key\`)
     )
   `);
   const defaults = [
@@ -1739,7 +1744,10 @@ app.get('/api/admin/app-settings', requireAdmin, async (req, res, next) => {
     await ensureAppSettingsTable();
     const [rows] = await dbPool.query('SELECT * FROM app_settings ORDER BY `key`');
     res.json({ success: true, settings: rows });
-  } catch (err) { next(err); }
+  } catch (err) {
+    console.error('[app-settings] ERROR:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Admin — update one setting
