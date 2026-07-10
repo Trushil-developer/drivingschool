@@ -180,9 +180,14 @@ window.CommonReady = (async () => {
 
         if (res.status === 401) {
             window.location.href = 'login.html';
+            return { success: false, error: 'Unauthorized' };
         }
 
-        return res.json();
+        try {
+            return await res.json();
+        } catch {
+            return { success: false, error: `Non-JSON response (HTTP ${res.status})` };
+        }
     };
 
 })();

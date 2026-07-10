@@ -1,8 +1,19 @@
 window.renderAppSettingsModule = async function (tableWrap) {
 
-    // ── Fetch current settings ──────────────────────────────────────────────────
-    const res = await window.api('/api/admin/app-settings');
-    const settings = res?.success ? res.settings : [];
+    // ── Fetch current settings (fail gracefully) ────────────────────────────────
+    let settings = [];
+    let serverError = null;
+
+    try {
+        const res = await window.api('/api/admin/app-settings');
+        if (res?.success) {
+            settings = res.settings ?? [];
+        } else {
+            serverError = res?.error || 'Could not load settings from server.';
+        }
+    } catch (err) {
+        serverError = err?.message || 'Unexpected error loading settings.';
+    }
 
     const sm = {};
     for (const s of settings) sm[s.key] = s;
@@ -18,6 +29,12 @@ window.renderAppSettingsModule = async function (tableWrap) {
                 <p class="as-subtitle">Control app features and maintenance mode. Changes take effect immediately — drivers and students will see them on their next app launch.</p>
             </div>
 
+            ${serverError ? `
+            <div class="as-error-banner">
+                ⚠️ Could not connect to server: <strong>${serverError}</strong><br>
+                <span style="font-size:12px;opacity:.8">Deploy the latest server.js to EC2 and reload this page to enable controls.</span>
+            </div>` : ''}
+
             <!-- Maintenance Mode -->
             <div class="as-section-label">GLOBAL</div>
             <div class="as-card as-card--maintenance ${isOn('maintenance_mode') ? 'as-card--maintenance-on' : ''}">
@@ -28,15 +45,15 @@ window.renderAppSettingsModule = async function (tableWrap) {
                         <div class="as-item-desc">When <strong>ON</strong>, all drivers and students see a maintenance screen instead of the app. You can still manage everything here from the admin panel.</div>
                     </div>
                     <label class="as-toggle ${isOn('maintenance_mode') ? 'as-toggle--on' : ''}">
-                        <input type="checkbox" id="toggle_maintenance_mode" ${isOn('maintenance_mode') ? 'checked' : ''}>
+                        <input type="checkbox" id="toggle_maintenance_mode" ${isOn('maintenance_mode') ? 'checked' : ''} ${serverError ? 'disabled' : ''}>
                         <span class="as-slider"></span>
                     </label>
                 </div>
 
                 <div class="as-maintenance-extra" id="maintenanceExtra" style="${isOn('maintenance_mode') ? '' : 'display:none'}">
                     <label class="as-msg-label">Message shown to users</label>
-                    <textarea class="as-msg-input" id="maintenanceMsg" rows="3">${val('maintenance_message')}</textarea>
-                    <button class="as-msg-save-btn" id="saveMsgBtn">Save Message</button>
+                    <textarea class="as-msg-input" id="maintenanceMsg" rows="3" ${serverError ? 'disabled' : ''}>${val('maintenance_message') || 'We are currently performing maintenance. Please check back soon.'}</textarea>
+                    <button class="as-msg-save-btn" id="saveMsgBtn" ${serverError ? 'disabled' : ''}>Save Message</button>
                     <span class="as-msg-saved" id="msgSavedLabel" style="display:none">Saved</span>
                 </div>
             </div>
@@ -51,7 +68,7 @@ window.renderAppSettingsModule = async function (tableWrap) {
                         <div class="as-item-desc">Drivers can submit leave requests from the app. When OFF, the button is hidden from all drivers.</div>
                     </div>
                     <label class="as-toggle ${isOn('feature_leave_request') ? 'as-toggle--on' : ''}">
-                        <input type="checkbox" id="toggle_feature_leave_request" ${isOn('feature_leave_request') ? 'checked' : ''}>
+                        <input type="checkbox" id="toggle_feature_leave_request" ${isOn('feature_leave_request') ? 'checked' : ''} ${serverError ? 'disabled' : ''}>
                         <span class="as-slider"></span>
                     </label>
                 </div>
@@ -61,12 +78,20 @@ window.renderAppSettingsModule = async function (tableWrap) {
         </div>
     `;
 
+    // Don't wire up events if server is unreachable — toggles are already disabled above
+    if (serverError) return;
+
     // ── Helper: update one setting ──────────────────────────────────────────────
     async function updateSetting(key, value) {
-        await window.api(`/api/admin/app-settings/${encodeURIComponent(key)}`, {
-            method: 'PATCH',
-            body: { value: String(value) },
-        });
+        try {
+            const res = await window.api(`/api/admin/app-settings/${encodeURIComponent(key)}`, {
+                method: 'PATCH',
+                body: { value: String(value) },
+            });
+            if (!res?.success) throw new Error(res?.error || 'Save failed');
+        } catch (err) {
+            alert(`Failed to save setting: ${err.message}`);
+        }
     }
 
     // ── Wire: Maintenance Mode toggle ───────────────────────────────────────────
