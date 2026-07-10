@@ -261,24 +261,49 @@ async function checkSlotConflicts(schoolId, branch, car, startingFrom, slots, ex
 app.post('/api/login', loginLimiter, async (req, res, next) => {
   const { username, password } = req.body;
   try {
-    const [rows] = await dbPool.query('SELECT * FROM admins WHERE username = ? LIMIT 1', [username]);
-    if (!rows || rows.length === 0) return res.json({ success: false, error: 'Invalid credentials' });
-    const admin = rows[0];
-    const match = await bcrypt.compare(password, admin.password);
-    if (!match) return res.json({ success: false, error: 'Invalid credentials' });
+    // ── Path 1: full admin account (admins table, bcrypt password) ──
+    const [adminRows] = await dbPool.query('SELECT * FROM admins WHERE username = ? LIMIT 1', [username]);
+    if (adminRows && adminRows.length > 0) {
+      const admin = adminRows[0];
+      const match = await bcrypt.compare(password, admin.password);
+      if (!match) return res.json({ success: false, error: 'Invalid credentials' });
 
-    req.session.adminLoggedIn = true;
-    req.session.adminId = admin.id;
-    req.session.school_id = admin.school_id || 1;
-    await new Promise((resolve, reject) =>
-      req.session.save((err) => (err ? reject(err) : resolve(undefined))),
+      req.session.adminLoggedIn = true;
+      req.session.adminId       = admin.id;
+      req.session.adminRole     = 'admin';
+      req.session.school_id     = admin.school_id || 1;
+      await new Promise((resolve, reject) =>
+        req.session.save((err) => (err ? reject(err) : resolve(undefined))),
+      );
+      const secret = process.env.SESSION_SECRET || 'supersecretkey';
+      const signed = 's:' + cookieSign(req.session.id, secret);
+      return res.json({ success: true, sessionToken: `session_cookie=${encodeURIComponent(signed)}`, role: 'admin' });
+    }
+
+    // ── Path 2: Manager (instructors table, mobile_no as password) ──
+    const [mgrRows] = await dbPool.query(
+      "SELECT * FROM instructors WHERE BINARY employee_no = ? AND LOWER(role) = 'manager' AND is_active = 1 LIMIT 1",
+      [username.trim()]
     );
-    // Return the signed session token in the body so mobile clients
-    // can store it manually (iOS strips Set-Cookie headers in NSURLSession)
-    const secret = process.env.SESSION_SECRET || 'supersecretkey';
-    const signed = 's:' + cookieSign(req.session.id, secret);
-    const sessionToken = `session_cookie=${encodeURIComponent(signed)}`;
-    res.json({ success: true, sessionToken });
+    if (mgrRows && mgrRows.length > 0) {
+      const mgr = mgrRows[0];
+      const mobileClean = (mgr.mobile_no || '').replace(/\D/g, '');
+      const passClean   = (password  || '').replace(/\D/g, '');
+      if (passClean !== mobileClean) return res.json({ success: false, error: 'Invalid credentials' });
+
+      req.session.adminLoggedIn = true;
+      req.session.adminId       = mgr.id;
+      req.session.adminRole     = 'manager';
+      req.session.school_id     = mgr.school_id || 1;
+      await new Promise((resolve, reject) =>
+        req.session.save((err) => (err ? reject(err) : resolve(undefined))),
+      );
+      const secret = process.env.SESSION_SECRET || 'supersecretkey';
+      const signed = 's:' + cookieSign(req.session.id, secret);
+      return res.json({ success: true, sessionToken: `session_cookie=${encodeURIComponent(signed)}`, role: 'manager', name: mgr.instructor_name, branch: mgr.branch });
+    }
+
+    return res.json({ success: false, error: 'Invalid credentials' });
   } catch (err) {
     console.error('LOGIN ERROR:', err);
     next(err);
@@ -1668,6 +1693,68 @@ app.get('/api/driver/trips/status', requireAdmin, async (req, res, next) => {
     if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, drivers: [] });
     next(err);
   }
+});
+
+// ── App Settings (Remote Config + Feature Flags) ─────────────────────────────
+
+const ensureAppSettingsTable = async () => {
+  await dbPool.query(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      \`key\`       VARCHAR(100) PRIMARY KEY,
+      value       TEXT         NOT NULL DEFAULT '',
+      label       VARCHAR(200) NOT NULL DEFAULT '',
+      description TEXT,
+      updated_at  DATETIME     NOT NULL DEFAULT NOW()
+    )
+  `);
+  const defaults = [
+    { key: 'maintenance_mode',      value: 'false', label: 'Maintenance Mode',  description: 'When ON, all app users see a maintenance screen. Admin panel stays accessible.' },
+    { key: 'maintenance_message',   value: 'We are currently performing maintenance. Please check back soon.', label: 'Maintenance Message', description: 'Text shown to users during maintenance' },
+    { key: 'feature_leave_request', value: 'true',  label: 'Leave Request',     description: 'Drivers can submit leave requests from the app' },
+  ];
+  for (const d of defaults) {
+    await dbPool.query(
+      'INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES (?, ?, ?, ?)',
+      [d.key, d.value, d.label, d.description]
+    );
+  }
+};
+
+// Public — mobile app fetches this on every startup (no auth required)
+app.get('/api/app-config', async (req, res, next) => {
+  try {
+    await ensureAppSettingsTable();
+    const [rows] = await dbPool.query('SELECT `key`, value FROM app_settings');
+    const config = {};
+    for (const row of rows) {
+      config[row.key] = row.value === 'true' ? true : row.value === 'false' ? false : row.value;
+    }
+    res.json({ success: true, config });
+  } catch (err) { next(err); }
+});
+
+// Admin — list all settings
+app.get('/api/admin/app-settings', requireAdmin, async (req, res, next) => {
+  try {
+    await ensureAppSettingsTable();
+    const [rows] = await dbPool.query('SELECT * FROM app_settings ORDER BY `key`');
+    res.json({ success: true, settings: rows });
+  } catch (err) { next(err); }
+});
+
+// Admin — update one setting
+app.patch('/api/admin/app-settings/:key', requireAdmin, async (req, res, next) => {
+  const { key } = req.params;
+  const { value } = req.body;
+  if (value === undefined || value === null) return res.json({ success: false, error: 'value required' });
+  try {
+    await ensureAppSettingsTable();
+    await dbPool.query(
+      'INSERT INTO app_settings (`key`, value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE value = ?, updated_at = NOW()',
+      [key, String(value), String(value)]
+    );
+    res.json({ success: true });
+  } catch (err) { next(err); }
 });
 
 // Public JSON: look up driver status by name (used by customer app)

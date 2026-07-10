@@ -480,6 +480,18 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 hideLoading();
             }
         },
+        appSettings: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderAppSettingsModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">App Settings module not loaded</div>';
+                    return;
+                }
+                await window.renderAppSettingsModule(tableWrap);
+            } finally {
+                hideLoading();
+            }
+        },
     };
 
     attachFilterListeners(tabRenderers, () => currentTab);
@@ -498,7 +510,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
             }
         }
 
-        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams' || tab === 'expenses' || tab === 'tripLogs') {
+        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams' || tab === 'expenses' || tab === 'tripLogs' || tab === 'appSettings') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
         } else if (tab === 'trainingDays' || tab === 'courses' || tab === 'packages') {

@@ -2130,3 +2130,20 @@ CREATE TABLE IF NOT EXISTS driver_locations (
     accuracy      FLOAT,
     updated_at    DATETIME NOT NULL DEFAULT NOW()
 );
+
+-- =====================================
+-- APP SETTINGS (Remote Config / Feature Flags)
+-- =====================================
+CREATE TABLE IF NOT EXISTS app_settings (
+    `key`       VARCHAR(100) PRIMARY KEY,
+    value       TEXT         NOT NULL DEFAULT '',
+    label       VARCHAR(200) NOT NULL DEFAULT '',
+    description TEXT,
+    updated_at  DATETIME     NOT NULL DEFAULT NOW()
+);
+
+-- Seed default settings (INSERT IGNORE preserves any existing values)
+INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES
+    ('maintenance_mode',      'false', 'Maintenance Mode',  'When ON, all app users see a maintenance screen. Admin panel stays accessible.'),
+    ('maintenance_message',   'We are currently performing maintenance. Please check back soon.', 'Maintenance Message', 'Text shown to users during maintenance'),
+    ('feature_leave_request', 'true',  'Leave Request',     'Drivers can submit leave requests from the app');

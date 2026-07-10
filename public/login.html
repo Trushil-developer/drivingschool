@@ -26,21 +26,21 @@
 
             <form id="loginForm" autocomplete="off">
                 <div class="field">
-                    <label for="username">Username</label>
+                    <label for="username">Username / Employee ID</label>
                     <div class="input-wrap">
                         <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 12c2.7 0 5-2.3 5-5S14.7 2 12 2 7 4.3 7 7s2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v1h20v-1c0-3.3-6.7-5-10-5z"/>
                         </svg>
-                        <input type="text" name="username" id="username" placeholder="Enter username" required autocomplete="off">
+                        <input type="text" name="username" id="username" placeholder="Admin username or Employee ID" required autocomplete="off">
                     </div>
                 </div>
                 <div class="field">
-                    <label for="password">Password</label>
+                    <label for="password">Password / Mobile Number</label>
                     <div class="input-wrap">
                         <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 1C9.24 1 7 3.24 7 6v2H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6c0-2.76-2.24-5-5-5zm0 2c1.65 0 3 1.35 3 3v2H9V6c0-1.65 1.35-3 3-3zm0 9a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/>
                         </svg>
-                        <input type="password" name="password" id="password" placeholder="Enter password" required>
+                        <input type="password" name="password" id="password" placeholder="Password or mobile number" required>
                         <button type="button" class="toggle-pw" id="togglePw" tabindex="-1">
                             <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12.5a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>
@@ -99,7 +99,7 @@
                 const j = await res.json();
 
                 if (j.success) {
-                    btnText.textContent = 'Redirecting...';
+                    btnText.textContent = j.name ? `Welcome, ${j.name.split(' ')[0]}…` : 'Redirecting...';
                     window.location.href = 'admin.html';
                 } else {
                     showError(j.error || 'Login failed. Please try again.');
