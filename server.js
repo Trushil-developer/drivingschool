@@ -282,7 +282,7 @@ app.post('/api/login', loginLimiter, async (req, res, next) => {
 
     // ── Path 2: Manager (instructors table, mobile_no as password) ──
     const [mgrRows] = await dbPool.query(
-      "SELECT * FROM instructors WHERE BINARY employee_no = ? AND LOWER(role) = 'manager' AND is_active = 1 LIMIT 1",
+      "SELECT * FROM instructors WHERE UPPER(employee_no) = UPPER(?) AND LOWER(role) = 'manager' AND is_active = 1 LIMIT 1",
       [username.trim()]
     );
     if (mgrRows && mgrRows.length > 0) {
@@ -315,7 +315,7 @@ app.post('/api/driver-login', async (req, res, next) => {
   try {
     if (!employee_no || !password) return res.json({ success: false, error: 'Employee number and password required' });
     const [rows] = await dbPool.query(
-      "SELECT * FROM instructors WHERE BINARY employee_no = ? AND is_active = 1 AND LOWER(role) = 'instructor' LIMIT 1",
+      "SELECT * FROM instructors WHERE UPPER(employee_no) = UPPER(?) AND is_active = 1 AND LOWER(role) = 'instructor' LIMIT 1",
       [employee_no.trim()]
     );
     if (!rows || rows.length === 0) return res.json({ success: false, error: 'Invalid credentials' });
