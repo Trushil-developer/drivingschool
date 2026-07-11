@@ -442,6 +442,28 @@ app.patch('/api/student/profile', requireExamUser, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Student Bookings (student session, filtered by their email) ────────────────
+app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
+  const { email } = req.session.examUser;
+  try {
+    const [rows] = await dbPool.query(
+      `SELECT b.id, b.branch, b.training_days, b.customer_name, b.mobile_no, b.email,
+              b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4,
+              b.starting_from, b.total_fees, b.advance,
+              b.car_name, b.instructor_name,
+              b.attendance_status, b.certificate_url, b.created_at,
+              COALESCE(att.present_days, 0) AS present_days
+       FROM bookings b
+       LEFT JOIN (SELECT booking_id, COUNT(*) AS present_days FROM attendance WHERE present = 1 GROUP BY booking_id) att
+         ON att.booking_id = b.id
+       WHERE b.email = ?
+       ORDER BY b.created_at DESC`,
+      [email]
+    );
+    res.json({ success: true, bookings: rows });
+  } catch (err) { next(err); }
+});
+
 // ── Driver Leave Requests ──────────────────────────────────────────────────────
 
 app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
