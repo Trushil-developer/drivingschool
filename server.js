@@ -383,6 +383,36 @@ app.patch('/api/driver/profile', requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Admin Profile ──────────────────────────────────────────────────────────────
+
+app.get('/api/admin/profile', requireAdmin, async (req, res, next) => {
+  const adminId = req.session.adminId;
+  try {
+    const [[row]] = await dbPool.query(
+      'SELECT id, username, full_name, email, mobile_no, role FROM admins WHERE id = ? LIMIT 1',
+      [adminId]
+    );
+    if (!row) return res.json({ success: false, error: 'Admin not found' });
+    res.json({ success: true, admin: row });
+  } catch (err) { next(err); }
+});
+
+app.patch('/api/admin/profile', requireAdmin, async (req, res, next) => {
+  const adminId = req.session.adminId;
+  const { full_name, email, mobile_no } = req.body;
+  const updates = [];
+  const params  = [];
+  if (full_name !== undefined) { updates.push('full_name = ?'); params.push(full_name.trim() || null); }
+  if (email     !== undefined) { updates.push('email = ?');     params.push(email.trim() || null); }
+  if (mobile_no !== undefined) { updates.push('mobile_no = ?'); params.push(mobile_no.trim() || null); }
+  if (updates.length === 0) return res.json({ success: false, error: 'Nothing to update' });
+  params.push(adminId);
+  try {
+    await dbPool.query(`UPDATE admins SET ${updates.join(', ')} WHERE id = ?`, params);
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
 // ── Driver Leave Requests ──────────────────────────────────────────────────────
 
 app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
@@ -1008,6 +1038,19 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
   }
 })();
 
+// Migration: add marked_by_id + marked_by_type to attendance
+// marked_by_type: 'admin' = admins table, 'manager'/'instructor' = instructors table
+(async () => {
+  try {
+    await dbPool.query(`ALTER TABLE attendance ADD COLUMN marked_by_id INT NULL`);
+    console.log('[Migration] attendance.marked_by_id column added.');
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.marked_by_id:', e.message); }
+  try {
+    await dbPool.query(`ALTER TABLE attendance ADD COLUMN marked_by_type VARCHAR(20) NULL`);
+    console.log('[Migration] attendance.marked_by_type column added.');
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.marked_by_type:', e.message); }
+})();
+
 app.get('/api/attendance-all', requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
@@ -1091,6 +1134,9 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
 
     const mysqlDate = date.split("T")[0];
     const slotTime = (time || '').substring(0, 5);
+    const markedById   = req.session.adminId   || null;
+    // 'admin' → admins table; 'manager' or 'instructor' → instructors table
+    const markedByType = req.session.adminRole || 'instructor';
 
     async function attemptUpdate() {
         let conn;
@@ -1100,9 +1146,11 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
 
             const storedValue = value >= 1 ? 1 : 0;
             await conn.query(
-                `INSERT INTO attendance (booking_id, date, time, present, marked_at) VALUES (?, ?, ?, ?, NOW())
-                 ON DUPLICATE KEY UPDATE present = ?, marked_at = NOW()`,
-                [booking_id, mysqlDate, slotTime, storedValue, storedValue]
+                `INSERT INTO attendance (booking_id, date, time, present, marked_at, marked_by_id, marked_by_type)
+                 VALUES (?, ?, ?, ?, NOW(), ?, ?)
+                 ON DUPLICATE KEY UPDATE present = ?, marked_at = NOW(), marked_by_id = ?, marked_by_type = ?`,
+                [booking_id, mysqlDate, slotTime, storedValue, markedById, markedByType,
+                 storedValue, markedById, markedByType]
             );
 
             const [presentSumRows] = await conn.query(
@@ -1533,7 +1581,7 @@ const ensureLocationsTable = () => dbPool.query(`
     lat DECIMAL(10,7) NOT NULL,
     lng DECIMAL(10,7) NOT NULL,
     accuracy FLOAT,
-    updated_at DATETIME NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   )
 `);
 
@@ -1615,7 +1663,7 @@ const ensureTripsTable = () => dbPool.query(`
     ended_at DATETIME NULL,
     duration_mins INT NOT NULL DEFAULT 30,
     status ENUM('active','completed') NOT NULL DEFAULT 'active',
-    created_at DATETIME NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
   )
 `);
 

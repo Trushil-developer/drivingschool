@@ -857,6 +857,14 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN school_id INT NO
 SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='idx_attendance_school');
 SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_attendance_school ON attendance (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- marked_by_id / marked_by_type: who marked this record and from which table
+-- marked_by_type 'admin' -> admins table; 'manager' or 'instructor' -> instructors table
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='marked_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN marked_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='marked_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN marked_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- SCHOOLS TABLE (multi-tenant anchor)
 -- =====================================
@@ -903,6 +911,15 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN role ENUM("superadmi
 
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='is_active');
 SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='full_name');
+SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN full_name VARCHAR(150) DEFAULT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='email');
+SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN email VARCHAR(150) DEFAULT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='mobile_no');
+SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN mobile_no VARCHAR(20) DEFAULT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- BRANCHES TABLE
@@ -2116,7 +2133,7 @@ CREATE TABLE IF NOT EXISTS driver_trips (
     ended_at        DATETIME NULL,
     duration_mins   INT NOT NULL DEFAULT 30,
     status          ENUM('active','completed') NOT NULL DEFAULT 'active',
-    created_at      DATETIME NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND index_name='idx_driver_trips_instructor');
@@ -2131,7 +2148,7 @@ CREATE TABLE IF NOT EXISTS driver_locations (
     lat           DECIMAL(10,7) NOT NULL,
     lng           DECIMAL(10,7) NOT NULL,
     accuracy      FLOAT,
-    updated_at    DATETIME NOT NULL DEFAULT NOW()
+    updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- =====================================
