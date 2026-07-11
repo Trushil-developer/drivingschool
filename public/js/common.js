@@ -151,7 +151,8 @@ window.CommonReady = (async () => {
         cms: 'admin.html?tab=cms',
         expenses: 'admin.html?tab=expenses',
         tripLogs: 'admin.html?tab=tripLogs',
-        appSettings: 'admin.html?tab=appSettings'
+        appSettings: 'admin.html?tab=appSettings',
+        complaints: 'admin.html?tab=complaints'
     };
 
     sidebarItems.forEach(li => {
