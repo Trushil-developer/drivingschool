@@ -413,6 +413,35 @@ app.patch('/api/admin/profile', requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Student (Exam User) Profile ────────────────────────────────────────────────
+
+app.get('/api/student/profile', requireExamUser, async (req, res, next) => {
+  const { id } = req.session.examUser;
+  try {
+    const [[row]] = await dbPool.query(
+      'SELECT id, email, full_name, mobile_no, first_verified_at FROM exam_users WHERE id = ? LIMIT 1',
+      [id]
+    );
+    if (!row) return res.json({ success: false, error: 'Student not found' });
+    res.json({ success: true, student: row });
+  } catch (err) { next(err); }
+});
+
+app.patch('/api/student/profile', requireExamUser, async (req, res, next) => {
+  const { id } = req.session.examUser;
+  const { full_name, mobile_no } = req.body;
+  const updates = [];
+  const params  = [];
+  if (full_name !== undefined) { updates.push('full_name = ?'); params.push(full_name.trim() || null); }
+  if (mobile_no !== undefined) { updates.push('mobile_no = ?'); params.push(mobile_no.trim() || null); }
+  if (updates.length === 0) return res.json({ success: false, error: 'Nothing to update' });
+  params.push(id);
+  try {
+    await dbPool.query(`UPDATE exam_users SET ${updates.join(', ')} WHERE id = ?`, params);
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
 // ── Driver Leave Requests ──────────────────────────────────────────────────────
 
 app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
@@ -537,6 +566,27 @@ app.post('/api/exam/logout', (req, res) => {
   req.session.save(() => {
     res.json({ success: true });
   });
+});
+
+// ---------- DEV: instant student login (picks first exam_user) ----------
+app.post('/api/dev/student-login', async (req, res, next) => {
+  try {
+    const [rows] = await dbPool.query(
+      'SELECT id, email, full_name, mobile_no FROM exam_users ORDER BY id ASC LIMIT 1'
+    );
+    if (!rows || rows.length === 0) {
+      return res.json({ success: false, error: 'No exam_users found' });
+    }
+    const student = rows[0];
+    req.session.examUser = { id: student.id, email: student.email };
+    await new Promise((resolve, reject) =>
+      req.session.save((err) => (err ? reject(err) : resolve(undefined)))
+    );
+    const secret = process.env.SESSION_SECRET || 'supersecretkey';
+    const signed = 's:' + cookieSign(req.session.id, secret);
+    const sessionToken = `session_cookie=${encodeURIComponent(signed)}`;
+    res.json({ success: true, sessionToken, student: { id: student.id, email: student.email, full_name: student.full_name, mobile_no: student.mobile_no } });
+  } catch (err) { next(err); }
 });
 
 // ---------- BOOKINGS CRUD ----------

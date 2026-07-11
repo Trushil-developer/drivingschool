@@ -1542,6 +1542,14 @@ SET @sql := IF(@col_exists=0,
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- full_name
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='exam_users' AND column_name='full_name');
+SET @sql := IF(@col_exists=0,'ALTER TABLE exam_users ADD COLUMN full_name VARCHAR(150) DEFAULT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- mobile_no
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='exam_users' AND column_name='mobile_no');
+SET @sql := IF(@col_exists=0,'ALTER TABLE exam_users ADD COLUMN mobile_no VARCHAR(20) DEFAULT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- EXAM ATTEMPTS TABLE
 -- =====================================
