@@ -2176,3 +2176,24 @@ INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES
     ('maintenance_mode',      'false', 'Maintenance Mode',  'When ON, all app users see a maintenance screen. Admin panel stays accessible.'),
     ('maintenance_message',   'We are currently performing maintenance. Please check back soon.', 'Maintenance Message', 'Text shown to users during maintenance'),
     ('feature_leave_request', 'true',  'Leave Request',     'Drivers can submit leave requests from the app');
+
+-- =====================================
+-- STUDENT COMPLAINTS TABLE
+-- =====================================
+CREATE TABLE IF NOT EXISTS student_complaints (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    student_email   VARCHAR(255) NOT NULL,
+    student_name    VARCHAR(255),
+    booking_id      INT,
+    subject         VARCHAR(255) NOT NULL,
+    message         TEXT NOT NULL,
+    category        ENUM('Instructor','Schedule','Payment','Car','App','Other') NOT NULL DEFAULT 'Other',
+    status          ENUM('Open','In Review','Resolved','Closed') NOT NULL DEFAULT 'Open',
+    admin_note      TEXT,
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='student_complaints' AND index_name='idx_student_complaints_email');
+SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_student_complaints_email ON student_complaints (student_email);','SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

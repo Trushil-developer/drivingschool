@@ -460,7 +460,29 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
        ORDER BY b.created_at DESC`,
       [email]
     );
-    res.json({ success: true, bookings: rows });
+    // Build selected_slots array from allotted_time columns
+    const bookings = rows.map(b => ({
+      ...b,
+      selected_slots: [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4].filter(Boolean),
+    }));
+    res.json({ success: true, bookings });
+  } catch (err) { next(err); }
+});
+
+// ── Student Sessions (individual attended classes) ─────────────────────────────
+app.get('/api/student/sessions', requireExamUser, async (req, res, next) => {
+  const { email } = req.session.examUser;
+  try {
+    const [rows] = await dbPool.query(
+      `SELECT a.id, a.booking_id, a.date, a.time, a.present,
+              b.branch, b.instructor_name, b.car_name, b.training_days, b.starting_from
+       FROM attendance a
+       JOIN bookings b ON b.id = a.booking_id
+       WHERE b.email = ? AND a.present = 1
+       ORDER BY a.date DESC, a.time ASC`,
+      [email]
+    );
+    res.json({ success: true, sessions: rows });
   } catch (err) { next(err); }
 });
 
@@ -2092,6 +2114,97 @@ app.get('/driver-status/:instructor_id', (req, res) => {
   </script>
 </body>
 </html>`);
+});
+
+// ── Student Complaints ────────────────────────────────────────────────────────
+
+const ensureComplaintsTable = () => dbPool.query(`
+  CREATE TABLE IF NOT EXISTS student_complaints (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    student_email   VARCHAR(255) NOT NULL,
+    student_name    VARCHAR(255),
+    booking_id      INT,
+    subject         VARCHAR(255) NOT NULL,
+    message         TEXT NOT NULL,
+    category        ENUM('Instructor','Schedule','Payment','Car','App','Other') NOT NULL DEFAULT 'Other',
+    status          ENUM('Open','In Review','Resolved','Closed') NOT NULL DEFAULT 'Open',
+    admin_note      TEXT,
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  )
+`);
+
+// Student: submit a complaint
+app.post('/api/student/complaints', requireExamUser, async (req, res, next) => {
+  const { email, full_name } = req.session.examUser;
+  const { subject, message, category, booking_id } = req.body;
+  if (!subject?.trim() || !message?.trim()) {
+    return res.status(400).json({ success: false, error: 'Subject and message are required' });
+  }
+  const validCategories = ['Instructor', 'Schedule', 'Payment', 'Car', 'App', 'Other'];
+  const cat = validCategories.includes(category) ? category : 'Other';
+  try {
+    await ensureComplaintsTable();
+    const [result] = await dbPool.query(
+      `INSERT INTO student_complaints (student_email, student_name, booking_id, subject, message, category)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [email, full_name || null, booking_id || null, subject.trim(), message.trim(), cat],
+    );
+    res.json({ success: true, id: result.insertId });
+  } catch (err) { next(err); }
+});
+
+// Student: view own complaints
+app.get('/api/student/complaints', requireExamUser, async (req, res, next) => {
+  const { email } = req.session.examUser;
+  try {
+    await ensureComplaintsTable();
+    const [rows] = await dbPool.query(
+      `SELECT id, subject, message, category, status, admin_note, created_at, updated_at
+       FROM student_complaints WHERE student_email = ? ORDER BY created_at DESC`,
+      [email],
+    );
+    res.json({ success: true, complaints: rows });
+  } catch (err) { next(err); }
+});
+
+// Admin: list all complaints
+app.get('/api/admin/complaints', requireAdmin, async (req, res, next) => {
+  const { status, category } = req.query;
+  try {
+    await ensureComplaintsTable();
+    const conditions = [];
+    const params = [];
+    if (status)   { conditions.push('status = ?');   params.push(status); }
+    if (category) { conditions.push('category = ?'); params.push(category); }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const [rows] = await dbPool.query(
+      `SELECT id, student_email, student_name, booking_id, subject, message, category, status, admin_note, created_at, updated_at
+       FROM student_complaints ${where} ORDER BY created_at DESC LIMIT 500`,
+      params,
+    );
+    res.json({ success: true, complaints: rows });
+  } catch (err) { next(err); }
+});
+
+// Admin: update complaint status / add note
+app.patch('/api/admin/complaints/:id', requireAdmin, async (req, res, next) => {
+  const { id } = req.params;
+  const { status, admin_note } = req.body;
+  const validStatuses = ['Open', 'In Review', 'Resolved', 'Closed'];
+  if (status && !validStatuses.includes(status)) {
+    return res.status(400).json({ success: false, error: 'Invalid status' });
+  }
+  const updates = [];
+  const params  = [];
+  if (status !== undefined)     { updates.push('status = ?');     params.push(status); }
+  if (admin_note !== undefined) { updates.push('admin_note = ?'); params.push(admin_note || null); }
+  if (updates.length === 0) return res.status(400).json({ success: false, error: 'Nothing to update' });
+  params.push(id);
+  try {
+    await dbPool.query(`UPDATE student_complaints SET ${updates.join(', ')} WHERE id = ?`, params);
+    res.json({ success: true });
+  } catch (err) { next(err); }
 });
 
 // ---------- START SERVER ----------

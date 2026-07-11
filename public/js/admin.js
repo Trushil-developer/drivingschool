@@ -459,6 +459,18 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 hideLoading();
             }
         },
+        complaints: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderComplaintsModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Complaints module not loaded</div>';
+                    return;
+                }
+                await window.renderComplaintsModule(tableWrap);
+            } finally {
+                hideLoading();
+            }
+        },
     };
 
     attachFilterListeners(tabRenderers, () => currentTab);
