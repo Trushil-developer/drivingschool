@@ -568,24 +568,48 @@ app.post('/api/exam/logout', (req, res) => {
   });
 });
 
-// ---------- DEV: instant student login (picks first exam_user) ----------
+// ---------- DEV: instant student login by booking_id ----------
 app.post('/api/dev/student-login', async (req, res, next) => {
   try {
-    const [rows] = await dbPool.query(
-      'SELECT id, email, full_name, mobile_no FROM exam_users ORDER BY id ASC LIMIT 1'
-    );
-    if (!rows || rows.length === 0) {
-      return res.json({ success: false, error: 'No exam_users found' });
+    const { booking_id } = req.body;
+    let email, name, mobile;
+
+    if (booking_id) {
+      // Look up student details from a specific booking
+      const [[booking]] = await dbPool.query(
+        'SELECT customer_name, email, mobile_no FROM bookings WHERE id = ? LIMIT 1',
+        [booking_id]
+      );
+      if (!booking) return res.json({ success: false, error: `Booking ${booking_id} not found` });
+      email  = booking.email;
+      name   = booking.customer_name;
+      mobile = booking.mobile_no;
+    } else {
+      // Fallback: pick first exam_user
+      const [[eu]] = await dbPool.query(
+        'SELECT id, email, full_name, mobile_no FROM exam_users ORDER BY id ASC LIMIT 1'
+      );
+      if (!eu) return res.json({ success: false, error: 'No exam_users found' });
+      email  = eu.email;
+      name   = eu.full_name || eu.email;
+      mobile = eu.mobile_no;
     }
-    const student = rows[0];
-    req.session.examUser = { id: student.id, email: student.email };
+
+    // Upsert into exam_users so they have an exam session
+    await dbPool.query(
+      'INSERT INTO exam_users (email, first_verified_at, last_seen_at) VALUES (?, NOW(), NOW()) ON DUPLICATE KEY UPDATE last_seen_at = NOW()',
+      [email]
+    );
+    const [[userRow]] = await dbPool.query('SELECT id FROM exam_users WHERE email = ? LIMIT 1', [email]);
+
+    req.session.examUser = { id: userRow.id, email };
     await new Promise((resolve, reject) =>
       req.session.save((err) => (err ? reject(err) : resolve(undefined)))
     );
     const secret = process.env.SESSION_SECRET || 'supersecretkey';
     const signed = 's:' + cookieSign(req.session.id, secret);
     const sessionToken = `session_cookie=${encodeURIComponent(signed)}`;
-    res.json({ success: true, sessionToken, student: { id: student.id, email: student.email, full_name: student.full_name, mobile_no: student.mobile_no } });
+    res.json({ success: true, sessionToken, student: { id: userRow.id, email, full_name: name, mobile_no: mobile } });
   } catch (err) { next(err); }
 });
 
