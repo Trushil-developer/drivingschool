@@ -501,6 +501,9 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
     const bookings = rows.map(b => ({
       ...b,
       selected_slots: [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4].filter(Boolean),
+      certificate_url: b.certificate_url
+        ? `https://${process.env.S3_BUCKET}.s3.${process.env.S3_REGION}.amazonaws.com/${b.certificate_url}`
+        : null,
     }));
     res.json({ success: true, bookings });
   } catch (err) { next(err); }
