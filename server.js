@@ -1610,24 +1610,6 @@ app.delete('/api/branches/:id', requireAdmin, async (req, res, next) => {
 // ---------- HEALTH CHECK ----------
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
 
-// ---------- 404 HANDLER ----------
-app.use((req, res) => {
-  res.status(404).json({ success: false, error: 'Not found' });
-});
-
-// ---------- GLOBAL ERROR HANDLER ----------
-app.use((err, req, res, next) => {
-  // CORS errors
-  if (err.message && err.message.startsWith('CORS:')) {
-    return res.status(403).json({ success: false, error: err.message });
-  }
-  // Payload too large
-  if (err.status === 413 || err.type === 'entity.too.large') {
-    return res.status(413).json({ success: false, error: 'Request too large' });
-  }
-  console.error('[ERROR]', err && (err.stack || err));
-  res.status(500).json({ success: false, error: 'Internal server error' });
-});
 
 // ---------- PROCESS-LEVEL HANDLERS ----------
 process.on('uncaughtException', (err) => {
@@ -2266,6 +2248,23 @@ app.get('/api/admin/session-ratings', requireAdmin, async (req, res, next) => {
     );
     res.json({ success: true, ratings: rows });
   } catch (err) { next(err); }
+});
+
+// ---------- 404 HANDLER ----------
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: 'Not found' });
+});
+
+// ---------- GLOBAL ERROR HANDLER ----------
+app.use((err, req, res, next) => {
+  if (err.message && err.message.startsWith('CORS:')) {
+    return res.status(403).json({ success: false, error: err.message });
+  }
+  if (err.status === 413 || err.type === 'entity.too.large') {
+    return res.status(413).json({ success: false, error: 'Request too large' });
+  }
+  console.error('[ERROR]', err && (err.stack || err));
+  res.status(500).json({ success: false, error: 'Internal server error' });
 });
 
 // ---------- START SERVER ----------
