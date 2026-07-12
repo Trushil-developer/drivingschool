@@ -450,6 +450,8 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
     const [[eu]] = await dbPool.query('SELECT full_name FROM exam_users WHERE id = ? LIMIT 1', [examUserId]);
     const name = eu?.full_name ?? null;
 
+    console.log('[student/bookings] examUserId=%s email=%s full_name=%s', examUserId, email, name);
+
     const conditions = name
       ? '(b.email = ? OR b.customer_name = ?)'
       : 'b.email = ?';
@@ -469,6 +471,7 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
        ORDER BY b.created_at DESC`,
       params
     );
+    console.log('[student/bookings] found %d rows, statuses: %s', rows.length, rows.map(r => `#${r.id}(${r.attendance_status})`).join(', '));
     const bookings = rows.map(b => ({
       ...b,
       selected_slots: [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4].filter(Boolean),
