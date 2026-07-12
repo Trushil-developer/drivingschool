@@ -7,208 +7,234 @@ window.renderInboxModule = async function (tableWrap) {
     }
 
     function fmtDate(str) {
-        if (!str) return '—';
+        if (!str) return '';
         const d = new Date(str);
         const now = new Date();
-        const diff = now - d;
-        const mins = Math.floor(diff / 60000);
-        if (mins < 1)   return 'just now';
-        if (mins < 60)  return `${mins}m ago`;
+        const mins = Math.floor((now - d) / 60000);
+        if (mins < 1)        return 'Just now';
+        if (mins < 60)       return `${mins}m ago`;
         const hrs = Math.floor(mins / 60);
-        if (hrs  < 24)  return `${hrs}h ago`;
+        if (hrs < 24)        return `${hrs}h ago`;
         const days = Math.floor(hrs / 24);
-        if (days < 7)   return `${days}d ago`;
-        return new Intl.DateTimeFormat('en-IN', {
-            day: '2-digit', month: 'short', year: 'numeric',
-        }).format(d);
+        if (days < 7)        return `${days}d ago`;
+        // Same year → show day + month, else full date
+        if (d.getFullYear() === now.getFullYear()) {
+            return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(d);
+        }
+        return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
     }
 
     function fmtDateFull(str) {
-        if (!str) return '—';
+        if (!str) return '';
         return new Intl.DateTimeFormat('en-IN', {
             timeZone: 'Asia/Kolkata',
-            day: '2-digit', month: 'short', year: 'numeric',
+            weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
             hour: '2-digit', minute: '2-digit', hour12: true,
         }).format(new Date(str));
     }
 
     function avatarColor(str) {
-        const palette = ['#6366f1','#8b5cf6','#ec4899','#f97316','#14b8a6','#0ea5e9','#84cc16','#f59e0b'];
+        const palette = ['#1a73e8','#8430ce','#e94235','#f9ab00','#0f9d58','#00829b','#e37400','#6d4c41'];
         let hash = 0;
         for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
         return palette[Math.abs(hash) % palette.length];
     }
 
-    function initials(from) {
-        // Extract name part before <email>
-        const name = from.replace(/<[^>]+>/, '').trim() || from;
+    function senderName(from) {
+        // "John Doe <john@example.com>" → "John Doe"
+        const match = from.match(/^(.+?)\s*<[^>]+>/);
+        return (match ? match[1] : from).trim() || from;
+    }
+
+    function senderInitials(from) {
+        const name = senderName(from);
         return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
     }
 
-    // ── Shell ──────────────────────────────────────────────────────────────────
+    function senderEmail(from) {
+        const match = from.match(/<([^>]+)>/);
+        return match ? match[1] : from;
+    }
+
+    function snippet(body) {
+        return (body || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+    }
+
+    // ── Layout shell ───────────────────────────────────────────────────────────
     tableWrap.innerHTML = `
-        <div class="inbox-page">
-            <div class="inbox-header">
-                <div>
-                    <h2 class="inbox-title">📧 Inbox</h2>
-                    <p class="inbox-subtitle">info@dwarkeshdrivingschool.com</p>
+        <div class="gm-wrap">
+            <!-- Left: list -->
+            <div class="gm-list-panel">
+                <div class="gm-toolbar">
+                    <span class="gm-toolbar-title">Inbox</span>
+                    <span class="gm-toolbar-count" id="gmCount"></span>
+                    <button class="gm-refresh-btn" id="gmRefresh" title="Refresh">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <polyline points="1 20 1 14 7 14"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                    </button>
                 </div>
-                <button class="inbox-refresh-btn" id="inboxRefresh">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                    </svg>
-                    Refresh
-                </button>
+                <div class="gm-list" id="gmList"></div>
+                <div class="gm-pagination" id="gmPagination" style="display:none"></div>
             </div>
-            <div id="inboxContent"></div>
-            <div id="inboxPagination" class="inbox-pagination" style="display:none"></div>
-        </div>
-    `;
 
-    // ── Detail overlay (appended to body) ──────────────────────────────────────
-    let detailEl = document.getElementById('inboxDetail');
-    if (detailEl) detailEl.remove();
-    detailEl = document.createElement('div');
-    detailEl.id = 'inboxDetail';
-    detailEl.className = 'inbox-detail-overlay';
-    detailEl.style.display = 'none';
-    detailEl.innerHTML = `
-        <div class="inbox-detail">
-            <div class="inbox-detail-header">
-                <div style="min-width:0">
-                    <div class="inbox-detail-subject" id="inboxDetailSubject"></div>
-                    <div class="inbox-detail-meta" id="inboxDetailMeta"></div>
-                </div>
-                <button class="inbox-detail-close" id="inboxDetailClose" title="Close">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="inbox-detail-body" id="inboxDetailBody">
-                <div class="inbox-detail-loading">
-                    <div class="inbox-spinner"></div> Loading…
+            <!-- Right: detail -->
+            <div class="gm-detail-panel" id="gmDetail">
+                <div class="gm-detail-empty">
+                    <div class="gm-detail-empty-icon">✉️</div>
+                    <div class="gm-detail-empty-text">Select an email to read</div>
                 </div>
             </div>
         </div>
     `;
-    document.body.appendChild(detailEl);
 
-    function closeDetail() { detailEl.style.display = 'none'; }
-    document.getElementById('inboxDetailClose').addEventListener('click', closeDetail);
-    detailEl.addEventListener('click', e => { if (e.target === detailEl) closeDetail(); });
+    const gmList       = document.getElementById('gmList');
+    const gmDetail     = document.getElementById('gmDetail');
+    const gmCount      = document.getElementById('gmCount');
+    const gmPagination = document.getElementById('gmPagination');
 
-    // ── State ──────────────────────────────────────────────────────────────────
-    let currentPage = 1;
-    const PAGE_SIZE = 20;
+    let selectedUid = null;
 
-    async function openEmail(email) {
-        document.getElementById('inboxDetailSubject').textContent = email.subject;
-        document.getElementById('inboxDetailMeta').textContent =
-            `From: ${email.from}  ·  ${fmtDateFull(email.date)}`;
-        document.getElementById('inboxDetailBody').innerHTML =
-            '<div class="inbox-detail-loading"><div class="inbox-spinner"></div> Loading…</div>';
-        detailEl.style.display = 'flex';
+    // ── Open email ─────────────────────────────────────────────────────────────
+    function openEmail(email, rowEl) {
+        // Deselect previous
+        gmList.querySelectorAll('.gm-row').forEach(r => r.classList.remove('gm-selected'));
+        rowEl.classList.add('gm-selected');
+        selectedUid = email.uid;
 
-        // Mark item as read visually
-        const item = tableWrap.querySelector(`.inbox-item[data-uid="${email.uid}"]`);
-        if (item) {
-            item.classList.remove('unread');
-            const dot = item.querySelector('.inbox-unread-dot');
-            if (dot) { dot.classList.remove('inbox-unread-dot'); dot.classList.add('inbox-read-spacer'); }
-        }
+        const color = avatarColor(email.from);
+        const name  = senderName(email.from);
+        const addr  = senderEmail(email.from);
 
-        try {
-            const res = await window.api(`/api/email/${email.uid}`);
-            if (!res?.success) throw new Error(res?.error || 'Failed to load');
-            document.getElementById('inboxDetailBody').textContent = res.body || '(empty message)';
-        } catch (err) {
-            document.getElementById('inboxDetailBody').innerHTML =
-                `<div class="inbox-error">Failed to load email: ${escHtml(err.message)}</div>`;
+        gmDetail.innerHTML = `
+            <div class="gm-detail-header">
+                <div class="gm-detail-subject">${escHtml(email.subject)}</div>
+                <div class="gm-detail-meta">
+                    <div class="gm-detail-avatar" style="background:${color}">${escHtml(senderInitials(email.from))}</div>
+                    <div>
+                        <div class="gm-detail-sender-name">${escHtml(name)}</div>
+                        <div class="gm-detail-sender-email">${escHtml(addr)}</div>
+                    </div>
+                    <div class="gm-detail-date">${fmtDateFull(email.date)}</div>
+                </div>
+            </div>
+            <div class="gm-detail-body">${escHtml(email.body || '(empty message)')}</div>
+        `;
+
+        // Mark as read visually
+        if (email.unread) {
+            email.unread = false;
+            rowEl.classList.remove('gm-unread');
+            rowEl.classList.add('gm-read');
+            window.api(`/api/email/${email.uid}/seen`, { method: 'POST' }).catch(() => {});
         }
     }
 
+    // ── Render list ────────────────────────────────────────────────────────────
+    function renderList(emails) {
+        if (!emails.length) {
+            gmList.innerHTML = `
+                <div class="gm-empty">
+                    <div class="gm-empty-icon">📭</div>
+                    <div class="gm-empty-title">Inbox is empty</div>
+                    <div class="gm-empty-sub">No emails found.</div>
+                </div>`;
+            return;
+        }
+
+        gmList.innerHTML = emails.map(e => {
+            const color = avatarColor(e.from);
+            return `
+            <div class="gm-row ${e.unread ? 'gm-unread' : 'gm-read'}" data-uid="${e.uid}">
+                <div class="gm-avatar" style="background:${color}">${escHtml(senderInitials(e.from))}</div>
+                <div class="gm-row-body">
+                    <div class="gm-row-top">
+                        <span class="gm-sender">${escHtml(senderName(e.from))}</span>
+                        <span class="gm-date">${escHtml(fmtDate(e.date))}</span>
+                    </div>
+                    <div class="gm-subject">${escHtml(e.subject)}</div>
+                    <div class="gm-snippet">${escHtml(snippet(e.body))}</div>
+                </div>
+            </div>`;
+        }).join('');
+
+        gmList.querySelectorAll('.gm-row').forEach(row => {
+            row.addEventListener('click', () => {
+                const uid   = Number(row.dataset.uid);
+                const email = emails.find(e => e.uid === uid);
+                if (email) openEmail(email, row);
+            });
+        });
+
+        // Re-select previously open email if still visible
+        if (selectedUid) {
+            const row = gmList.querySelector(`.gm-row[data-uid="${selectedUid}"]`);
+            if (row) row.classList.add('gm-selected');
+        }
+    }
+
+    // ── Load ───────────────────────────────────────────────────────────────────
+    let currentPage = 1;
+
     async function load(page) {
-        const content    = document.getElementById('inboxContent');
-        const pagination = document.getElementById('inboxPagination');
-        content.innerHTML = '<div class="inbox-loading"><div class="inbox-spinner"></div> Connecting to mailbox…</div>';
-        pagination.style.display = 'none';
+        gmList.innerHTML = `<div class="gm-loading"><div class="gm-spinner"></div>Connecting…</div>`;
+        gmPagination.style.display = 'none';
+        gmCount.textContent = '';
 
         let res;
         try {
-            res = await window.api(`/api/email/inbox?page=${page}&limit=${PAGE_SIZE}`);
+            res = await window.api(`/api/email/inbox?page=${page}&limit=20`);
         } catch (err) {
-            content.innerHTML = `<div class="inbox-error">Network error: ${escHtml(err.message)}</div>`;
+            gmList.innerHTML = `<div class="gm-error">Network error: ${escHtml(err.message)}</div>`;
             return;
         }
 
         if (!res?.success) {
-            // Detect "not configured" state and show a helpful guide
-            if (res?.error?.includes('IMAP credentials not configured') || res?.error?.includes('IMAP_USER') || res?.error?.includes('IMAP_PASS') || res?.error?.includes('Login failed')) {
-                content.innerHTML = `
-                    <div class="inbox-config-note">
-                        <strong>📋 Setup required — one-time configuration</strong><br><br>
-                        To connect your Hostinger email inbox, add these two lines to your <code>.env</code> file on the server:
-                        <br><br>
+            if (/IMAP credentials not configured|IMAP_PASS|Login failed/i.test(res?.error || '')) {
+                gmList.innerHTML = `
+                    <div class="gm-config-note">
+                        <strong>📋 Setup required</strong><br><br>
+                        Add these to your <code>.env</code> on the server, then restart:<br><br>
                         <code>IMAP_USER=info@dwarkeshdrivingschool.com</code><br>
                         <code>IMAP_PASS=your_hostinger_email_password</code>
-                        <br><br>
-                        Use the same password you use to log into Hostinger Webmail. Then restart the server and click Refresh.
                     </div>`;
             } else {
-                content.innerHTML = `<div class="inbox-error">Error: ${escHtml(res?.error || 'Unknown error')}</div>`;
+                gmList.innerHTML = `<div class="gm-error">⚠️ ${escHtml(res?.error || 'Unknown error')}</div>`;
             }
             return;
         }
 
         const { emails, total, pages } = res;
+        const unreadCount = emails.filter(e => e.unread).length;
+        gmCount.textContent = total ? `${total} emails${unreadCount ? ` · ${unreadCount} unread` : ''}` : '';
 
-        if (emails.length === 0) {
-            content.innerHTML = `
-                <div class="inbox-empty">
-                    <div class="inbox-empty-icon">📭</div>
-                    <div class="inbox-empty-title">Inbox is empty</div>
-                    <div class="inbox-empty-sub">No emails found.</div>
-                </div>`;
-            return;
-        }
+        renderList(emails);
 
-        content.innerHTML = `<div class="inbox-list">${emails.map(e => `
-            <div class="inbox-item ${e.unread ? 'unread' : ''}" data-uid="${e.uid}">
-                <div class="${e.unread ? 'inbox-unread-dot' : 'inbox-read-spacer'}"></div>
-                <div class="inbox-item-avatar" style="background:${avatarColor(e.from)}">${escHtml(initials(e.from))}</div>
-                <div class="inbox-item-body">
-                    <div class="inbox-item-from">${escHtml(e.from)}</div>
-                    <div class="inbox-item-subject">${escHtml(e.subject)}</div>
-                </div>
-                <div class="inbox-item-date">${fmtDate(e.date)}</div>
-            </div>`).join('')}
-        </div>`;
-
-        // Click to open email
-        content.querySelectorAll('.inbox-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const uid  = Number(item.dataset.uid);
-                const email = emails.find(e => e.uid === uid);
-                if (email) openEmail(email);
-            });
-        });
-
-        // Pagination
         if (pages > 1) {
-            pagination.style.display = 'flex';
-            pagination.innerHTML = `
-                <button class="inbox-page-btn" id="inboxPrev" ${page <= 1 ? 'disabled' : ''}>← Prev</button>
-                <span class="inbox-page-info">Page ${page} of ${pages} · ${total} emails</span>
-                <button class="inbox-page-btn" id="inboxNext" ${page >= pages ? 'disabled' : ''}>Next →</button>
+            const start = (page - 1) * 20 + 1;
+            const end   = Math.min(page * 20, total);
+            gmPagination.style.display = 'flex';
+            gmPagination.innerHTML = `
+                <span class="gm-page-info">${start}–${end} of ${total}</span>
+                <button class="gm-page-btn" id="gmPrev" title="Older" ${page <= 1 ? 'disabled' : ''}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button class="gm-page-btn" id="gmNext" title="Newer" ${page >= pages ? 'disabled' : ''}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
             `;
-            document.getElementById('inboxPrev')?.addEventListener('click', () => { currentPage--; load(currentPage); });
-            document.getElementById('inboxNext')?.addEventListener('click', () => { currentPage++; load(currentPage); });
+            document.getElementById('gmPrev')?.addEventListener('click', () => { currentPage--; load(currentPage); });
+            document.getElementById('gmNext')?.addEventListener('click', () => { currentPage++; load(currentPage); });
         }
     }
 
-    document.getElementById('inboxRefresh').addEventListener('click', () => load(currentPage));
+    document.getElementById('gmRefresh').addEventListener('click', () => {
+        selectedUid = null;
+        gmDetail.innerHTML = `<div class="gm-detail-empty"><div class="gm-detail-empty-icon">✉️</div><div class="gm-detail-empty-text">Select an email to read</div></div>`;
+        load(currentPage);
+    });
 
     await load(currentPage);
 };
