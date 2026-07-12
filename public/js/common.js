@@ -138,7 +138,6 @@ window.CommonReady = (async () => {
     const tabMapping = {
         dashboard: 'admin.html?tab=dashboard',
         bookings: 'admin.html?tab=bookings',
-        upcoming: 'admin.html?tab=upcoming',
         instructors: 'admin.html?tab=instructors',
         branches: 'admin.html?tab=branches',
         cars: 'admin.html?tab=cars',

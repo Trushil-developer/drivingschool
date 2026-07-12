@@ -223,82 +223,6 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 hideLoading();
             }
         },
-        upcoming: async () => {
-            showLoading();
-            try {
-                const res = await window.api('/api/bookings');
-                if (!res.success) throw new Error(res.error || 'Failed to fetch bookings');
-
-                const bookings = res.bookings;
-
-                // present_days is now computed live from the attendance table by the server (JOIN),
-                // so no separate /api/attendance-all fetch is needed.
-
-
-                const rows = filterData('bookings', filterUpcoming(bookings), lastSearch);
-
-                if (!rows.length) {
-                    tableWrap.innerHTML = '<div class="empty">No upcoming bookings found</div>';
-                    return;
-                }
-
-                const scrollTop = window.scrollY || document.documentElement.scrollTop;
-
-                const html = `
-                    <table class="bookings-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>Car</th>
-                                <th>Instructor</th>
-                                <th>Branch</th>
-                                <th>Attendance</th>
-                                <th>Status</th>
-                                <th>Fees (Paid/Total)</th>
-                                <th>Starting From</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rows.map(b => `
-                                <tr id="booking-${b.id}">
-                                    <td>${b.id}</td>
-                                    <td>
-                                        <a href="#" class="customer-link" data-id="${b.id}">
-                                            ${b.customer_name || '-'}
-                                        </a>
-                                    </td>
-                                    <td>${b.car_name || '-'}</td>
-                                    <td>${b.instructor_name || '-'}</td>
-                                    <td>${b.branch || '-'}</td>
-                                    <td>${b.present_days || 0}/${b.training_days || '-'}</td>
-                                    <td class="status-${b.attendance_status.toLowerCase()}">${b.attendance_status || '-'}</td>
-                                    <td>
-                                        ${b.advance || 0}/${b.total_fees || 0}
-                                        ${Math.round((parseFloat(b.total_fees || 0) - parseFloat(b.advance || 0)) * 100) / 100 > 0
-                                            ? `<span class="pending-badge">₹${Math.round((parseFloat(b.total_fees || 0) - parseFloat(b.advance || 0)) * 100) / 100} due</span>`
-                                            : ''}
-                                    </td>
-                                    <td>${b.starting_from ? formatDate(b.starting_from) : '-'}</td>
-                                    <td>
-                                        <button class="btn attendance" data-id="${b.id}">Attendance</button>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
-
-                tableWrap.innerHTML = html;
-                window.scrollTo(0, scrollTop);
-            } catch (err) {
-                console.error(err);
-                tableWrap.innerHTML = `<div class="error">${err.message}</div>`;
-            } finally {
-                hideLoading();
-            }
-        },
         instructors: async () => {
             showLoading();
             try {
@@ -391,6 +315,10 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
         cms: async () => {
             showLoading();
             try {
+                if (typeof window.renderCMSModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">CMS module not loaded</div>';
+                    return;
+                }
                 const renderer = window.renderCMSModule(tableWrap, tabRenderers, currentTab);
                 await renderer();
             } finally {
@@ -506,7 +434,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
         const filterBar = document.getElementById('filterBar');
 
         if (filterBar) {
-            if (tab === 'bookings' || tab === 'upcoming') {
+            if (tab === 'bookings') {
                 filterBar.classList.remove('hidden');
             } else {
                 filterBar.classList.add('hidden');
@@ -519,8 +447,9 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
         } else if (tab === 'trainingDays' || tab === 'courses' || tab === 'packages') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.remove('hidden');
-        } else if (tab === 'cars' || tab == 'branches' || tab == 'instructors'  ) {
+        } else if (tab === 'cars' || tab === 'branches' || tab === 'instructors') {
             searchInput?.classList.add('hidden');
+            addBtn?.classList.remove('hidden');
         } else {
             searchInput?.classList.remove('hidden');
             addBtn?.classList.remove('hidden');

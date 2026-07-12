@@ -166,29 +166,64 @@ body {
 #sidebar ul,
 #sidebar .sidebar ul {
     list-style: none;
-    padding: 16px 12px;
+    padding: 12px 10px 20px;
     margin: 0;
+}
+
+/* Section group labels */
+#sidebar li.sidebar-group-label,
+#sidebar .sidebar li.sidebar-group-label {
+    padding: 16px 10px 6px;
+    margin-bottom: 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.35) !important;
+    cursor: default;
+    pointer-events: none;
+    background: transparent !important;
+    box-shadow: none !important;
+    gap: 0;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    margin-top: 4px;
+}
+#sidebar li.sidebar-group-label:first-child,
+#sidebar .sidebar li.sidebar-group-label:first-child {
+    border-top: none;
+    margin-top: 0;
+    padding-top: 8px;
 }
 
 #sidebar li,
 #sidebar .sidebar li {
-    padding: 12px 16px;
+    padding: 9px 12px;
     cursor: pointer;
     border-radius: var(--radius-md);
-    margin-bottom: 4px;
-    font-size: 14px;
+    margin-bottom: 2px;
+    font-size: 13.5px;
     font-weight: 500;
-    color: #f1f5f9 !important;
+    color: rgba(255,255,255,0.75) !important;
     transition: all var(--transition-fast);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+}
+
+#sidebar li svg,
+#sidebar .sidebar li svg {
+    opacity: 0.7;
+    flex-shrink: 0;
 }
 
 #sidebar li:hover,
-#sidebar .sidebar li:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.12) !important;
+#sidebar .sidebar li:hover:not(.active):not(.sidebar-group-label) {
+    background: rgba(255, 255, 255, 0.1) !important;
     color: #fff !important;
+}
+#sidebar li:hover svg,
+#sidebar .sidebar li:hover svg {
+    opacity: 1;
 }
 
 #sidebar li.active,
@@ -196,7 +231,11 @@ body {
     background: var(--primary) !important;
     color: #fff !important;
     font-weight: 600;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+#sidebar li.active svg,
+#sidebar .sidebar li.active svg {
+    opacity: 1;
 }
 
 /* ========================================
