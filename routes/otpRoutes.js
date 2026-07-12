@@ -21,6 +21,18 @@ router.post("/send-email-otp", async (req, res) => {
       return res.status(400).json({ success: false, message: "Email required" });
     }
 
+    // Only allow emails that have an active booking with this school
+    const [enrolled] = await dbPool.query(
+      `SELECT id FROM bookings WHERE email = ? AND school_id = 1 LIMIT 1`,
+      [email]
+    );
+    if (!enrolled.length) {
+      return res.status(403).json({
+        success: false,
+        message: "No enrollment found for this email. Contact Dwarkesh Driving School to get enrolled."
+      });
+    }
+
     // Rate limit: max OTPs per hour
     const [sentCount] = await dbPool.query(
       `SELECT COUNT(*) AS cnt FROM email_otps
