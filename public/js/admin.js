@@ -483,6 +483,18 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 hideLoading();
             }
         },
+        inbox: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderInboxModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Inbox module not loaded</div>';
+                    return;
+                }
+                await window.renderInboxModule(tableWrap);
+            } finally {
+                hideLoading();
+            }
+        },
     };
 
     attachFilterListeners(tabRenderers, () => currentTab);

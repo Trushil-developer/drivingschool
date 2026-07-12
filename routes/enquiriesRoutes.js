@@ -90,11 +90,23 @@ router.post("/", async (req, res, next) => {
     if (!full_name || !email || !phone || !branch_id || !course_id || !hear_about) {
       return res.status(400).json({ success: false, message: "All required fields must be filled" });
     }
+    if (typeof full_name !== 'string' || full_name.trim().length > 100) {
+      return res.status(400).json({ success: false, message: "Invalid name" });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, message: "Invalid email address" });
+    }
+    if (typeof phone !== 'string' || phone.trim().length > 20) {
+      return res.status(400).json({ success: false, message: "Invalid phone number" });
+    }
+    if (message && typeof message === 'string' && message.length > 1000) {
+      return res.status(400).json({ success: false, message: "Message too long (max 1000 characters)" });
+    }
 
     const [result] = await dbPool.query(
       `INSERT INTO enquiries (full_name, email, phone, branch_id, course_id, has_licence, hear_about, message, school_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-      [full_name.trim(), email.toLowerCase().trim(), phone.trim(), branch_id, course_id, has_licence || "No", hear_about, message || null]
+      [full_name.trim().slice(0, 100), email.toLowerCase().trim(), phone.trim().slice(0, 20), branch_id, course_id, has_licence || "No", hear_about, message?.trim().slice(0, 1000) || null]
     );
 
     res.json({ success: true, message: "Enquiry submitted successfully", id: result.insertId });

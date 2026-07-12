@@ -13,6 +13,8 @@ import dotenv from 'dotenv';
 import MySQLStoreImport from 'express-mysql-session';
 import cron from 'node-cron';
 import { sign as cookieSign } from 'cookie-signature';
+import helmet from 'helmet';
+import morgan from 'morgan';
 import updateBookingsStatus from './scripts/updateBookings.js';
 import trainingDaysRoute from './routes/trainingDays.js';
 import instructorsRoute from './routes/instructorsRoutes.js';
@@ -30,6 +32,7 @@ import fs from "fs";
 import packagesRoutes from './routes/packagesRoutes.js';
 import expensesRoutes from './routes/expensesRoutes.js';
 import reviewsRoute from './routes/reviewsRoute.js';
+import emailRoutes from './routes/emailRoutes.js';
 
 dotenv.config();
 
@@ -45,6 +48,14 @@ const s3 = new AWS.S3({
     region: process.env.S3_REGION 
 });
 
+// ---------- Startup env validation ----------
+const REQUIRED_ENV = ['SESSION_SECRET', 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+const missingEnv = REQUIRED_ENV.filter(k => !process.env[k]);
+if (missingEnv.length) {
+  console.error(`FATAL: Missing required environment variables: ${missingEnv.join(', ')}`);
+  process.exit(1);
+}
+
 // ---------- Create a mysql pool ----------
 export const dbPool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -54,6 +65,7 @@ export const dbPool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  connectTimeout: 10000,
   timezone: '+05:30',
 });
 
@@ -67,9 +79,10 @@ dbPool.pool.on('connection', (connection) => {
   try {
     const conn = await dbPool.getConnection();
     conn.release();
-    console.log('MySQL pool created and connection verified.');
+    console.log('[DB] MySQL pool connected.');
   } catch (err) {
-    console.error('MySQL pool connection error (verify DB env vars):', err);
+    console.error('[DB] Connection error:', err.message);
+    process.exit(1);
   }
 })();
 
@@ -77,7 +90,28 @@ dbPool.pool.on('connection', (connection) => {
 const MySQLStore = MySQLStoreImport(session);
 const sessionStore = new MySQLStore({}, dbPool);
 
-app.use(cors());
+// ---------- Security headers ----------
+app.use(helmet({
+  contentSecurityPolicy: false, // Managed separately for admin panel
+  crossOriginEmbedderPolicy: false,
+}));
+
+// ---------- CORS ----------
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : [];
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow same-origin requests (no Origin header) and configured origins
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  credentials: true,
+}));
+
+// ---------- HTTP request logging ----------
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // 301 redirect: non-www → www
 app.use((req, res, next) => {
@@ -97,8 +131,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '2mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Mobile auth bridge: iOS strips Cookie headers, so mobile sends token via X-Session-Token.
@@ -113,14 +147,10 @@ app.use((req, res, next) => {
   next();
 });
 
-if (!process.env.SESSION_SECRET) {
-  console.warn('WARNING: SESSION_SECRET env var not set. Using insecure fallback. Set it in .env before going to production.');
-}
-
 app.use(
   session({
     key: 'session_cookie',
-    secret: process.env.SESSION_SECRET || 'supersecretkey',
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
@@ -310,7 +340,7 @@ app.post('/api/login', loginLimiter, async (req, res, next) => {
   }
 });
 
-app.post('/api/driver-login', async (req, res, next) => {
+app.post('/api/driver-login', loginLimiter, async (req, res, next) => {
   const { employee_no, password } = req.body;
   try {
     if (!employee_no || !password) return res.json({ success: false, error: 'Employee number and password required' });
@@ -330,8 +360,7 @@ app.post('/api/driver-login', async (req, res, next) => {
     await new Promise((resolve, reject) =>
       req.session.save((err) => (err ? reject(err) : resolve(undefined))),
     );
-    const secret = process.env.SESSION_SECRET || 'supersecretkey';
-    const signed = 's:' + cookieSign(req.session.id, secret);
+    const signed = 's:' + cookieSign(req.session.id, process.env.SESSION_SECRET);
     const sessionToken = `session_cookie=${encodeURIComponent(signed)}`;
     res.json({
       success: true,
@@ -450,8 +479,6 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
     const [[eu]] = await dbPool.query('SELECT full_name FROM exam_users WHERE id = ? LIMIT 1', [examUserId]);
     const name = eu?.full_name ?? null;
 
-    console.log('[student/bookings] examUserId=%s email=%s full_name=%s', examUserId, email, name);
-
     const conditions = name
       ? '(b.email = ? OR b.customer_name = ?)'
       : 'b.email = ?';
@@ -471,7 +498,6 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
        ORDER BY b.created_at DESC`,
       params
     );
-    console.log('[student/bookings] found %d rows, statuses: %s', rows.length, rows.map(r => `#${r.id}(${r.attendance_status})`).join(', '));
     const bookings = rows.map(b => ({
       ...b,
       selected_slots: [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4].filter(Boolean),
@@ -666,8 +692,7 @@ app.post('/api/dev/student-login', async (req, res, next) => {
     await new Promise((resolve, reject) =>
       req.session.save((err) => (err ? reject(err) : resolve(undefined)))
     );
-    const secret = process.env.SESSION_SECRET || 'supersecretkey';
-    const signed = 's:' + cookieSign(req.session.id, secret);
+    const signed = 's:' + cookieSign(req.session.id, process.env.SESSION_SECRET);
     const sessionToken = `session_cookie=${encodeURIComponent(signed)}`;
     res.json({ success: true, sessionToken, student: { id: userRow.id, email, full_name: name, mobile_no: mobile } });
   } catch (err) { next(err); }
@@ -1117,7 +1142,7 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
     await dbPool.query(`UPDATE expense_categories SET school_id = 1, is_custom = 1 WHERE school_id = 0`);
     // Ensure extra_field is set for any rows missing it
     await dbPool.query(`UPDATE expense_categories SET extra_field = 'car' WHERE is_car_related = 1 AND (extra_field IS NULL OR extra_field = '')`);
-    console.log('[Migration] expense_categories ready.');
+    // expense_categories ready
   } catch (err) {
     console.error('expense_categories migration error:', err);
   }
@@ -1145,7 +1170,7 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
 (async () => {
   try {
     await dbPool.query(`ALTER TABLE schedule_slots ADD COLUMN present TINYINT(1) DEFAULT 1`);
-    console.log('[Migration] schedule_slots.present column added.');
+    // migration: schedule_slots.present added
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_slots.present:', e.message); }
 })();
 
@@ -1166,7 +1191,7 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
     catch (e) { if (e.errno !== 1061) throw e; }
     // Drop temp key
     try { await dbPool.query(`ALTER TABLE attendance DROP INDEX uq_att_slot`); } catch (_) {}
-    console.log('[Migration] attendance per-slot tracking ready.');
+    // migration: attendance per-slot ready
   } catch (err) {
     console.error('[Migration] attendance per-slot:', err.message);
   }
@@ -1177,11 +1202,9 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
 (async () => {
   try {
     await dbPool.query(`ALTER TABLE attendance ADD COLUMN marked_by_id INT NULL`);
-    console.log('[Migration] attendance.marked_by_id column added.');
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.marked_by_id:', e.message); }
   try {
     await dbPool.query(`ALTER TABLE attendance ADD COLUMN marked_by_type VARCHAR(20) NULL`);
-    console.log('[Migration] attendance.marked_by_type column added.');
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.marked_by_type:', e.message); }
 })();
 
@@ -1584,9 +1607,25 @@ app.delete('/api/branches/:id', requireAdmin, async (req, res, next) => {
   }
 });
 
+// ---------- HEALTH CHECK ----------
+app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
+
+// ---------- 404 HANDLER ----------
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: 'Not found' });
+});
+
 // ---------- GLOBAL ERROR HANDLER ----------
 app.use((err, req, res, next) => {
-  console.error('EXPRESS ERROR:', err && (err.stack || err));
+  // CORS errors
+  if (err.message && err.message.startsWith('CORS:')) {
+    return res.status(403).json({ success: false, error: err.message });
+  }
+  // Payload too large
+  if (err.status === 413 || err.type === 'entity.too.large') {
+    return res.status(413).json({ success: false, error: 'Request too large' });
+  }
+  console.error('[ERROR]', err && (err.stack || err));
   res.status(500).json({ success: false, error: 'Internal server error' });
 });
 
@@ -1601,12 +1640,10 @@ process.on('unhandledRejection', (reason) => {
 
 // ---------- CRON JOB ----------
 cron.schedule('1 0 * * *', async () => {
-  console.log(`[CRON] Running daily booking status update at ${new Date().toISOString()}`);
   try {
     await updateBookingsStatus();
-    console.log('[CRON] Booking status update completed.');
   } catch (err) {
-    console.error('[CRON] Error updating bookings:', err);
+    console.error('[CRON] Booking status update failed:', err.message);
   }
 }, {
   timezone: "Asia/Kolkata"
@@ -1677,7 +1714,6 @@ app.get("/api/questions", (req, res) => {
     const fileName = fileMap[lang] || "questions_en.json";
 
     const filePath = path.join(process.cwd(), "data", fileName);
-    console.log("Loading questions from:", filePath);
 
     fs.readFile(filePath, "utf8", (err, data) => {
         if (err) {
@@ -1706,6 +1742,7 @@ app.use("/api/cms", cmsRoutes);
 app.use('/api/packages', packagesRoutes);
 app.use('/api/expenses', expensesRoutes);
 app.use('/api/reviews', reviewsRoute);
+app.use('/api/email', emailRoutes);
 
 // ── Driver Trips ──────────────────────────────────────────────────────────────
 
@@ -1738,6 +1775,7 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
     );
     const [[inst]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? LIMIT 1', [instructorId]);
     const [[bk]]   = await dbPool.query('SELECT customer_name FROM bookings WHERE id=? LIMIT 1', [booking_id]);
+    if (!bk) return res.status(404).json({ success: false, error: 'Booking not found' });
     const [result] = await dbPool.query(
       `INSERT INTO driver_trips (instructor_id, instructor_name, booking_id, student_name, started_at, duration_mins, status)
        VALUES (?, ?, ?, ?, NOW(), ?, 'active')`,
