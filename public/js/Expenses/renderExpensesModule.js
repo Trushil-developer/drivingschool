@@ -280,6 +280,7 @@ window.renderExpensesModule = async function (tableWrap) {
                     <button class="btn-exp-submit" id="btnAddCatRow" style="padding:8px 16px;font-size:13px;">+ Add Category</button>
                 </div>
                 <div id="expCatMsg" class="exp-form-msg" style="margin-bottom:12px;"></div>
+                <div style="overflow-x:auto;">
                 <table class="expenses-table exp-cat-table">
                     <thead>
                         <tr>
@@ -311,6 +312,7 @@ window.renderExpensesModule = async function (tableWrap) {
                         }).join('')}
                     </tbody>
                 </table>
+                </div>
             </div>
         `;
 
@@ -759,7 +761,7 @@ window.renderExpensesModule = async function (tableWrap) {
                             <td>${e.car_name || '-'}</td>
                             <td class="exp-amount-cell">${fmtAmt(e.amount)}</td>
                             <td>${e.payment_mode || '-'}</td>
-                            <td style="max-width:150px;white-space:pre-wrap;color:#6B7280;">${e.note || '-'}</td>
+                            <td style="min-width:150px;max-width:150px;white-space:pre-wrap;color:#6B7280;">${e.note || '-'}</td>
                             <td class="exp-row-actions">
                                 <button class="btn-exp-edit" data-id="${e.id}">Edit</button>
                                 <button class="btn-exp-delete" data-id="${e.id}">Delete</button>

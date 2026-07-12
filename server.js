@@ -442,10 +442,19 @@ app.patch('/api/student/profile', requireExamUser, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ── Student Bookings (student session, filtered by their email) ────────────────
+// ── Student Bookings (match by email OR customer_name) ────────────────────────
 app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
-  const { email } = req.session.examUser;
+  const { id: examUserId, email } = req.session.examUser;
   try {
+    // Get student's stored name (set during dev login from booking record)
+    const [[eu]] = await dbPool.query('SELECT full_name FROM exam_users WHERE id = ? LIMIT 1', [examUserId]);
+    const name = eu?.full_name ?? null;
+
+    const conditions = name
+      ? '(b.email = ? OR b.customer_name = ?)'
+      : 'b.email = ?';
+    const params = name ? [email, name] : [email];
+
     const [rows] = await dbPool.query(
       `SELECT b.id, b.branch, b.training_days, b.customer_name, b.mobile_no, b.email,
               b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4,
@@ -456,11 +465,10 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
        FROM bookings b
        LEFT JOIN (SELECT booking_id, COUNT(*) AS present_days FROM attendance WHERE present = 1 GROUP BY booking_id) att
          ON att.booking_id = b.id
-       WHERE b.email = ?
+       WHERE ${conditions}
        ORDER BY b.created_at DESC`,
-      [email]
+      params
     );
-    // Build selected_slots array from allotted_time columns
     const bookings = rows.map(b => ({
       ...b,
       selected_slots: [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4].filter(Boolean),
@@ -471,16 +479,21 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
 
 // ── Student Sessions (individual attended classes) ─────────────────────────────
 app.get('/api/student/sessions', requireExamUser, async (req, res, next) => {
-  const { email } = req.session.examUser;
+  const { id: examUserId, email } = req.session.examUser;
   try {
+    const [[eu]] = await dbPool.query('SELECT full_name FROM exam_users WHERE id = ? LIMIT 1', [examUserId]);
+    const name = eu?.full_name ?? null;
+    const conditions = name ? '(b.email = ? OR b.customer_name = ?)' : 'b.email = ?';
+    const params = name ? [email, name] : [email];
+
     const [rows] = await dbPool.query(
       `SELECT a.id, a.booking_id, a.date, a.time, a.present,
               b.branch, b.instructor_name, b.car_name, b.training_days, b.starting_from
        FROM attendance a
        JOIN bookings b ON b.id = a.booking_id
-       WHERE b.email = ? AND a.present = 1
+       WHERE ${conditions} AND a.present = 1
        ORDER BY a.date DESC, a.time ASC`,
-      [email]
+      params
     );
     res.json({ success: true, sessions: rows });
   } catch (err) { next(err); }
@@ -639,10 +652,10 @@ app.post('/api/dev/student-login', async (req, res, next) => {
       mobile = eu.mobile_no;
     }
 
-    // Upsert into exam_users so they have an exam session
+    // Upsert into exam_users so they have an exam session (also store name for booking lookups)
     await dbPool.query(
-      'INSERT INTO exam_users (email, first_verified_at, last_seen_at) VALUES (?, NOW(), NOW()) ON DUPLICATE KEY UPDATE last_seen_at = NOW()',
-      [email]
+      'INSERT INTO exam_users (email, full_name, first_verified_at, last_seen_at) VALUES (?, ?, NOW(), NOW()) ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), last_seen_at = NOW()',
+      [email, name || null]
     );
     const [[userRow]] = await dbPool.query('SELECT id FROM exam_users WHERE email = ? LIMIT 1', [email]);
 
