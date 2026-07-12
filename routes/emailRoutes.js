@@ -4,7 +4,7 @@ import { ImapFlow } from 'imapflow';
 const router = express.Router();
 
 function requireAdmin(req, res, next) {
-    if (req.session?.user?.role === 'admin') return next();
+    if (req.session?.adminLoggedIn) return next();
     res.status(401).json({ success: false, error: 'Unauthorized' });
 }
 
