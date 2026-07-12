@@ -2248,6 +2248,8 @@ app.get('/api/student/pending-rating', requireExamUser, async (req, res, next) =
     const name = eu?.full_name ?? null;
     const conditions = name ? '(b.email = ? OR b.customer_name = ?)' : 'b.email = ?';
     const params = name ? [email, name, examUserId] : [email, examUserId];
+    // Get the single most recent attended session
+    const params2 = name ? [email, name] : [email];
     const [rows] = await dbPool.query(
       `SELECT a.id AS attendance_id, a.date, a.time, a.booking_id,
               b.instructor_name, b.branch, b.car_name
@@ -2255,13 +2257,19 @@ app.get('/api/student/pending-rating', requireExamUser, async (req, res, next) =
        JOIN bookings b ON b.id = a.booking_id
        WHERE ${conditions}
          AND a.present = 1
-         AND a.id NOT IN (SELECT attendance_id FROM session_ratings WHERE exam_user_id = ?)
        ORDER BY a.date DESC, a.time DESC
        LIMIT 1`,
-      params,
+      params2,
     );
     if (rows.length === 0) return res.json({ success: true, pending: null });
-    res.json({ success: true, pending: rows[0] });
+    const last = rows[0];
+    // Only ask for rating if this session hasn't been rated yet
+    const [[existing]] = await dbPool.query(
+      'SELECT id FROM session_ratings WHERE exam_user_id = ? AND attendance_id = ? LIMIT 1',
+      [examUserId, last.attendance_id],
+    );
+    if (existing) return res.json({ success: true, pending: null });
+    res.json({ success: true, pending: last });
   } catch (err) { next(err); }
 });
 

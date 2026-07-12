@@ -471,6 +471,18 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 hideLoading();
             }
         },
+        ratings: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderRatingsModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Ratings module not loaded</div>';
+                    return;
+                }
+                await window.renderRatingsModule(tableWrap);
+            } finally {
+                hideLoading();
+            }
+        },
     };
 
     attachFilterListeners(tabRenderers, () => currentTab);
@@ -489,7 +501,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
             }
         }
 
-        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams' || tab === 'expenses' || tab === 'tripLogs' || tab === 'appSettings' || tab === 'complaints') {
+        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams' || tab === 'expenses' || tab === 'tripLogs' || tab === 'appSettings' || tab === 'complaints' || tab === 'ratings') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
         } else if (tab === 'trainingDays' || tab === 'courses' || tab === 'packages') {
