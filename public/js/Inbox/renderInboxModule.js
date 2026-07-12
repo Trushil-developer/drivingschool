@@ -145,7 +145,7 @@ window.renderInboxModule = async function (tableWrap) {
 
         if (!res?.success) {
             // Detect "not configured" state and show a helpful guide
-            if (res?.error?.includes('IMAP credentials not configured') || res?.error?.includes('IMAP_USER')) {
+            if (res?.error?.includes('IMAP credentials not configured') || res?.error?.includes('IMAP_USER') || res?.error?.includes('IMAP_PASS') || res?.error?.includes('Login failed')) {
                 content.innerHTML = `
                     <div class="inbox-config-note">
                         <strong>📋 Setup required — one-time configuration</strong><br><br>

@@ -122,11 +122,11 @@ router.post("/verify-email-otp", async (req, res) => {
 
     // Set exam user session
     const [userRow] = await dbPool.query(
-      "SELECT id, email FROM exam_users WHERE email = ? LIMIT 1",
+      "SELECT id, email, full_name FROM exam_users WHERE email = ? LIMIT 1",
       [email]
     );
     if (userRow.length) {
-      req.session.examUser = { id: userRow[0].id, email: userRow[0].email };
+      req.session.examUser = { id: userRow[0].id, email: userRow[0].email, full_name: userRow[0].full_name || null };
     }
 
     // Explicitly save session before responding so checkSession() sees it

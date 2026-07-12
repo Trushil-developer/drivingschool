@@ -2137,8 +2137,12 @@ app.get('/api/admin/complaints', requireAdmin, async (req, res, next) => {
     if (category) { conditions.push('category = ?'); params.push(category); }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const [rows] = await dbPool.query(
-      `SELECT id, student_email, student_name, booking_id, subject, message, category, status, admin_note, created_at, updated_at
-       FROM student_complaints ${where} ORDER BY created_at DESC LIMIT 500`,
+      `SELECT sc.id, sc.student_email, COALESCE(sc.student_name, b.customer_name, eu.full_name) AS student_name,
+              sc.booking_id, sc.subject, sc.message, sc.category, sc.status, sc.admin_note, sc.created_at, sc.updated_at
+       FROM student_complaints sc
+       LEFT JOIN bookings b ON b.id = sc.booking_id
+       LEFT JOIN exam_users eu ON eu.email = sc.student_email
+       ${where} ORDER BY sc.created_at DESC LIMIT 500`,
       params,
     );
     res.json({ success: true, complaints: rows });
@@ -2239,11 +2243,12 @@ app.get('/api/admin/session-ratings', requireAdmin, async (req, res, next) => {
   try {
     await ensureRatingsTable();
     const [rows] = await dbPool.query(
-      `SELECT sr.id, sr.exam_user_id, eu.full_name AS student_name, eu.email AS student_email,
+      `SELECT sr.id, sr.exam_user_id, COALESCE(eu.full_name, b.customer_name) AS student_name, eu.email AS student_email,
               sr.attendance_id, sr.booking_id, sr.instructor_name,
               sr.rating, sr.comment, sr.rated_at
        FROM session_ratings sr
        LEFT JOIN exam_users eu ON eu.id = sr.exam_user_id
+       LEFT JOIN bookings b ON b.id = sr.booking_id
        ORDER BY sr.rated_at DESC LIMIT 500`,
     );
     res.json({ success: true, ratings: rows });

@@ -26,7 +26,8 @@ router.get('/inbox', requireAdmin, async (req, res) => {
     const page  = Math.max(1, parseInt(req.query.page)  || 1);
     const limit = Math.min(50, parseInt(req.query.limit) || 20);
 
-    if (!process.env.IMAP_USER || !process.env.IMAP_PASS) {
+    const imapPass = process.env.IMAP_PASS || '';
+    if (!process.env.IMAP_USER || !imapPass || imapPass.includes('your_hostinger') || imapPass.includes('password_here')) {
         return res.json({ success: false, error: 'IMAP credentials not configured. Add IMAP_USER and IMAP_PASS to .env' });
     }
 
@@ -69,7 +70,10 @@ router.get('/inbox', requireAdmin, async (req, res) => {
     } catch (err) {
         try { await client.logout(); } catch (_) {}
         console.error('[email/inbox]', err.message);
-        res.json({ success: false, error: err.message });
+        const msg = err.message?.toLowerCase().includes('command failed') || err.message?.toLowerCase().includes('auth')
+            ? 'Login failed — check IMAP_PASS in .env is your correct Hostinger email password'
+            : err.message;
+        res.json({ success: false, error: msg });
     }
 });
 
