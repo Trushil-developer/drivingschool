@@ -2197,3 +2197,18 @@ CREATE TABLE IF NOT EXISTS student_complaints (
 SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='student_complaints' AND index_name='idx_student_complaints_email');
 SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_student_complaints_email ON student_complaints (student_email);','SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- SESSION RATINGS TABLE
+-- =====================================
+CREATE TABLE IF NOT EXISTS session_ratings (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    exam_user_id    INT NOT NULL,
+    attendance_id   INT NOT NULL,
+    booking_id      INT,
+    instructor_name VARCHAR(255),
+    rating          TINYINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment         TEXT,
+    rated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_user_session (exam_user_id, attendance_id)
+);

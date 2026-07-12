@@ -2223,6 +2223,83 @@ app.patch('/api/admin/complaints/:id', requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Session Ratings ───────────────────────────────────────────────────────────
+
+const ensureRatingsTable = () => dbPool.query(`
+  CREATE TABLE IF NOT EXISTS session_ratings (
+    id             INT AUTO_INCREMENT PRIMARY KEY,
+    exam_user_id   INT NOT NULL,
+    attendance_id  INT NOT NULL,
+    booking_id     INT,
+    instructor_name VARCHAR(255),
+    rating         TINYINT NOT NULL,
+    comment        TEXT,
+    rated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_user_session (exam_user_id, attendance_id)
+  )
+`);
+
+// GET /api/student/pending-rating — returns last attended session not yet rated
+app.get('/api/student/pending-rating', requireExamUser, async (req, res, next) => {
+  const { id: examUserId, email } = req.session.examUser;
+  try {
+    await ensureRatingsTable();
+    const [[eu]] = await dbPool.query('SELECT full_name FROM exam_users WHERE id = ? LIMIT 1', [examUserId]);
+    const name = eu?.full_name ?? null;
+    const conditions = name ? '(b.email = ? OR b.customer_name = ?)' : 'b.email = ?';
+    const params = name ? [email, name, examUserId] : [email, examUserId];
+    const [rows] = await dbPool.query(
+      `SELECT a.id AS attendance_id, a.date, a.time, a.booking_id,
+              b.instructor_name, b.branch, b.car_name
+       FROM attendance a
+       JOIN bookings b ON b.id = a.booking_id
+       WHERE ${conditions}
+         AND a.present = 1
+         AND a.id NOT IN (SELECT attendance_id FROM session_ratings WHERE exam_user_id = ?)
+       ORDER BY a.date DESC, a.time DESC
+       LIMIT 1`,
+      params,
+    );
+    if (rows.length === 0) return res.json({ success: true, pending: null });
+    res.json({ success: true, pending: rows[0] });
+  } catch (err) { next(err); }
+});
+
+// POST /api/student/rate-session
+app.post('/api/student/rate-session', requireExamUser, async (req, res, next) => {
+  const { id: examUserId } = req.session.examUser;
+  const { attendance_id, booking_id, instructor_name, rating, comment } = req.body;
+  if (!attendance_id || !rating || rating < 1 || rating > 5) {
+    return res.status(400).json({ success: false, error: 'attendance_id and rating (1–5) are required' });
+  }
+  try {
+    await ensureRatingsTable();
+    await dbPool.query(
+      `INSERT INTO session_ratings (exam_user_id, attendance_id, booking_id, instructor_name, rating, comment)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE rating = VALUES(rating), comment = VALUES(comment), rated_at = NOW()`,
+      [examUserId, attendance_id, booking_id || null, instructor_name || null, rating, comment?.trim() || null],
+    );
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// Admin: view all session ratings
+app.get('/api/admin/session-ratings', requireAdmin, async (req, res, next) => {
+  try {
+    await ensureRatingsTable();
+    const [rows] = await dbPool.query(
+      `SELECT sr.id, sr.exam_user_id, eu.full_name AS student_name, eu.email AS student_email,
+              sr.attendance_id, sr.booking_id, sr.instructor_name,
+              sr.rating, sr.comment, sr.rated_at
+       FROM session_ratings sr
+       LEFT JOIN exam_users eu ON eu.id = sr.exam_user_id
+       ORDER BY sr.rated_at DESC LIMIT 500`,
+    );
+    res.json({ success: true, ratings: rows });
+  } catch (err) { next(err); }
+});
+
 // ---------- START SERVER ----------
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
