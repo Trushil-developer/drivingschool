@@ -513,7 +513,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
             }
         }
 
-        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams' || tab === 'expenses' || tab === 'tripLogs' || tab === 'appSettings' || tab === 'complaints' || tab === 'ratings') {
+        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams' || tab === 'expenses' || tab === 'tripLogs' || tab === 'appSettings' || tab === 'complaints' || tab === 'ratings' || tab === 'inbox') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
         } else if (tab === 'trainingDays' || tab === 'courses' || tab === 'packages') {
