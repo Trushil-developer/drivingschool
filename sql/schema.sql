@@ -2149,17 +2149,6 @@ SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_driver_trips_instructor ON driver
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
--- DRIVER LOCATIONS TABLE
--- =====================================
-CREATE TABLE IF NOT EXISTS driver_locations (
-    instructor_id INT PRIMARY KEY,
-    lat           DECIMAL(10,7) NOT NULL,
-    lng           DECIMAL(10,7) NOT NULL,
-    accuracy      FLOAT,
-    updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
--- =====================================
 -- APP SETTINGS (Remote Config / Feature Flags)
 -- =====================================
 CREATE TABLE IF NOT EXISTS app_settings (

@@ -1707,83 +1707,6 @@ app.use('/api/packages', packagesRoutes);
 app.use('/api/expenses', expensesRoutes);
 app.use('/api/reviews', reviewsRoute);
 
-// ── Driver Location Tracking ──────────────────────────────────────────────────
-
-const ensureLocationsTable = () => dbPool.query(`
-  CREATE TABLE IF NOT EXISTS driver_locations (
-    instructor_id INT PRIMARY KEY,
-    lat DECIMAL(10,7) NOT NULL,
-    lng DECIMAL(10,7) NOT NULL,
-    accuracy FLOAT,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-  )
-`);
-
-// Driver sends their GPS position (called every 10 s while on trip)
-app.post('/api/driver/location', requireAdmin, async (req, res, next) => {
-  const instructorId = req.session.adminId;
-  const { lat, lng, accuracy } = req.body;
-  if (lat === undefined || lng === undefined) return res.json({ success: false, error: 'lat and lng required' });
-  try {
-    await dbPool.query(
-      `INSERT INTO driver_locations (instructor_id, lat, lng, accuracy, updated_at)
-       VALUES (?, ?, ?, ?, NOW())
-       ON DUPLICATE KEY UPDATE lat=VALUES(lat), lng=VALUES(lng), accuracy=VALUES(accuracy), updated_at=NOW()`,
-      [instructorId, lat, lng, accuracy ?? null]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    if (err.code === 'ER_NO_SUCH_TABLE') {
-      await ensureLocationsTable();
-      await dbPool.query(
-        `INSERT INTO driver_locations (instructor_id, lat, lng, accuracy, updated_at)
-         VALUES (?, ?, ?, ?, NOW())
-         ON DUPLICATE KEY UPDATE lat=VALUES(lat), lng=VALUES(lng), accuracy=VALUES(accuracy), updated_at=NOW()`,
-        [instructorId, lat, lng, accuracy ?? null]
-      );
-      return res.json({ success: true });
-    }
-    next(err);
-  }
-});
-
-// Public: get driver location by instructor_id
-app.get('/api/driver-location/:instructor_id', async (req, res, next) => {
-  const { instructor_id } = req.params;
-  try {
-    const [[loc]] = await dbPool.query(
-      `SELECT lat, lng, TIMESTAMPDIFF(SECOND, updated_at, NOW()) AS seconds_ago
-       FROM driver_locations WHERE instructor_id = ?`,
-      [instructor_id]
-    );
-    res.json({ success: true, location: loc ?? null });
-  } catch (err) {
-    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, location: null });
-    next(err);
-  }
-});
-
-// Public: get driver location by instructor name (customer app uses name not id)
-app.get('/api/driver-location-by-name', async (req, res, next) => {
-  const name = (req.query.name || '').trim();
-  if (!name) return res.json({ success: false, error: 'name required' });
-  try {
-    const [[inst]] = await dbPool.query(
-      'SELECT id FROM instructors WHERE instructor_name = ? LIMIT 1', [name]
-    );
-    if (!inst) return res.json({ success: false, error: 'Driver not found' });
-    const [[loc]] = await dbPool.query(
-      `SELECT lat, lng, TIMESTAMPDIFF(SECOND, updated_at, NOW()) AS seconds_ago
-       FROM driver_locations WHERE instructor_id = ?`,
-      [inst.id]
-    );
-    res.json({ success: true, location: loc ?? null });
-  } catch (err) {
-    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, location: null });
-    next(err);
-  }
-});
-
 // ── Driver Trips ──────────────────────────────────────────────────────────────
 
 const ensureTripsTable = () => dbPool.query(`
@@ -1957,8 +1880,7 @@ app.get('/api/driver-status-by-name', async (req, res, next) => {
     );
     if (!inst) return res.json({ success: false, error: 'Driver not found' });
     const [trips] = await dbPool.query(
-      `SELECT student_name,
-              GREATEST(0, duration_mins*60 - TIMESTAMPDIFF(SECOND, started_at, NOW())) AS remaining_secs
+      `SELECT student_name, started_at
        FROM driver_trips WHERE instructor_id=? AND status='active' ORDER BY started_at DESC LIMIT 1`,
       [inst.id]
     );
@@ -1968,7 +1890,7 @@ app.get('/api/driver-status-by-name', async (req, res, next) => {
       instructor_id: inst.id,
       instructor_name: inst.instructor_name,
       on_trip: !!trip,
-      remaining_secs: Number(trip?.remaining_secs) || 0,
+      started_at: trip?.started_at ?? null,
     });
   } catch (err) {
     if (err.code === 'ER_NO_SUCH_TABLE') {
