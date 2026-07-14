@@ -2144,6 +2144,24 @@ const ensureComplaintsTable = () => dbPool.query(`
   )
 `);
 
+// Public: delete account — verifies OTP then removes exam_users record
+app.post('/api/student/delete-account', async (req, res, next) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) return res.json({ success: false, message: 'Email and OTP required' });
+  try {
+    const [rows] = await dbPool.query(
+      `SELECT id FROM email_otps
+       WHERE email = ? AND otp = ? AND verified = 0 AND expires_at > NOW()
+       LIMIT 1`,
+      [email, otp]
+    );
+    if (!rows.length) return res.json({ success: false, message: 'Invalid or expired code.' });
+    await dbPool.query(`UPDATE email_otps SET verified = 1 WHERE id = ?`, [rows[0].id]);
+    await dbPool.query(`DELETE FROM exam_users WHERE email = ?`, [email]);
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
 // Student: submit a complaint
 app.post('/api/student/complaints', requireExamUser, async (req, res, next) => {
   const { email, full_name } = req.session.examUser;
