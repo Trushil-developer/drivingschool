@@ -818,7 +818,7 @@ app.get('/api/bookings/availability', async (req, res, next) => {
     const excludeId = req.query.exclude_id ? Number(req.query.exclude_id) : null;
     const sql = `
       SELECT
-        branch, car_name, starting_from,
+        branch, car_name, starting_from, training_days, present_days,
         allotted_time, allotted_time2, allotted_time3, allotted_time4,
         attendance_status
       FROM bookings

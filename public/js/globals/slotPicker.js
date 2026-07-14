@@ -41,9 +41,24 @@ export async function openSlotPicker({ branch, car, startingFrom, durationMinute
                 if (!['Active', 'Pending'].includes(b.attendance_status)) return;
                 if (b.branch !== branch || b.car_name !== car) return;
 
+                // Session-based buffer — mirrors the Schedule tab and the
+                // backend's checkSlotConflicts, so a booking that's effectively
+                // finished doesn't keep marking its old slot as taken.
+                const totalSessions = Number(b.training_days) || 15;
+                const doneSessions  = Number(b.present_days) || 0;
+                const remaining     = totalSessions - doneSessions;
+                if (remaining <= 0) return;
+
                 const bStart = new Date(b.starting_from);
                 const bEnd   = new Date(bStart);
-                bEnd.setDate(bStart.getDate() + 30);
+                if (remaining < totalSessions / 2) {
+                    const today = new Date();
+                    today.setHours(23, 59, 59, 999);
+                    bEnd.setTime(today.getTime());
+                    bEnd.setDate(bEnd.getDate() + remaining + 3);
+                } else {
+                    bEnd.setDate(bStart.getDate() + 29);
+                }
 
                 // Overlapping periods → mark as taken
                 if (bStart <= myEnd && bEnd >= myStart) {

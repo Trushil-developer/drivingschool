@@ -956,17 +956,34 @@ async function fetchBookedSlots(branch, car, date) {
     // Filter by branch, car and date
     const bookings = data.bookings.filter(b => {
         if (!b.starting_from) return false;
-        const start = new Date(b.starting_from);
-        const end = new Date(start);
-        end.setDate(start.getDate() + 29);
-
-        const selectedTime = new Date(date).getTime();
 
         const status = (b.attendance_status || "").toLowerCase();
         if (!["active","pending"].includes(status)) return false;
 
-        return b.branch === branch && b.car_name === car &&
-               selectedTime >= start.getTime() && selectedTime <= end.getTime();
+        if (b.branch !== branch || b.car_name !== car) return false;
+
+        // Session-based buffer — mirrors the Schedule tab (renderScheduleModule.js)
+        // and the backend's checkSlotConflicts, so a booking that's effectively
+        // finished doesn't keep showing as booked here.
+        const start = new Date(b.starting_from);
+        const end = new Date(start);
+        const totalSessions = Number(b.training_days) || 15;
+        const doneSessions = Number(b.present_days) || 0;
+        const remaining = totalSessions - doneSessions;
+
+        if (remaining <= 0) return false;
+
+        if (remaining < totalSessions / 2) {
+            const today = new Date();
+            today.setHours(23, 59, 59, 999);
+            end.setTime(today.getTime());
+            end.setDate(end.getDate() + remaining + 3);
+        } else {
+            end.setDate(start.getDate() + 29);
+        }
+
+        const selectedTime = new Date(date).getTime();
+        return selectedTime >= start.getTime() && selectedTime <= end.getTime();
     });
 
     // Collect booked timeslots
