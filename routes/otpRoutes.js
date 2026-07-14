@@ -132,12 +132,12 @@ router.post("/verify-email-otp", async (req, res) => {
       [email]
     );
 
-    // Backfill full_name and mobile_no from the most recent booking if not already set
+    // Sync full_name and mobile_no from the most recent booking (booking is authoritative source)
     await dbPool.query(
       `UPDATE exam_users eu
        JOIN (SELECT customer_name, mobile_no FROM bookings WHERE email = ? ORDER BY created_at DESC LIMIT 1) b
-       SET eu.full_name  = COALESCE(eu.full_name,  b.customer_name),
-           eu.mobile_no  = COALESCE(eu.mobile_no,  b.mobile_no)
+       SET eu.full_name  = COALESCE(b.customer_name, eu.full_name),
+           eu.mobile_no  = COALESCE(eu.mobile_no,    b.mobile_no)
        WHERE eu.email = ?`,
       [email, email]
     );

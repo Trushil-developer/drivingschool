@@ -467,8 +467,8 @@ app.get('/api/student/profile', requireExamUser, async (req, res, next) => {
   try {
     const [[row]] = await dbPool.query(
       `SELECT eu.id, eu.email,
-              COALESCE(eu.full_name,  b.customer_name) AS full_name,
-              COALESCE(eu.mobile_no,  b.mobile_no)     AS mobile_no,
+              COALESCE(b.customer_name, eu.full_name) AS full_name,
+              COALESCE(eu.mobile_no,    b.mobile_no)  AS mobile_no,
               eu.first_verified_at
        FROM exam_users eu
        LEFT JOIN (
