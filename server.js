@@ -466,8 +466,20 @@ app.get('/api/student/profile', requireExamUser, async (req, res, next) => {
   const { id } = req.session.examUser;
   try {
     const [[row]] = await dbPool.query(
-      'SELECT id, email, full_name, mobile_no, first_verified_at FROM exam_users WHERE id = ? LIMIT 1',
-      [id]
+      `SELECT eu.id, eu.email,
+              COALESCE(eu.full_name,  b.customer_name) AS full_name,
+              COALESCE(eu.mobile_no,  b.mobile_no)     AS mobile_no,
+              eu.first_verified_at
+       FROM exam_users eu
+       LEFT JOIN (
+         SELECT customer_name, mobile_no, email
+         FROM bookings
+         WHERE email = (SELECT email FROM exam_users WHERE id = ?)
+         ORDER BY created_at DESC LIMIT 1
+       ) b ON b.email = eu.email
+       WHERE eu.id = ?
+       LIMIT 1`,
+      [id, id]
     );
     if (!row) return res.json({ success: false, error: 'Student not found' });
     res.json({ success: true, student: row });
@@ -475,16 +487,26 @@ app.get('/api/student/profile', requireExamUser, async (req, res, next) => {
 });
 
 app.patch('/api/student/profile', requireExamUser, async (req, res, next) => {
-  const { id } = req.session.examUser;
+  const { id, email } = req.session.examUser;
   const { full_name, mobile_no } = req.body;
   const updates = [];
   const params  = [];
   if (full_name !== undefined) { updates.push('full_name = ?'); params.push(full_name.trim() || null); }
   if (mobile_no !== undefined) { updates.push('mobile_no = ?'); params.push(mobile_no.trim() || null); }
   if (updates.length === 0) return res.json({ success: false, error: 'Nothing to update' });
-  params.push(id);
   try {
-    await dbPool.query(`UPDATE exam_users SET ${updates.join(', ')} WHERE id = ?`, params);
+    await dbPool.query(`UPDATE exam_users SET ${updates.join(', ')} WHERE id = ?`, [...params, id]);
+    // Keep bookings in sync so changes appear on the website
+    const bookingUpdates = [];
+    const bookingParams  = [];
+    if (full_name !== undefined) { bookingUpdates.push('customer_name = ?'); bookingParams.push(full_name.trim() || null); }
+    if (mobile_no !== undefined) { bookingUpdates.push('mobile_no = ?');     bookingParams.push(mobile_no.trim() || null); }
+    if (bookingUpdates.length) {
+      await dbPool.query(
+        `UPDATE bookings SET ${bookingUpdates.join(', ')} WHERE email = ?`,
+        [...bookingParams, email]
+      );
+    }
     res.json({ success: true });
   } catch (err) { next(err); }
 });
@@ -1821,6 +1843,35 @@ app.get('/api/driver/trips/status', requireAdmin, async (req, res, next) => {
     res.json({ success: true, drivers: data });
   } catch (err) {
     if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, drivers: [] });
+    next(err);
+  }
+});
+
+// Public: student checks if their instructor is currently on a trip
+app.get('/api/driver-status-by-name', async (req, res, next) => {
+  try {
+    const { name } = req.query;
+    if (!name) return res.json({ success: false, message: 'name required' });
+
+    const [[row]] = await dbPool.query(`
+      SELECT i.id, i.instructor_name, dt.started_at
+      FROM instructors i
+      LEFT JOIN driver_trips dt ON dt.instructor_id = i.id AND dt.status = 'active'
+      WHERE i.instructor_name = ? AND i.is_active = 1
+      LIMIT 1
+    `, [name]);
+
+    if (!row) return res.json({ success: false, message: 'Instructor not found' });
+
+    res.json({
+      success: true,
+      instructor_id:   row.id,
+      instructor_name: row.instructor_name,
+      on_trip:         !!row.started_at,
+      started_at:      row.started_at ?? null,
+    });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, on_trip: false, started_at: null });
     next(err);
   }
 });
