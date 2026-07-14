@@ -258,7 +258,7 @@ async function checkSlotConflicts(schoolId, branch, car, startingFrom, slots, ex
   if (excludeId) params.push(excludeId);
 
   const [bookings] = await dbPool.query(`
-    SELECT customer_name, starting_from,
+    SELECT customer_name, starting_from, training_days, present_days,
            allotted_time, allotted_time2, allotted_time3, allotted_time4
     FROM bookings
     WHERE school_id = ? AND branch = ? AND car_name = ?
@@ -266,11 +266,29 @@ async function checkSlotConflicts(schoolId, branch, car, startingFrom, slots, ex
       ${excludeClause}
   `, params);
 
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
   for (const b of bookings) {
     if (!b.starting_from) continue;
+
+    // Session-based buffer — mirrors the Schedule tab's own logic
+    // (public/js/Schedule/renderScheduleModule.js) so a booking that's
+    // actually finished never blocks a new registration, regardless of
+    // whether attendance_status has been refreshed yet.
+    const totalSessions = Number(b.training_days) || 15;
+    const doneSessions  = Number(b.present_days) || 0;
+    const remaining     = totalSessions - doneSessions;
+    if (remaining <= 0) continue;
+
     const bStart = new Date(b.starting_from);
     const bEnd   = new Date(bStart);
-    bEnd.setDate(bStart.getDate() + 30);
+    if (remaining < totalSessions / 2) {
+      bEnd.setTime(today.getTime());
+      bEnd.setDate(bEnd.getDate() + remaining + 3);
+    } else {
+      bEnd.setDate(bStart.getDate() + 29);
+    }
     if (bStart > myEnd || bEnd < myStart) continue;
 
     const bSlots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
@@ -662,39 +680,19 @@ app.post('/api/dev/student-login', async (req, res, next) => {
   try {
     const { booking_id } = req.body;
     let email, name, mobile;
-
     if (booking_id) {
-      // Look up student details from a specific booking
-      const [[booking]] = await dbPool.query(
-        'SELECT customer_name, email, mobile_no FROM bookings WHERE id = ? LIMIT 1',
-        [booking_id]
-      );
+      const [[booking]] = await dbPool.query('SELECT customer_name, email, mobile_no FROM bookings WHERE id = ? LIMIT 1', [booking_id]);
       if (!booking) return res.json({ success: false, error: `Booking ${booking_id} not found` });
-      email  = booking.email;
-      name   = booking.customer_name;
-      mobile = booking.mobile_no;
+      email = booking.email; name = booking.customer_name; mobile = booking.mobile_no;
     } else {
-      // Fallback: pick first exam_user
-      const [[eu]] = await dbPool.query(
-        'SELECT id, email, full_name, mobile_no FROM exam_users ORDER BY id ASC LIMIT 1'
-      );
+      const [[eu]] = await dbPool.query('SELECT id, email, full_name, mobile_no FROM exam_users ORDER BY id ASC LIMIT 1');
       if (!eu) return res.json({ success: false, error: 'No exam_users found' });
-      email  = eu.email;
-      name   = eu.full_name || eu.email;
-      mobile = eu.mobile_no;
+      email = eu.email; name = eu.full_name || eu.email; mobile = eu.mobile_no;
     }
-
-    // Upsert into exam_users so they have an exam session (also store name for booking lookups)
-    await dbPool.query(
-      'INSERT INTO exam_users (email, full_name, first_verified_at, last_seen_at) VALUES (?, ?, NOW(), NOW()) ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), last_seen_at = NOW()',
-      [email, name || null]
-    );
+    await dbPool.query('INSERT INTO exam_users (email, full_name, first_verified_at, last_seen_at) VALUES (?, ?, NOW(), NOW()) ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), last_seen_at = NOW()', [email, name || null]);
     const [[userRow]] = await dbPool.query('SELECT id FROM exam_users WHERE email = ? LIMIT 1', [email]);
-
     req.session.examUser = { id: userRow.id, email };
-    await new Promise((resolve, reject) =>
-      req.session.save((err) => (err ? reject(err) : resolve(undefined)))
-    );
+    await new Promise((resolve, reject) => req.session.save((err) => (err ? reject(err) : resolve(undefined))));
     const signed = 's:' + cookieSign(req.session.id, process.env.SESSION_SECRET);
     const sessionToken = `session_cookie=${encodeURIComponent(signed)}`;
     res.json({ success: true, sessionToken, student: { id: userRow.id, email, full_name: name, mobile_no: mobile } });
