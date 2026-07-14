@@ -1024,7 +1024,7 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
       data.address ?? current.address,
       data.pincode ?? current.pincode,
       data.mobile_no ?? current.mobile_no,
-      data.whatsapp_no ?? current.whatsapp_no,
+      data.mobile_no ?? current.mobile_no, // whatsapp_no always mirrors mobile_no on update
       data.sex ?? current.sex,
       toMySQLDate(data.birth_date) ?? current.birth_date,
       data.cov_lmv ?? current.cov_lmv,
