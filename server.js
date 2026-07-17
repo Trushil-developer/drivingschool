@@ -1789,20 +1789,58 @@ const ensureTripsTable = () => dbPool.query(`
 `);
 
 // Driver: start a trip
+// A trip may only be started within this many minutes before/after the
+// booking's scheduled slot time (IST — process.env.TZ forces server time to
+// Asia/Kolkata, see top of file).
+const TRIP_START_EARLY_GRACE_MIN = 15;
+const TRIP_START_LATE_GRACE_MIN = 30;
+
 app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
   const instructorId = req.session.adminId;
   const { booking_id, duration_mins = 30 } = req.body;
   if (!booking_id) return res.json({ success: false, error: 'booking_id required' });
   try {
     await ensureTripsTable();
+    const [[bk]] = await dbPool.query(
+      `SELECT customer_name, allotted_time, allotted_time2, allotted_time3, allotted_time4
+       FROM bookings WHERE id=? AND school_id=? LIMIT 1`,
+      [booking_id, req.schoolId]
+    );
+    if (!bk) return res.status(404).json({ success: false, error: 'Booking not found' });
+
+    const slotTimes = [bk.allotted_time, bk.allotted_time2, bk.allotted_time3, bk.allotted_time4]
+      .filter(Boolean)
+      .map(t => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+      });
+
+    if (slotTimes.length) {
+      const now = new Date();
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+      const withinWindow = slotTimes.some(
+        slotMins => nowMins >= slotMins - TRIP_START_EARLY_GRACE_MIN && nowMins <= slotMins + TRIP_START_LATE_GRACE_MIN
+      );
+      if (!withinWindow) {
+        const formatTime = mins => {
+          const h = Math.floor(mins / 60), m = mins % 60;
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          const h12 = h % 12 || 12;
+          return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+        };
+        return res.status(400).json({
+          success: false,
+          error: `You can only start this lesson within ${TRIP_START_EARLY_GRACE_MIN} minutes before or ${TRIP_START_LATE_GRACE_MIN} minutes after the scheduled time (${slotTimes.map(formatTime).join(', ')}). Current time: ${formatTime(nowMins)}.`,
+        });
+      }
+    }
+
     // Auto-end any existing active/paused trip
     await dbPool.query(
       `UPDATE driver_trips SET status='completed', ended_at=NOW() WHERE instructor_id=? AND status IN ('active','paused')`,
       [instructorId]
     );
     const [[inst]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? AND school_id=? LIMIT 1', [instructorId, req.schoolId]);
-    const [[bk]]   = await dbPool.query('SELECT customer_name FROM bookings WHERE id=? AND school_id=? LIMIT 1', [booking_id, req.schoolId]);
-    if (!bk) return res.status(404).json({ success: false, error: 'Booking not found' });
     const [result] = await dbPool.query(
       `INSERT INTO driver_trips (instructor_id, instructor_name, booking_id, student_name, started_at, duration_mins, status, school_id)
        VALUES (?, ?, ?, ?, NOW(), ?, 'active', ?)`,
