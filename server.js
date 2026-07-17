@@ -1326,7 +1326,7 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
     }
 
     const [[bk]] = await dbPool.query(`SELECT id FROM bookings WHERE id = ? AND school_id = ?`, [booking_id, req.schoolId]);
-    if (!bk) return res.status(404).json({ success: false, error: 'Booking not found' });
+    if (!bk) return res.json({ success: false, error: 'Booking not found' });
 
     const mysqlDate = date.split("T")[0];
     const slotTime = (time || '').substring(0, 5);
@@ -1806,7 +1806,7 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
        FROM bookings WHERE id=? AND school_id=? LIMIT 1`,
       [booking_id, req.schoolId]
     );
-    if (!bk) return res.status(404).json({ success: false, error: 'Booking not found' });
+    if (!bk) return res.json({ success: false, error: 'Booking not found' });
 
     const slotTimes = [bk.allotted_time, bk.allotted_time2, bk.allotted_time3, bk.allotted_time4]
       .filter(Boolean)
@@ -1828,7 +1828,7 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
           const h12 = h % 12 || 12;
           return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
         };
-        return res.status(400).json({
+        return res.json({
           success: false,
           error: `You can only start this lesson within ${TRIP_START_EARLY_GRACE_MIN} minutes before or ${TRIP_START_LATE_GRACE_MIN} minutes after the scheduled time (${slotTimes.map(formatTime).join(', ')}). Current time: ${formatTime(nowMins)}.`,
         });
