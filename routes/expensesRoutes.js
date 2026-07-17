@@ -193,9 +193,9 @@ router.post("/", requireAdmin, async (req, res, next) => {
 
     try {
         const [result] = await dbPool.query(
-            `INSERT INTO expenses (school_id, branch, debitor, employee_name, category_id, car_id, amount, payment_mode_id, note, expense_date)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [schoolId, branch, debitor.trim(), employee_name?.trim() || null, category_id, car_id || null, amount || 0, payment_mode_id, note || null, expense_date]
+            `INSERT INTO expenses (school_id, branch, debitor, employee_name, category_id, car_id, amount, payment_mode_id, note, expense_date, created_by_id, created_by_type)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [schoolId, branch, debitor.trim(), employee_name?.trim() || null, category_id, car_id || null, amount || 0, payment_mode_id, note || null, expense_date, req.session.adminId, req.session.adminRole || 'instructor']
         );
         res.json({ success: true, id: result.insertId, slip_no: result.insertId });
     } catch (err) {
@@ -214,9 +214,9 @@ router.put("/:id", requireAdmin, async (req, res, next) => {
 
     try {
         const [result] = await dbPool.query(
-            `UPDATE expenses SET branch=?, debitor=?, employee_name=?, category_id=?, car_id=?, amount=?, payment_mode_id=?, note=?, expense_date=?
+            `UPDATE expenses SET branch=?, debitor=?, employee_name=?, category_id=?, car_id=?, amount=?, payment_mode_id=?, note=?, expense_date=?, updated_by_id=?, updated_by_type=?
              WHERE id=? AND school_id=?`,
-            [branch, debitor.trim(), employee_name?.trim() || null, category_id, car_id || null, amount || 0, payment_mode_id, note || null, expense_date, id, schoolId]
+            [branch, debitor.trim(), employee_name?.trim() || null, category_id, car_id || null, amount || 0, payment_mode_id, note || null, expense_date, req.session.adminId, req.session.adminRole || 'instructor', id, schoolId]
         );
         if (result.affectedRows === 0) return res.json({ success: false, error: "Expense not found" });
         res.json({ success: true });

@@ -21,9 +21,10 @@ router.post("/send-email-otp", async (req, res) => {
       return res.status(400).json({ success: false, message: "Email required" });
     }
 
-    // Only allow emails that have an active booking with this school
+    // Only allow emails that have an active booking somewhere — the matching
+    // booking's own school_id (not a hardcoded one) is this student's tenant.
     const [enrolled] = await dbPool.query(
-      `SELECT id FROM bookings WHERE email = ? AND school_id = 1 LIMIT 1`,
+      `SELECT id, school_id FROM bookings WHERE email = ? ORDER BY created_at DESC LIMIT 1`,
       [email]
     );
     if (!enrolled.length) {
@@ -32,6 +33,7 @@ router.post("/send-email-otp", async (req, res) => {
         message: "No enrollment found for this email. Contact Dwarkesh Driving School to get enrolled."
       });
     }
+    const schoolId = enrolled[0].school_id;
 
     // Rate limit: max OTPs per hour
     const [sentCount] = await dbPool.query(
@@ -58,9 +60,9 @@ router.post("/send-email-otp", async (req, res) => {
     // Insert new OTP
     await dbPool.query(
       `INSERT INTO email_otps
-       (email, otp, expires_at, attempts, resend_count, last_sent_at, ip_address)
-       VALUES (?, ?, ?, 0, 0, NOW(), ?)`,
-      [email, otp, expiresAt, ip]
+       (email, otp, expires_at, attempts, resend_count, last_sent_at, ip_address, school_id)
+       VALUES (?, ?, ?, 0, 0, NOW(), ?, ?)`,
+      [email, otp, expiresAt, ip, schoolId]
     );
 
     await sendOtpEmail(email, otp);
@@ -125,30 +127,43 @@ router.post("/verify-email-otp", async (req, res) => {
       [rows[0].id]
     );
 
-    await dbPool.query(
-      `INSERT INTO exam_users (email, first_verified_at, last_seen_at)
-      VALUES (?, NOW(), NOW())
-      ON DUPLICATE KEY UPDATE last_seen_at = NOW()`,
+    // The matching booking's own school_id is this student's tenant — never hardcoded.
+    const [[booking]] = await dbPool.query(
+      `SELECT customer_name, mobile_no, school_id FROM bookings WHERE email = ? ORDER BY created_at DESC LIMIT 1`,
       [email]
+    );
+    const schoolId = booking?.school_id || 1;
+
+    await dbPool.query(
+      `INSERT INTO exam_users (email, first_verified_at, last_seen_at, school_id)
+      VALUES (?, NOW(), NOW(), ?)
+      ON DUPLICATE KEY UPDATE last_seen_at = NOW(), school_id = VALUES(school_id)`,
+      [email, schoolId]
     );
 
     // Sync full_name and mobile_no from the most recent booking (booking is authoritative source)
-    await dbPool.query(
-      `UPDATE exam_users eu
-       JOIN (SELECT customer_name, mobile_no FROM bookings WHERE email = ? ORDER BY created_at DESC LIMIT 1) b
-       SET eu.full_name  = COALESCE(b.customer_name, eu.full_name),
-           eu.mobile_no  = COALESCE(eu.mobile_no,    b.mobile_no)
-       WHERE eu.email = ?`,
-      [email, email]
-    );
+    if (booking) {
+      await dbPool.query(
+        `UPDATE exam_users
+         SET full_name = COALESCE(?, full_name),
+             mobile_no  = COALESCE(mobile_no, ?)
+         WHERE email = ?`,
+        [booking.customer_name, booking.mobile_no, email]
+      );
+    }
 
     // Set exam user session
     const [userRow] = await dbPool.query(
-      "SELECT id, email, full_name FROM exam_users WHERE email = ? LIMIT 1",
+      "SELECT id, email, full_name, school_id FROM exam_users WHERE email = ? LIMIT 1",
       [email]
     );
     if (userRow.length) {
-      req.session.examUser = { id: userRow[0].id, email: userRow[0].email, full_name: userRow[0].full_name || null };
+      req.session.examUser = {
+        id: userRow[0].id,
+        email: userRow[0].email,
+        full_name: userRow[0].full_name || null,
+        school_id: userRow[0].school_id || 1,
+      };
     }
 
     // Explicitly save session before responding so checkSession() sees it

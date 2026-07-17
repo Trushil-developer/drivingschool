@@ -5,8 +5,12 @@ window.renderInstructorsModule = function(tableWrap, tabRenderers, currentTab) {
         const subTabBar = document.createElement('div');
         subTabBar.style.cssText = 'display:flex;gap:8px;margin-bottom:20px;border-bottom:2px solid #e5e7eb;padding-bottom:0;';
         subTabBar.innerHTML = `
-            <button class="ins-sub-tab ins-sub-active" data-subtab="employees"
+            <button class="ins-sub-tab ins-sub-active" data-subtab="attendance"
                 style="padding:8px 18px;border:none;background:none;cursor:pointer;font-weight:600;font-size:14px;border-bottom:2px solid #185fa5;margin-bottom:-2px;color:#185fa5">
+                Attendance
+            </button>
+            <button class="ins-sub-tab" data-subtab="employees"
+                style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:14px;color:#5a6478;margin-bottom:-2px;border-bottom:2px solid transparent">
                 Employees
             </button>
             <button class="ins-sub-tab" data-subtab="leaves"
@@ -20,12 +24,32 @@ window.renderInstructorsModule = function(tableWrap, tabRenderers, currentTab) {
         subTabBar.className = 'ins-sub-tab-bar';
         tableWrap.parentElement.insertBefore(subTabBar, tableWrap);
 
-        const employeesContainer = document.createElement('div');
-        const leavesContainer    = document.createElement('div');
+        // Always hide the global header Add button for this tab
+        const globalAddBtn = document.getElementById('addBtn');
+        if (globalAddBtn) globalAddBtn.classList.add('hidden');
+
+        // Local actions bar — Add Employee button lives here, below the tab bar
+        const existingActions = tableWrap.parentElement.querySelector('.ins-actions-bar');
+        if (existingActions) existingActions.remove();
+        const actionsBar = document.createElement('div');
+        actionsBar.className = 'ins-actions-bar';
+        actionsBar.style.cssText = 'display:none;margin-bottom:16px;';
+        actionsBar.innerHTML = `
+            <button id="insAddEmployeeBtn"
+                style="padding:8px 18px;background:#185fa5;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">
+                + Add Employee
+            </button>`;
+        tableWrap.parentElement.insertBefore(actionsBar, tableWrap);
+
+        const employeesContainer  = document.createElement('div');
+        const leavesContainer     = document.createElement('div');
+        const attendanceContainer = document.createElement('div');
         tableWrap.innerHTML = '';
+        tableWrap.appendChild(attendanceContainer);
         tableWrap.appendChild(employeesContainer);
         tableWrap.appendChild(leavesContainer);
-        leavesContainer.style.display = 'none';
+        employeesContainer.style.display = 'none';
+        leavesContainer.style.display    = 'none';
 
         // Load leave pending count badge
         window.api('/api/admin/leave-requests?status=Pending').then(r => {
@@ -33,6 +57,11 @@ window.renderInstructorsModule = function(tableWrap, tabRenderers, currentTab) {
             const badge = document.getElementById('leavesPendingBadge');
             if (badge && cnt > 0) { badge.textContent = cnt; badge.style.display = 'inline'; }
         }).catch(() => {});
+
+        // Wire local Add Employee button
+        actionsBar.querySelector('#insAddEmployeeBtn')?.addEventListener('click', () => {
+            if (window.openInstructorAddModal) window.openInstructorAddModal(tabRenderers, currentTab)();
+        });
 
         // Sub-tab click handler
         subTabBar.querySelectorAll('.ins-sub-tab').forEach(btn => {
@@ -42,15 +71,30 @@ window.renderInstructorsModule = function(tableWrap, tabRenderers, currentTab) {
                 });
                 btn.style.color = '#185fa5'; btn.style.borderBottom = '2px solid #185fa5'; btn.style.fontWeight = '600';
                 if (btn.dataset.subtab === 'employees') {
-                    employeesContainer.style.display = ''; leavesContainer.style.display = 'none';
-                } else {
-                    employeesContainer.style.display = 'none'; leavesContainer.style.display = '';
+                    attendanceContainer.style.display = 'none';
+                    leavesContainer.style.display     = 'none';
+                    employeesContainer.style.display  = '';
+                    actionsBar.style.display          = '';
+                } else if (btn.dataset.subtab === 'leaves') {
+                    attendanceContainer.style.display = 'none';
+                    employeesContainer.style.display  = 'none';
+                    actionsBar.style.display          = 'none';
+                    leavesContainer.style.display     = '';
                     if (window.renderLeaveRequestsTab) window.renderLeaveRequestsTab(leavesContainer)();
+                } else {
+                    employeesContainer.style.display  = 'none';
+                    leavesContainer.style.display     = 'none';
+                    actionsBar.style.display          = 'none';
+                    attendanceContainer.style.display = '';
+                    if (window.renderAttendanceTab) window.renderAttendanceTab(attendanceContainer)();
                 }
             });
         });
 
-        // ---- Employees sub-tab ----
+        // Load attendance immediately (it's the default active sub-tab)
+        if (window.renderAttendanceTab) window.renderAttendanceTab(attendanceContainer)();
+
+        // ---- Employees sub-tab (loaded lazily when clicked) ----
         try {
             const res = await window.api('/api/instructors');
             if (!res.success) throw new Error(res.error || 'Failed to fetch employees');

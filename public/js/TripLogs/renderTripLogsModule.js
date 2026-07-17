@@ -17,6 +17,20 @@ window.renderTripLogsModule = async function (tableWrap) {
         return `${Math.floor(m / 60)}h ${m % 60}m`;
     }
 
+    function actualDur(trip) {
+        const MAX_MINS = 120;
+        const start = trip.started_at ? new Date(trip.started_at) : null;
+        if (!start) return '—';
+        const end  = trip.ended_at ? new Date(trip.ended_at) : new Date();
+        const mins = Math.min(MAX_MINS, Math.floor((end - start) / 60000));
+        if (trip.status === 'active') {
+            if (mins < 60) return `${mins} min <span class="tl-live">(live)</span>`;
+            return `${Math.floor(mins / 60)}h ${mins % 60}m <span class="tl-live">(live)</span>`;
+        }
+        if (mins < 60) return `${mins} min`;
+        return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+    }
+
     // ── 1. Load instructors for filter dropdown ─────────────────────────────
     const resInst = await window.api('/api/instructors');
     const instructors = (resInst?.success ? resInst.instructors : [])
@@ -92,7 +106,12 @@ window.renderTripLogsModule = async function (tableWrap) {
         // ── Summary cards ─────────────────────────────────────────────────
         const completed = trips.filter(t => t.status === 'completed');
         const active    = trips.filter(t => t.status === 'active');
-        const totalMins = completed.reduce((s, t) => s + Number(t.duration_mins || 0), 0);
+        const totalMins = completed.reduce((s, t) => {
+            const start = t.started_at ? new Date(t.started_at) : null;
+            const end   = t.ended_at   ? new Date(t.ended_at)   : null;
+            if (!start || !end) return s;
+            return s + Math.floor((end - start) / 60000);
+        }, 0);
         const uniqueInst = new Set(trips.map(t => t.instructor_id)).size;
 
         summary.innerHTML = `
@@ -150,7 +169,7 @@ window.renderTripLogsModule = async function (tableWrap) {
                                 <td class="tl-student">${t.student_name || '—'}</td>
                                 <td class="tl-time">${fmtDT(t.started_at)}</td>
                                 <td class="tl-time">${t.ended_at ? fmtDT(t.ended_at) : '—'}</td>
-                                <td class="tl-dur">${fmtDur(t.duration_mins)}</td>
+                                <td class="tl-dur">${actualDur(t)}</td>
                                 <td>
                                     ${t.status === 'active'
                                         ? '<span class="tl-badge tl-badge--active"><span class="tl-pulse"></span>Active</span>'

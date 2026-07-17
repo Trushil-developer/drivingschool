@@ -1246,6 +1246,7 @@ body {
 .tl-student { color: var(--text-primary, #111); }
 .tl-time { white-space: nowrap; color: var(--text-secondary, #555); font-size: 0.83rem; }
 .tl-dur { font-weight: 600; color: var(--text-primary, #374151); }
+.tl-live { font-size: 0.75em; font-weight: 500; color: #b45309; }
 
 .tl-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 100px; font-size: 0.78rem; font-weight: 600; }
 .tl-badge--active { background: #fef3c7; color: #b45309; }

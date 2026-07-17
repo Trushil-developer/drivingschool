@@ -34,13 +34,14 @@ window.renderBranchesModule = function (tableWrap) {
                                 <td>${b.mobile_no || '-'}</td>
                                 <td>${b.email || '-'}</td>
                                 <td>
-                                    <button class="btn edit-branch" 
+                                    <button class="btn edit-branch"
                                         data-id="${b.id}"
                                         data-name="${b.branch_name}"
                                         data-city="${b.city}"
                                         data-state="${b.state}"
                                         data-mobile="${b.mobile_no}"
-                                        data-email="${b.email}">
+                                        data-email="${b.email}"
+                                        data-wifi="${b.wifi_ssid || ''}">
                                         Edit
                                     </button>
                                     <button class="btn delete" data-id="${b.id}">Delete</button>
@@ -60,6 +61,7 @@ window.renderBranchesModule = function (tableWrap) {
                         state: btn.dataset.state,
                         mobile_no: btn.dataset.mobile,
                         email: btn.dataset.email,
+                        wifi_ssid: btn.dataset.wifi,
                     };
                     if (typeof window.openBranchEditModal === "function") {
                         window.openBranchEditModal(btn.dataset.id, data)();

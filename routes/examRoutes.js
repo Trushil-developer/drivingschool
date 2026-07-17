@@ -37,9 +37,9 @@ router.post("/attempt/start", requireExamUser, async (req, res) => {
     try {
         const [existing] = await dbPool.query(
             `SELECT id FROM exam_attempts
-             WHERE user_id=? AND status='started'
+             WHERE user_id=? AND school_id=? AND status='started'
              ORDER BY id DESC LIMIT 1`,
-            [userId]
+            [userId, req.schoolId]
         );
 
         if (existing.length) {
@@ -47,9 +47,9 @@ router.post("/attempt/start", requireExamUser, async (req, res) => {
         }
 
         const [result] = await dbPool.query(
-            `INSERT INTO exam_attempts (user_id, mode, started_at, status)
-            VALUES (?, 'mock', NOW(), 'started')`,
-            [userId]
+            `INSERT INTO exam_attempts (user_id, mode, started_at, status, school_id)
+            VALUES (?, 'mock', NOW(), 'started', ?)`,
+            [userId, req.schoolId]
         );
 
         res.json({ success: true, attempt_id: result.insertId });
@@ -74,9 +74,9 @@ router.post("/attempt/finish", requireExamUser, async (req, res) => {
             `UPDATE exam_attempts
              SET score=?, total_questions=?, correct_answers=?, result=?,
                  finished_at=NOW(), status='completed'
-             WHERE user_id=? AND status='started'
+             WHERE user_id=? AND school_id=? AND status='started'
              ORDER BY id DESC LIMIT 1`,
-            [score, total_questions, score, result, userId]
+            [score, total_questions, score, result, userId, req.schoolId]
         );
 
         await dbPool.query(
@@ -84,8 +84,8 @@ router.post("/attempt/finish", requireExamUser, async (req, res) => {
              SET total_attempts = total_attempts + 1,
                  last_score = ?, last_result = ?,
                  best_score = GREATEST(best_score, ?)
-             WHERE id=?`,
-            [score, result, score, userId]
+             WHERE id=? AND school_id=?`,
+            [score, result, score, userId, req.schoolId]
         );
 
         res.json({ success: true });
@@ -110,13 +110,13 @@ router.post("/practice/answer", requireExamUser, async (req, res) => {
     try {
         await dbPool.query(`
             INSERT INTO practice_progress
-                (user_id, question_number, category, language, selected_answer, is_correct, answered_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
+                (user_id, question_number, category, language, selected_answer, is_correct, answered_at, school_id)
+            VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)
             ON DUPLICATE KEY UPDATE
                 selected_answer = VALUES(selected_answer),
                 is_correct = VALUES(is_correct),
                 answered_at = NOW()
-        `, [userId, question_number, category, language, selected_answer, is_correct ? 1 : 0]);
+        `, [userId, question_number, category, language, selected_answer, is_correct ? 1 : 0, req.schoolId]);
 
         res.json({ success: true });
     } catch (err) {
@@ -136,9 +136,9 @@ router.get("/practice/progress", requireExamUser, async (req, res) => {
         let query = `
             SELECT question_number, selected_answer, is_correct, answered_at
             FROM practice_progress
-            WHERE user_id = ? AND language = ?
+            WHERE user_id = ? AND language = ? AND school_id = ?
         `;
-        const params = [userId, language];
+        const params = [userId, language, req.schoolId];
 
         if (category) {
             query += " AND category = ?";
@@ -177,9 +177,9 @@ router.get("/practice/summary", requireExamUser, async (req, res) => {
                 COUNT(*) AS answered,
                 SUM(is_correct) AS correct
             FROM practice_progress
-            WHERE user_id = ? AND language = ?
+            WHERE user_id = ? AND language = ? AND school_id = ?
             GROUP BY category
-        `, [userId, language]);
+        `, [userId, language, req.schoolId]);
 
         res.json({ success: true, summary: rows });
     } catch (err) {
@@ -198,9 +198,9 @@ router.get("/progress", requireExamUser, async (req, res) => {
         const [attempts] = await dbPool.query(`
             SELECT id, score, total_questions, result, started_at, finished_at, status
             FROM exam_attempts
-            WHERE user_id = ? AND status = 'completed'
+            WHERE user_id = ? AND school_id = ? AND status = 'completed'
             ORDER BY finished_at DESC
-        `, [userId]);
+        `, [userId, req.schoolId]);
 
         const [practiceSummary] = await dbPool.query(`
             SELECT
@@ -208,15 +208,15 @@ router.get("/progress", requireExamUser, async (req, res) => {
                 COUNT(*) AS answered,
                 SUM(is_correct) AS correct
             FROM practice_progress
-            WHERE user_id = ?
+            WHERE user_id = ? AND school_id = ?
             GROUP BY category
-        `, [userId]);
+        `, [userId, req.schoolId]);
 
         const [[userStats]] = await dbPool.query(`
             SELECT total_attempts, best_score, last_score, last_result
             FROM exam_users
-            WHERE id = ?
-        `, [userId]);
+            WHERE id = ? AND school_id = ?
+        `, [userId, req.schoolId]);
 
         res.json({
             success: true,
@@ -240,8 +240,9 @@ router.get("/admin/users", requireAdmin, async (req, res) => {
                 id, email, first_verified_at, last_seen_at,
                 total_attempts, best_score, last_score, last_result
             FROM exam_users
+            WHERE school_id = ?
             ORDER BY last_seen_at DESC
-        `);
+        `, [req.schoolId]);
 
         res.json({ success: true, users });
     } catch (err) {
@@ -264,11 +265,12 @@ router.get("/admin/attempts", requireAdmin, async (req, res) => {
                 u.email
             FROM exam_attempts a
             JOIN exam_users u ON a.user_id = u.id
+            WHERE a.school_id = ?
         `;
-        const params = [];
+        const params = [req.schoolId];
 
         if (user_id) {
-            query += " WHERE a.user_id = ?";
+            query += " AND a.user_id = ?";
             params.push(user_id);
         }
 
@@ -294,7 +296,8 @@ router.get("/admin/overview", requireAdmin, async (req, res) => {
                 SUM(total_attempts) AS totalAttempts,
                 ROUND(AVG(best_score), 1) AS avgBestScore
             FROM exam_users
-        `);
+            WHERE school_id = ?
+        `, [req.schoolId]);
 
         const [[attemptStats]] = await dbPool.query(`
             SELECT
@@ -302,18 +305,18 @@ router.get("/admin/overview", requireAdmin, async (req, res) => {
                 SUM(CASE WHEN result = 'FAIL' THEN 1 ELSE 0 END) AS failed,
                 ROUND(AVG(score), 1) AS avgScore
             FROM exam_attempts
-            WHERE status = 'completed'
-        `);
+            WHERE status = 'completed' AND school_id = ?
+        `, [req.schoolId]);
 
         const [recentActivity] = await dbPool.query(`
             SELECT
                 DATE(started_at) AS date,
                 COUNT(*) AS attempts
             FROM exam_attempts
-            WHERE started_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            WHERE started_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND school_id = ?
             GROUP BY DATE(started_at)
             ORDER BY date ASC
-        `);
+        `, [req.schoolId]);
 
         const [[practiceStats]] = await dbPool.query(`
             SELECT
@@ -321,7 +324,8 @@ router.get("/admin/overview", requireAdmin, async (req, res) => {
                 COUNT(*) AS totalPracticeAnswers,
                 SUM(is_correct) AS correctPracticeAnswers
             FROM practice_progress
-        `);
+            WHERE school_id = ?
+        `, [req.schoolId]);
 
         res.json({
             success: true,
@@ -365,10 +369,10 @@ router.get("/admin/score-distribution", requireAdmin, async (req, res) => {
                 END AS score_range,
                 COUNT(*) AS count
             FROM exam_attempts
-            WHERE status = 'completed' AND score IS NOT NULL
+            WHERE status = 'completed' AND score IS NOT NULL AND school_id = ?
             GROUP BY score_range
             ORDER BY MIN(score) ASC
-        `);
+        `, [req.schoolId]);
 
         res.json({ success: true, distribution });
     } catch (err) {
@@ -406,11 +410,11 @@ router.get("/admin/attempts-trends", requireAdmin, async (req, res) => {
                 SUM(CASE WHEN result = 'PASS' THEN 1 ELSE 0 END) AS passed,
                 SUM(CASE WHEN result = 'FAIL' THEN 1 ELSE 0 END) AS failed
             FROM exam_attempts
-            WHERE status = 'completed'
+            WHERE status = 'completed' AND school_id = ?
             GROUP BY ${groupBy}
             ORDER BY period ASC
             LIMIT 90
-        `);
+        `, [req.schoolId]);
 
         res.json({ success: true, trends });
     } catch (err) {
@@ -436,11 +440,12 @@ router.get("/admin/practice-progress", requireAdmin, async (req, res) => {
                 MAX(pp.answered_at) AS last_activity
             FROM practice_progress pp
             JOIN exam_users eu ON pp.user_id = eu.id
+            WHERE pp.school_id = ?
         `;
-        const params = [];
+        const params = [req.schoolId];
 
         if (user_id) {
-            query += " WHERE pp.user_id = ?";
+            query += " AND pp.user_id = ?";
             params.push(user_id);
         }
 
@@ -461,13 +466,13 @@ router.get("/admin/practice-logs", requireAdmin, async (req, res) => {
     const { from, to } = req.query;
 
     try {
-        const params = [];
+        const params = [req.schoolId];
         let whereClause;
         if (from && to) {
-            whereClause = `WHERE DATE(pp.answered_at) BETWEEN ? AND ?`;
+            whereClause = `WHERE pp.school_id = ? AND DATE(pp.answered_at) BETWEEN ? AND ?`;
             params.push(from, to);
         } else {
-            whereClause = `WHERE pp.answered_at >= DATE_SUB(NOW(), INTERVAL 60 DAY)`;
+            whereClause = `WHERE pp.school_id = ? AND pp.answered_at >= DATE_SUB(NOW(), INTERVAL 60 DAY)`;
         }
 
         const [rows] = await dbPool.query(`
@@ -501,13 +506,16 @@ router.delete("/admin/users/:id/attempts", requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
 
-        await dbPool.query(`DELETE FROM exam_attempts WHERE user_id = ?`, [id]);
-        await dbPool.query(`DELETE FROM practice_progress WHERE user_id = ?`, [id]);
+        const [[owned]] = await dbPool.query('SELECT id FROM exam_users WHERE id = ? AND school_id = ? LIMIT 1', [id, req.schoolId]);
+        if (!owned) return res.status(404).json({ success: false, message: "User not found" });
+
+        await dbPool.query(`DELETE FROM exam_attempts WHERE user_id = ? AND school_id = ?`, [id, req.schoolId]);
+        await dbPool.query(`DELETE FROM practice_progress WHERE user_id = ? AND school_id = ?`, [id, req.schoolId]);
         await dbPool.query(`
             UPDATE exam_users
             SET total_attempts = 0, best_score = 0, last_score = NULL, last_result = NULL
-            WHERE id = ?
-        `, [id]);
+            WHERE id = ? AND school_id = ?
+        `, [id, req.schoolId]);
 
         res.json({ success: true, message: "User attempts reset successfully" });
     } catch (err) {
@@ -523,9 +531,12 @@ router.delete("/admin/users/:id", requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
 
-        await dbPool.query(`DELETE FROM practice_progress WHERE user_id = ?`, [id]);
-        await dbPool.query(`DELETE FROM exam_attempts WHERE user_id = ?`, [id]);
-        await dbPool.query(`DELETE FROM exam_users WHERE id = ?`, [id]);
+        const [[owned]] = await dbPool.query('SELECT id FROM exam_users WHERE id = ? AND school_id = ? LIMIT 1', [id, req.schoolId]);
+        if (!owned) return res.status(404).json({ success: false, message: "User not found" });
+
+        await dbPool.query(`DELETE FROM practice_progress WHERE user_id = ? AND school_id = ?`, [id, req.schoolId]);
+        await dbPool.query(`DELETE FROM exam_attempts WHERE user_id = ? AND school_id = ?`, [id, req.schoolId]);
+        await dbPool.query(`DELETE FROM exam_users WHERE id = ? AND school_id = ?`, [id, req.schoolId]);
 
         res.json({ success: true, message: "User deleted successfully" });
     } catch (err) {
@@ -545,8 +556,9 @@ router.get("/admin/attempts/export", requireAdmin, async (req, res) => {
                 a.result, a.started_at, a.finished_at, a.status
             FROM exam_attempts a
             JOIN exam_users u ON a.user_id = u.id
+            WHERE a.school_id = ?
             ORDER BY a.started_at DESC
-        `);
+        `, [req.schoolId]);
 
         const headers = ['ID', 'Email', 'Mode', 'Score', 'Total Questions', 'Result', 'Started At', 'Finished At', 'Status'];
         const csvRows = [headers.join(',')];

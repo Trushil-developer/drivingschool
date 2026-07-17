@@ -13,6 +13,8 @@ window.openBranchModal = function(tabRenderers, currentTab) {
                     <label>State</label><input id="br_state" type="text">
                     <label>Mobile</label><input id="br_mobile" type="text">
                     <label>Email</label><input id="br_email" type="email">
+                    <label>WiFi SSID <span style="font-weight:400;color:#6b7280;font-size:12px">(for instructor clock-in)</span></label>
+                    <input id="br_wifi" type="text" placeholder="e.g. BranchName_WiFi">
                     <button id="saveBranch" class="btn primary">Save Branch</button>
                 </div>
             `;
@@ -27,6 +29,7 @@ window.openBranchModal = function(tabRenderers, currentTab) {
                     state: document.getElementById("br_state").value.trim(),
                     mobile_no: document.getElementById("br_mobile").value.trim(),
                     email: document.getElementById("br_email").value.trim(),
+                    wifi_ssid: document.getElementById("br_wifi").value.trim(),
                 };
 
                 try {
@@ -67,6 +70,8 @@ window.openBranchEditModal = function(id, data, tabRenderers, currentTab) {
                     <label>State</label><input id="br_state" type="text" value="${data.state}">
                     <label>Mobile</label><input id="br_mobile" type="text" value="${data.mobile_no}">
                     <label>Email</label><input id="br_email" type="email" value="${data.email}">
+                    <label>WiFi SSID <span style="font-weight:400;color:#6b7280;font-size:12px">(for instructor clock-in)</span></label>
+                    <input id="br_wifi" type="text" placeholder="e.g. BranchName_WiFi" value="${data.wifi_ssid || ''}">
                     <button id="saveBranch" class="btn primary">Save Changes</button>
                 </div>
             `;
@@ -81,6 +86,7 @@ window.openBranchEditModal = function(id, data, tabRenderers, currentTab) {
                     state: document.getElementById("br_state").value.trim(),
                     mobile_no: document.getElementById("br_mobile").value.trim(),
                     email: document.getElementById("br_email").value.trim(),
+                    wifi_ssid: document.getElementById("br_wifi").value.trim(),
                 };
 
                 try {

@@ -65,9 +65,10 @@ router.put("/:id", requireAdmin, async (req, res) => {
   try {
     const [result] = await dbPool.query(
       `UPDATE cms_pages
-       SET title = ?, content = ?, slug = COALESCE(?, slug), status = COALESCE(?, status)
+       SET title = ?, content = ?, slug = COALESCE(?, slug), status = COALESCE(?, status),
+           updated_by_id = ?, updated_by_type = ?
        WHERE id = ? AND school_id = ?`,
-      [title, content, slug ?? null, status ?? null, id, req.schoolId]
+      [title, content, slug ?? null, status ?? null, req.session.adminId, req.session.adminRole || 'instructor', id, req.schoolId]
     );
 
     if (result.affectedRows === 0) {

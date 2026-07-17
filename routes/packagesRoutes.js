@@ -39,8 +39,8 @@ router.post('/', requireAdmin, async (req, res) => {
 
     const [result] = await dbPool.query(
       `INSERT INTO driving_packages
-      (badge, title, description, practical_sessions, session_duration, daily_distance, extra_features, school_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      (badge, title, description, practical_sessions, session_duration, daily_distance, extra_features, school_id, created_by_id, created_by_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         badge || null,
         title,
@@ -49,7 +49,9 @@ router.post('/', requireAdmin, async (req, res) => {
         session_duration || null,
         daily_distance || null,
         extra_features ? JSON.stringify(extra_features) : null,
-        req.schoolId
+        req.schoolId,
+        req.session.adminId,
+        req.session.adminRole || 'instructor'
       ]
     );
 
@@ -68,7 +70,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
     const { badge, title, description, practical_sessions, session_duration, daily_distance, extra_features } = req.body;
 
     await dbPool.query(
-      `UPDATE driving_packages SET badge=?, title=?, description=?, practical_sessions=?, session_duration=?, daily_distance=?, extra_features=? WHERE id=? AND school_id=?`,
+      `UPDATE driving_packages SET badge=?, title=?, description=?, practical_sessions=?, session_duration=?, daily_distance=?, extra_features=?, updated_by_id=?, updated_by_type=? WHERE id=? AND school_id=?`,
       [
         badge || null,
         title,
@@ -77,6 +79,8 @@ router.put('/:id', requireAdmin, async (req, res) => {
         session_duration || null,
         daily_distance || null,
         extra_features ? JSON.stringify(extra_features) : null,
+        req.session.adminId,
+        req.session.adminRole || 'instructor',
         req.params.id,
         req.schoolId
       ]

@@ -56,8 +56,8 @@ router.post("/", requireAdmin, async (req, res, next) => {
     }
 
     const [result] = await dbPool.query(
-      `INSERT INTO courses (course_name, description, status, school_id) VALUES (?, ?, ?, ?)`,
-      [course_name, description || null, status || "active", req.schoolId]
+      `INSERT INTO courses (course_name, description, status, school_id, created_by_id, created_by_type) VALUES (?, ?, ?, ?, ?, ?)`,
+      [course_name, description || null, status || "active", req.schoolId, req.session.adminId, req.session.adminRole || 'instructor']
     );
 
     res.json({ success: true, message: "Course added", id: result.insertId });
@@ -75,8 +75,8 @@ router.put("/:id", requireAdmin, async (req, res, next) => {
     const { course_name, description, status } = req.body;
 
     const [result] = await dbPool.query(
-      `UPDATE courses SET course_name = ?, description = ?, status = ? WHERE id = ? AND school_id = ?`,
-      [course_name, description, status, req.params.id, req.schoolId]
+      `UPDATE courses SET course_name = ?, description = ?, status = ?, updated_by_id = ?, updated_by_type = ? WHERE id = ? AND school_id = ?`,
+      [course_name, description, status, req.session.adminId, req.session.adminRole || 'instructor', req.params.id, req.schoolId]
     );
 
     if (result.affectedRows === 0) {
@@ -123,8 +123,8 @@ router.patch("/:id/status", requireAdmin, async (req, res, next) => {
     }
 
     const [result] = await dbPool.query(
-      `UPDATE courses SET status = ? WHERE id = ? AND school_id = ?`,
-      [status, req.params.id, req.schoolId]
+      `UPDATE courses SET status = ?, updated_by_id = ?, updated_by_type = ? WHERE id = ? AND school_id = ?`,
+      [status, req.session.adminId, req.session.adminRole || 'instructor', req.params.id, req.schoolId]
     );
 
     if (result.affectedRows === 0) {

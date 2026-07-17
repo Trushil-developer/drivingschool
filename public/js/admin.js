@@ -447,7 +447,10 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
         } else if (tab === 'trainingDays' || tab === 'courses' || tab === 'packages') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.remove('hidden');
-        } else if (tab === 'cars' || tab === 'branches' || tab === 'instructors') {
+        } else if (tab === 'instructors') {
+            searchInput?.classList.add('hidden');
+            addBtn?.classList.add('hidden');
+        } else if (tab === 'cars' || tab === 'branches') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.remove('hidden');
         } else {
@@ -465,8 +468,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
 
     addBtn?.addEventListener("click", e => {
         e.preventDefault();
-        if (currentTab === "instructors") window.openInstructorAddModal(tabRenderers, currentTab)();
-        else if (currentTab === "cars") window.openCarAddModal(tabRenderers, currentTab)();
+        if (currentTab === "cars") window.openCarAddModal(tabRenderers, currentTab)();
         else if (currentTab === "branches") openBranchModal(tabRenderers, currentTab)();
         else if (currentTab === "trainingDays") openTrainingDaysModal(tabRenderers, currentTab);
         else if (currentTab === "courses") window.openCourseAddModal(tabRenderers, currentTab)();

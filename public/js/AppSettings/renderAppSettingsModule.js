@@ -74,6 +74,18 @@ window.renderAppSettingsModule = async function (tableWrap) {
                 </div>
             </div>
 
+            <!-- Connectivity -->
+            <div class="as-section-label" style="margin-top:28px">CONNECTIVITY</div>
+            <div class="as-card">
+                <div class="as-item">
+                    <div class="as-item-icon">📶</div>
+                    <div class="as-item-info">
+                        <div class="as-item-title">WiFi SSID — configured per branch</div>
+                        <div class="as-item-desc">Each branch has its own WiFi SSID. Instructors can only clock in when connected to their branch's WiFi network. Set the SSID for each branch under <strong>School Setup → Branches → Edit</strong>.</div>
+                    </div>
+                </div>
+            </div>
+
             <p class="as-hint">More features will appear here as they are added to the app.</p>
         </div>
     `;
@@ -123,4 +135,5 @@ window.renderAppSettingsModule = async function (tableWrap) {
         this.closest('label').classList.toggle('as-toggle--on', this.checked);
         await updateSetting('feature_leave_request', this.checked);
     });
+
 };

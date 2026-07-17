@@ -429,8 +429,8 @@ router.get("/exam-stats", requireAdmin, async (req, res) => {
         SUM(CASE WHEN result = 'FAIL' THEN 1 ELSE 0 END) AS failed,
         ROUND(AVG(score), 1) AS avgScore
       FROM exam_attempts
-      WHERE status = 'completed'
-    `);
+      WHERE status = 'completed' AND school_id = ?
+    `, [req.schoolId]);
 
     res.json({
       success: true,

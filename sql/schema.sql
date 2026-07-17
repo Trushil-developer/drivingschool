@@ -65,6 +65,16 @@ SET @sql := IF(@col_exists=0,
                'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- actor tracking (who created/edited this record)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='expenses' AND column_name='created_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE expenses ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='expenses' AND column_name='created_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE expenses ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='expenses' AND column_name='updated_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE expenses ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='expenses' AND column_name='updated_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE expenses ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- CARS TABLE
 -- =====================================
@@ -341,6 +351,16 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE cars ADD COLUMN school_id INT NOT NULL
 SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='cars' AND index_name='idx_cars_school');
 SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_cars_school ON cars (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- actor tracking (who created/edited this record)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cars' AND column_name='created_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE cars ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cars' AND column_name='created_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE cars ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cars' AND column_name='updated_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE cars ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cars' AND column_name='updated_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE cars ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- INSTRUCTORS TABLE
 -- =====================================
@@ -374,6 +394,16 @@ UPDATE instructors SET employee_no = CONCAT('EMP', LPAD(id, 3, '0')) WHERE emplo
 
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='school_id');
 SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- actor tracking (who created/edited this record)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='created_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='created_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='updated_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='updated_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- BOOKINGS TABLE
@@ -800,6 +830,16 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN school_id INT NOT 
 SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='bookings' AND index_name='idx_bookings_school');
 SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_bookings_school ON bookings (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- actor tracking (who created/edited this record)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='created_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='created_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='updated_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='updated_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- ATTENDANCE TABLE
 -- =====================================
@@ -1015,6 +1055,23 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN school_id INT NOT 
 SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='branches' AND index_name='idx_branches_school');
 SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_branches_school ON branches (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- wifi_ssid (per-branch WiFi network required for instructor clock-in/out)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='wifi_ssid');
+SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN wifi_ssid VARCHAR(255) NOT NULL DEFAULT \'\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- actor tracking (who created/edited this record)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='created_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='created_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='updated_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='updated_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='wifi_ssid');
+SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN wifi_ssid VARCHAR(255) NOT NULL DEFAULT \'\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- TRAINING DAYS TABLE
 -- =====================================
@@ -1050,6 +1107,16 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='training_days' AND column_name='school_id');
 SET @sql := IF(@col_exists=0,'ALTER TABLE training_days ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- actor tracking (who created/edited this record)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='training_days' AND column_name='created_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE training_days ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='training_days' AND column_name='created_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE training_days ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='training_days' AND column_name='updated_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE training_days ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='training_days' AND column_name='updated_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE training_days ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- ENQUIRIES TABLE
@@ -1273,6 +1340,16 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='school_id');
 SET @sql := IF(@col_exists=0,'ALTER TABLE courses ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- actor tracking (who created/edited this record)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='created_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE courses ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='created_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE courses ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='updated_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE courses ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='updated_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE courses ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- EMAIL OTPS TABLE
 -- =====================================
@@ -1417,6 +1494,10 @@ SET @sql := IF(@idx_exists=0,
     'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- school_id (multi-tenant scoping)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='email_otps' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE email_otps ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- EXAM USERS TABLE
 -- =====================================
@@ -1549,6 +1630,10 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE exam_users ADD COLUMN full_name VARCHA
 -- mobile_no
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='exam_users' AND column_name='mobile_no');
 SET @sql := IF(@col_exists=0,'ALTER TABLE exam_users ADD COLUMN mobile_no VARCHAR(20) DEFAULT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- school_id (multi-tenant scoping)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='exam_users' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE exam_users ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- EXAM ATTEMPTS TABLE
@@ -1702,6 +1787,10 @@ SET @sql := IF(@fk_exists=0,
     'SELECT "exists";'
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- school_id (multi-tenant scoping)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='exam_attempts' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE exam_attempts ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- INDEXES
@@ -1867,6 +1956,16 @@ SET @sql := IF(@idx_exists>0,'ALTER TABLE cms_pages DROP INDEX slug;','SELECT "e
 SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND index_name='uq_cms_school_slug');
 SET @sql := IF(@idx_exists=0,'ALTER TABLE cms_pages ADD UNIQUE KEY uq_cms_school_slug (school_id, slug);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- actor tracking (who created/edited this record)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND column_name='created_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE cms_pages ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND column_name='created_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE cms_pages ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND column_name='updated_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE cms_pages ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND column_name='updated_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE cms_pages ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- DRIVING PACKAGES TABLE
 -- =====================================
@@ -2005,6 +2104,16 @@ DEALLOCATE PREPARE stmt;
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driving_packages' AND column_name='school_id');
 SET @sql := IF(@col_exists=0,'ALTER TABLE driving_packages ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- actor tracking (who created/edited this record)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driving_packages' AND column_name='created_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driving_packages ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driving_packages' AND column_name='created_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driving_packages ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driving_packages' AND column_name='updated_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driving_packages ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driving_packages' AND column_name='updated_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driving_packages ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- PRACTICE PROGRESS TABLE
 -- =====================================
@@ -2044,6 +2153,10 @@ SET @sql := IF(@idx_exists=0,
     'CREATE INDEX idx_practice_progress_category ON practice_progress (user_id, category, language);',
     'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- school_id (multi-tenant scoping)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='practice_progress' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE practice_progress ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- SCHEDULE AD-HOC SLOTS TABLE
@@ -2108,6 +2221,11 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='enquiry_actions' AND column_name='school_id');
 SET @sql := IF(@col_exists=0,'ALTER TABLE enquiry_actions ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='enquiry_actions' AND column_name='actor_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE enquiry_actions ADD COLUMN actor_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='enquiry_actions' AND column_name='actor_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE enquiry_actions ADD COLUMN actor_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- LEAVE REQUESTS TABLE
 -- =====================================
@@ -2128,6 +2246,16 @@ SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE tab
 SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_leave_requests_instructor ON leave_requests (instructor_id);','SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- school_id (multi-tenant scoping)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='leave_requests' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE leave_requests ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- actor tracking (which admin approved/rejected this request)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='leave_requests' AND column_name='updated_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE leave_requests ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='leave_requests' AND column_name='updated_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE leave_requests ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- DRIVER TRIPS TABLE
 -- =====================================
@@ -2147,6 +2275,10 @@ CREATE TABLE IF NOT EXISTS driver_trips (
 SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND index_name='idx_driver_trips_instructor');
 SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_driver_trips_instructor ON driver_trips (instructor_id, status);','SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- school_id (multi-tenant scoping)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- APP SETTINGS (Remote Config / Feature Flags)
@@ -2187,6 +2319,16 @@ SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE tab
 SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_student_complaints_email ON student_complaints (student_email);','SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- school_id (multi-tenant scoping)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='student_complaints' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE student_complaints ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- actor tracking (which admin updated status/added a note)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='student_complaints' AND column_name='updated_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE student_complaints ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='student_complaints' AND column_name='updated_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE student_complaints ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- SESSION RATINGS TABLE
 -- =====================================
@@ -2201,3 +2343,28 @@ CREATE TABLE IF NOT EXISTS session_ratings (
     rated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uniq_user_session (exam_user_id, attendance_id)
 );
+
+-- school_id (multi-tenant scoping)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='session_ratings' AND column_name='school_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE session_ratings ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- INSTRUCTOR ATTENDANCE TABLE
+-- =====================================
+CREATE TABLE IF NOT EXISTS instructor_attendance (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    instructor_id   INT NOT NULL,
+    date            DATE NOT NULL,
+    clock_in        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    clock_out       TIMESTAMP NULL DEFAULT NULL,
+    school_id       INT NOT NULL DEFAULT 1,
+    UNIQUE KEY uniq_instructor_date (instructor_id, date)
+);
+
+-- instructor_name (denormalized, matches leave_requests/driver_trips convention)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructor_attendance' AND column_name='instructor_name');
+SET @sql := IF(@col_exists=0,'ALTER TABLE instructor_attendance ADD COLUMN instructor_name VARCHAR(100) NOT NULL DEFAULT \'\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Seed wifi_ssid into app_settings if not already present
+INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES
+    ('wifi_ssid', '', 'School WiFi SSID', 'SSID of the school WiFi network; instructors must be connected to this network to clock in/out');

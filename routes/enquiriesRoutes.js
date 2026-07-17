@@ -220,9 +220,9 @@ router.post("/:id/actions", requireAdmin, async (req, res, next) => {
     if (!enq) return res.status(404).json({ success: false, message: "Enquiry not found" });
 
     const [result] = await dbPool.query(
-      `INSERT INTO enquiry_actions (enquiry_id, action_type, note, action_by, action_date, school_id)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [req.params.id, action_type || "Call", note.trim(), action_by.trim(), action_date || new Date(), req.schoolId]
+      `INSERT INTO enquiry_actions (enquiry_id, action_type, note, action_by, action_date, school_id, actor_id, actor_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.params.id, action_type || "Call", note.trim(), action_by.trim(), action_date || new Date(), req.schoolId, req.session.adminId, req.session.adminRole || 'instructor']
     );
 
     if (req.body.status) {

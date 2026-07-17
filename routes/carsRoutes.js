@@ -30,8 +30,8 @@ router.post('/', requireAdmin, async (req, res, next) => {
       INSERT INTO cars
       (car_name, tag, branch, car_registration_no, insurance_policy_no, insurance_company,
        insurance_issue_date, insurance_expiry_date, puc_issue_date, puc_expiry_date,
-       price_15_days, price_21_days, inactive, school_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       price_15_days, price_21_days, inactive, school_id, created_by_id, created_by_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       car_name,
       tag?.trim() || null,
@@ -46,7 +46,9 @@ router.post('/', requireAdmin, async (req, res, next) => {
       price_15_days ?? 0,
       price_21_days ?? 0,
       inactive ? 1 : 0,
-      req.schoolId
+      req.schoolId,
+      req.session.adminId,
+      req.session.adminRole || 'instructor',
     ]);
 
     res.json({ success: true, car_id: result.insertId });
@@ -82,7 +84,9 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
         puc_expiry_date=?,
         price_15_days=?,
         price_21_days=?,
-        inactive=?
+        inactive=?,
+        updated_by_id=?,
+        updated_by_type=?
       WHERE id=? AND school_id=?
     `, [
       car_name,
@@ -98,6 +102,8 @@ router.put('/:id', requireAdmin, async (req, res, next) => {
       price_15_days ?? 0,
       price_21_days ?? 0,
       inactive ? 1 : 0,
+      req.session.adminId,
+      req.session.adminRole || 'instructor',
       id,
       req.schoolId
     ]);
@@ -128,7 +134,10 @@ router.patch('/:id/active', requireAdmin, async (req, res, next) => {
   if (inactive === undefined) return res.json({ success: false, error: 'inactive field is required' });
 
   try {
-    await dbPool.query('UPDATE cars SET inactive=? WHERE id=? AND school_id=?', [inactive ? 1 : 0, id, req.schoolId]);
+    await dbPool.query(
+      'UPDATE cars SET inactive=?, updated_by_id=?, updated_by_type=? WHERE id=? AND school_id=?',
+      [inactive ? 1 : 0, req.session.adminId, req.session.adminRole || 'instructor', id, req.schoolId]
+    );
     res.json({ success: true });
   } catch (err) {
     console.error('TOGGLE CAR ACTIVE ERROR:', err);

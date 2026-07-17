@@ -495,7 +495,7 @@ app.patch('/api/student/profile', requireExamUser, async (req, res, next) => {
   if (mobile_no !== undefined) { updates.push('mobile_no = ?'); params.push(mobile_no.trim() || null); }
   if (updates.length === 0) return res.json({ success: false, error: 'Nothing to update' });
   try {
-    await dbPool.query(`UPDATE exam_users SET ${updates.join(', ')} WHERE id = ?`, [...params, id]);
+    await dbPool.query(`UPDATE exam_users SET ${updates.join(', ')} WHERE id = ? AND school_id = ?`, [...params, id, req.schoolId]);
     // Keep bookings in sync so changes appear on the website
     const bookingUpdates = [];
     const bookingParams  = [];
@@ -503,8 +503,8 @@ app.patch('/api/student/profile', requireExamUser, async (req, res, next) => {
     if (mobile_no !== undefined) { bookingUpdates.push('mobile_no = ?');     bookingParams.push(mobile_no.trim() || null); }
     if (bookingUpdates.length) {
       await dbPool.query(
-        `UPDATE bookings SET ${bookingUpdates.join(', ')} WHERE email = ?`,
-        [...bookingParams, email]
+        `UPDATE bookings SET ${bookingUpdates.join(', ')} WHERE email = ? AND school_id = ?`,
+        [...bookingParams, email, req.schoolId]
       );
     }
     res.json({ success: true });
@@ -520,9 +520,9 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
     const name = eu?.full_name ?? null;
 
     const conditions = name
-      ? '(b.email = ? OR b.customer_name = ?)'
-      : 'b.email = ?';
-    const params = name ? [email, name] : [email];
+      ? '(b.email = ? OR b.customer_name = ?) AND b.school_id = ?'
+      : 'b.email = ? AND b.school_id = ?';
+    const params = name ? [email, name, req.schoolId] : [email, req.schoolId];
 
     const [rows] = await dbPool.query(
       `SELECT b.id, b.branch, b.training_days, b.customer_name, b.mobile_no, b.email,
@@ -555,8 +555,8 @@ app.get('/api/student/sessions', requireExamUser, async (req, res, next) => {
   try {
     const [[eu]] = await dbPool.query('SELECT full_name FROM exam_users WHERE id = ? LIMIT 1', [examUserId]);
     const name = eu?.full_name ?? null;
-    const conditions = name ? '(b.email = ? OR b.customer_name = ?)' : 'b.email = ?';
-    const params = name ? [email, name] : [email];
+    const conditions = name ? '(b.email = ? OR b.customer_name = ?) AND b.school_id = ?' : 'b.email = ? AND b.school_id = ?';
+    const params = name ? [email, name, req.schoolId] : [email, req.schoolId];
 
     const [rows] = await dbPool.query(
       `SELECT a.id, a.booking_id, a.date, a.time, a.present,
@@ -589,7 +589,10 @@ app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
       leave_type ENUM('Full Day','Half Day') NOT NULL DEFAULT 'Full Day',
       reason TEXT,
       status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
-      created_at DATETIME NOT NULL
+      created_at DATETIME NOT NULL,
+      school_id INT NOT NULL DEFAULT 1,
+      updated_by_id INT NULL,
+      updated_by_type VARCHAR(20) NULL
     )
   `);
   try {
@@ -599,9 +602,9 @@ app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
     const name   = rows[0]?.instructor_name ?? 'Unknown';
     const branch = rows[0]?.branch ?? '';
     const [result] = await dbPool.query(
-      `INSERT INTO leave_requests (instructor_id, instructor_name, branch, leave_from, leave_to, leave_type, reason, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())`,
-      [instructorId, name, branch, leave_from, leave_to, leave_type, reason || null]
+      `INSERT INTO leave_requests (instructor_id, instructor_name, branch, leave_from, leave_to, leave_type, reason, status, created_at, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', NOW(), ?)`,
+      [instructorId, name, branch, leave_from, leave_to, leave_type, reason || null, req.schoolId]
     );
     res.json({ success: true, id: result.insertId });
   } catch (err) {
@@ -610,9 +613,9 @@ app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
       const [rows] = await dbPool.query('SELECT instructor_name, branch FROM instructors WHERE id = ? LIMIT 1', [instructorId]);
       const name = rows[0]?.instructor_name ?? ''; const branch = rows[0]?.branch ?? '';
       const [result] = await dbPool.query(
-        `INSERT INTO leave_requests (instructor_id, instructor_name, branch, leave_from, leave_to, leave_type, reason, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())`,
-        [instructorId, name, branch, leave_from, leave_to, leave_type, reason || null]
+        `INSERT INTO leave_requests (instructor_id, instructor_name, branch, leave_from, leave_to, leave_type, reason, status, created_at, school_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', NOW(), ?)`,
+        [instructorId, name, branch, leave_from, leave_to, leave_type, reason || null, req.schoolId]
       );
       return res.json({ success: true, id: result.insertId });
     }
@@ -625,8 +628,8 @@ app.get('/api/driver-leave', requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(
       `SELECT id, leave_from, leave_to, leave_type, reason, status, created_at
-       FROM leave_requests WHERE instructor_id = ? ORDER BY leave_from DESC LIMIT 30`,
-      [instructorId]
+       FROM leave_requests WHERE instructor_id = ? AND school_id = ? ORDER BY leave_from DESC LIMIT 30`,
+      [instructorId, req.schoolId]
     );
     res.json({ success: true, leaves: rows });
   } catch (err) {
@@ -637,7 +640,7 @@ app.get('/api/driver-leave', requireAdmin, async (req, res, next) => {
 
 // Admin: view all leave requests for the school
 app.get('/api/admin/leave-requests', requireAdmin, async (req, res, next) => {
-  const schoolId = req.session.school_id || 1;
+  const schoolId = req.schoolId;
   const { status } = req.query;
   try {
     let q = `SELECT lr.id, lr.instructor_id, lr.instructor_name, lr.branch,
@@ -664,7 +667,14 @@ app.patch('/api/admin/leave-requests/:id', requireAdmin, async (req, res, next) 
   if (!['Approved', 'Rejected'].includes(status))
     return res.json({ success: false, error: 'Status must be Approved or Rejected' });
   try {
-    await dbPool.query('UPDATE leave_requests SET status = ? WHERE id = ?', [status, id]);
+    const [result] = await dbPool.query(
+      `UPDATE leave_requests lr
+       JOIN instructors i ON i.id = lr.instructor_id
+       SET lr.status = ?, lr.updated_by_id = ?, lr.updated_by_type = ?
+       WHERE lr.id = ? AND i.school_id = ?`,
+      [status, req.session.adminId, req.session.adminRole || 'instructor', id, req.schoolId]
+    );
+    if (!result.affectedRows) return res.json({ success: false, error: 'Leave request not found' });
     res.json({ success: true });
   } catch (err) { next(err); }
 });
@@ -776,8 +786,8 @@ INSERT INTO bookings (
   duration_minutes, certificate_url,
   ac_facility, pickup_drop, has_licence,
   apply_licence, licence_types, licence_fee,
-  school_id
-) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  school_id, created_by_id, created_by_type
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 `;
 
     const values = [
@@ -821,7 +831,9 @@ INSERT INTO bookings (
       data.apply_licence === "Yes" ? "Yes" : "No",
       data.licence_types || null,
       Number(data.licence_fee) || 0,
-      req.schoolId || 1
+      req.schoolId || 1,
+      req.session?.adminId || null,
+      req.session?.adminId ? (req.session.adminRole || 'instructor') : null,
     ];
 
     const [result] = await dbPool.query(sql, values);
@@ -1013,7 +1025,9 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
         extended_days=?,
         apply_licence=?,
         licence_types=?,
-        licence_fee=?
+        licence_fee=?,
+        updated_by_id=?,
+        updated_by_type=?
       WHERE id=? AND school_id=?
     `;
 
@@ -1059,6 +1073,8 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
         : current.apply_licence,
       data.licence_types ?? current.licence_types,
       Number(data.licence_fee ?? current.licence_fee),
+      req.session.adminId,
+      req.session.adminRole || 'instructor',
       id,
       req.schoolId
     ];
@@ -1567,10 +1583,11 @@ app.patch('/api/schedule-slots/:id/present', requireAdmin, async (req, res, next
 });
 
 // ---------- BRANCHES CRUD ----------
+
 app.get('/api/branches', async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
-      SELECT id, branch_name, address, city, state, postal_code, mobile_no, email, created_at
+      SELECT id, branch_name, address, city, state, postal_code, mobile_no, email, wifi_ssid, created_at
       FROM branches WHERE school_id = 1 ORDER BY id DESC
     `);
     res.json({ success: true, branches: rows });
@@ -1586,11 +1603,12 @@ app.post('/api/branches', requireAdmin, async (req, res, next) => {
 
   try {
     const sql = `
-      INSERT INTO branches (branch_name, address, city, state, postal_code, mobile_no, email, school_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO branches (branch_name, address, city, state, postal_code, mobile_no, email, wifi_ssid, school_id, created_by_id, created_by_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     const values = [data.branch_name, data.address || '', data.city || '', data.state || '',
-      data.postal_code || '', data.mobile_no || '', data.email || '', req.schoolId];
+      data.postal_code || '', data.mobile_no || '', data.email || '', data.wifi_ssid || '',
+      req.schoolId, req.session.adminId, req.session.adminRole || 'instructor'];
     const [result] = await dbPool.query(sql, values);
     res.json({ success: true, branch_id: result.insertId });
   } catch (err) {
@@ -1606,11 +1624,13 @@ app.put('/api/branches/:id', requireAdmin, async (req, res, next) => {
 
   try {
     const sql = `
-      UPDATE branches SET branch_name=?, address=?, city=?, state=?, postal_code=?, mobile_no=?, email=?
+      UPDATE branches SET branch_name=?, address=?, city=?, state=?, postal_code=?, mobile_no=?, email=?,
+        wifi_ssid=?, updated_by_id=?, updated_by_type=?
       WHERE id=? AND school_id=?
     `;
     const values = [data.branch_name, data.address || '', data.city || '', data.state || '',
-      data.postal_code || '', data.mobile_no || '', data.email || '', id, req.schoolId];
+      data.postal_code || '', data.mobile_no || '', data.email || '', data.wifi_ssid || '',
+      req.session.adminId, req.session.adminRole || 'instructor', id, req.schoolId];
     await dbPool.query(sql, values);
     res.json({ success: true });
   } catch (err) {
@@ -1778,13 +1798,13 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
       `UPDATE driver_trips SET status='completed', ended_at=NOW() WHERE instructor_id=? AND status='active'`,
       [instructorId]
     );
-    const [[inst]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? LIMIT 1', [instructorId]);
-    const [[bk]]   = await dbPool.query('SELECT customer_name FROM bookings WHERE id=? LIMIT 1', [booking_id]);
+    const [[inst]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? AND school_id=? LIMIT 1', [instructorId, req.schoolId]);
+    const [[bk]]   = await dbPool.query('SELECT customer_name FROM bookings WHERE id=? AND school_id=? LIMIT 1', [booking_id, req.schoolId]);
     if (!bk) return res.status(404).json({ success: false, error: 'Booking not found' });
     const [result] = await dbPool.query(
-      `INSERT INTO driver_trips (instructor_id, instructor_name, booking_id, student_name, started_at, duration_mins, status)
-       VALUES (?, ?, ?, ?, NOW(), ?, 'active')`,
-      [instructorId, inst?.instructor_name ?? '', booking_id, bk?.customer_name ?? '', duration_mins]
+      `INSERT INTO driver_trips (instructor_id, instructor_name, booking_id, student_name, started_at, duration_mins, status, school_id)
+       VALUES (?, ?, ?, ?, NOW(), ?, 'active', ?)`,
+      [instructorId, inst?.instructor_name ?? '', booking_id, bk?.customer_name ?? '', duration_mins, req.schoolId]
     );
     const [[trip]] = await dbPool.query('SELECT * FROM driver_trips WHERE id=?', [result.insertId]);
     const remainingSecs = trip.duration_mins * 60;
@@ -1798,7 +1818,10 @@ app.post('/api/driver/trip/end', requireAdmin, async (req, res, next) => {
   const { trip_id } = req.body;
   try {
     await dbPool.query(
-      `UPDATE driver_trips SET status='completed', ended_at=NOW() WHERE id=? AND instructor_id=?`,
+      `UPDATE driver_trips
+       SET status='completed', ended_at=NOW(),
+           duration_mins = LEAST(120, GREATEST(1, TIMESTAMPDIFF(MINUTE, started_at, NOW())))
+       WHERE id=? AND instructor_id=?`,
       [trip_id, instructorId]
     );
     res.json({ success: true });
@@ -1830,9 +1853,9 @@ app.get('/api/driver/trips/status', requireAdmin, async (req, res, next) => {
              GREATEST(0, COALESCE(dt.duration_mins,30)*60 - TIMESTAMPDIFF(SECOND, dt.started_at, NOW())) AS remaining_secs
       FROM instructors i
       LEFT JOIN driver_trips dt ON dt.instructor_id = i.id AND dt.status = 'active'
-      WHERE i.is_active = 1
+      WHERE i.is_active = 1 AND i.school_id = ?
       ORDER BY i.branch, i.instructor_name
-    `);
+    `, [req.schoolId]);
     const data = rows.map(r => ({
       id: r.id, name: r.instructor_name, branch: r.branch,
       on_trip: !!r.trip_id,
@@ -1893,6 +1916,7 @@ const ensureAppSettingsTable = async () => {
     { key: 'maintenance_mode',      value: 'false', label: 'Maintenance Mode',  description: 'When ON, all app users see a maintenance screen. Admin panel stays accessible.' },
     { key: 'maintenance_message',   value: 'We are currently performing maintenance. Please check back soon.', label: 'Maintenance Message', description: 'Text shown to users during maintenance' },
     { key: 'feature_leave_request', value: 'true',  label: 'Leave Request',     description: 'Drivers can submit leave requests from the app' },
+    { key: 'wifi_ssid',             value: '',      label: 'School WiFi SSID',  description: 'Instructors must be on this WiFi to clock in/out. Leave empty to disable WiFi check.' },
   ];
   for (const d of defaults) {
     await dbPool.query(
@@ -1910,6 +1934,23 @@ app.get('/api/app-config', async (req, res, next) => {
     const config = {};
     for (const row of rows) {
       config[row.key] = row.value === 'true' ? true : row.value === 'false' ? false : row.value;
+    }
+    // If an instructor is logged in, override wifi_ssid with their branch's wifi_ssid
+    if (req.session?.adminId) {
+      try {
+        const schoolId = req.session.schoolId || 1;
+        const [[inst]] = await dbPool.query(
+          'SELECT branch FROM instructors WHERE id=? AND school_id=? LIMIT 1',
+          [req.session.adminId, schoolId]
+        );
+        if (inst?.branch) {
+          const [[br]] = await dbPool.query(
+            'SELECT wifi_ssid FROM branches WHERE branch_name=? AND school_id=? LIMIT 1',
+            [inst.branch, schoolId]
+          );
+          if (br?.wifi_ssid) config.wifi_ssid = br.wifi_ssid;
+        }
+      } catch (_) {}
     }
     res.json({ success: true, config });
   } catch (err) { next(err); }
@@ -2014,6 +2055,14 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
   const { date_from, date_to, instructor_id, status } = req.query;
   try {
     await ensureTripsTable();
+    // Auto-complete any trip that has been active for more than 2 hours
+    await dbPool.query(
+      `UPDATE driver_trips
+       SET status='completed',
+           ended_at = DATE_ADD(started_at, INTERVAL 120 MINUTE),
+           duration_mins = 120
+       WHERE status='active' AND TIMESTAMPDIFF(MINUTE, started_at, NOW()) > 120`
+    );
     const conditions = ['i.school_id = ?'];
     const params = [schoolId];
 
@@ -2038,6 +2087,98 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
     if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, trips: [] });
     next(err);
   }
+});
+
+// ── Instructor Attendance (Clock In / Clock Out) ──────────────────────────────
+
+const ensureInstructorAttendanceTable = async () => {
+  await dbPool.query(`
+    CREATE TABLE IF NOT EXISTS instructor_attendance (
+      id           INT AUTO_INCREMENT PRIMARY KEY,
+      instructor_id INT NOT NULL,
+      instructor_name VARCHAR(100) NOT NULL DEFAULT '',
+      clock_in     DATETIME NOT NULL,
+      clock_out    DATETIME NULL,
+      date         DATE NOT NULL,
+      school_id    INT NOT NULL DEFAULT 1,
+      INDEX idx_inst_date (instructor_id, date)
+    )
+  `);
+};
+
+// Driver: clock in
+app.post('/api/driver/attendance/clock-in', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  try {
+    await ensureInstructorAttendanceTable();
+    const [[inst]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? AND school_id=? LIMIT 1', [instructorId, req.schoolId]);
+    const today = new Date().toISOString().slice(0, 10);
+    // Prevent duplicate clock-in on same day
+    const [[existing]] = await dbPool.query(
+      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND date=? AND school_id=? LIMIT 1',
+      [instructorId, today, req.schoolId]
+    );
+    if (existing) return res.json({ success: false, error: 'Already clocked in today' });
+    await dbPool.query(
+      'INSERT INTO instructor_attendance (instructor_id, instructor_name, clock_in, date, school_id) VALUES (?, ?, NOW(), ?, ?)',
+      [instructorId, inst?.instructor_name ?? '', today, req.schoolId]
+    );
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// Driver: clock out
+app.post('/api/driver/attendance/clock-out', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  try {
+    await ensureInstructorAttendanceTable();
+    const today = new Date().toISOString().slice(0, 10);
+    const [[record]] = await dbPool.query(
+      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND date=? AND clock_out IS NULL AND school_id=? LIMIT 1',
+      [instructorId, today, req.schoolId]
+    );
+    if (!record) return res.json({ success: false, error: 'No active clock-in found for today' });
+    await dbPool.query(
+      'UPDATE instructor_attendance SET clock_out=NOW() WHERE id=? AND school_id=?',
+      [record.id, req.schoolId]
+    );
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// Driver: get today's attendance record
+app.get('/api/driver/attendance/today', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  try {
+    await ensureInstructorAttendanceTable();
+    const today = new Date().toISOString().slice(0, 10);
+    const [[record]] = await dbPool.query(
+      'SELECT * FROM instructor_attendance WHERE instructor_id=? AND date=? AND school_id=? LIMIT 1',
+      [instructorId, today, req.schoolId]
+    );
+    res.json({ success: true, record: record ?? null });
+  } catch (err) { next(err); }
+});
+
+// Admin: view instructor attendance
+app.get('/api/admin/instructor-attendance', requireAdmin, async (req, res, next) => {
+  const { date_from, date_to, instructor_id } = req.query;
+  try {
+    await ensureInstructorAttendanceTable();
+    const conditions = ['ia.school_id = ?'];
+    const params = [req.schoolId];
+    if (date_from)     { conditions.push('ia.date >= ?'); params.push(date_from); }
+    if (date_to)       { conditions.push('ia.date <= ?'); params.push(date_to); }
+    if (instructor_id) { conditions.push('ia.instructor_id = ?'); params.push(instructor_id); }
+    const where = 'WHERE ' + conditions.join(' AND ');
+    const [rows] = await dbPool.query(
+      `SELECT ia.*, TIMESTAMPDIFF(MINUTE, ia.clock_in, COALESCE(ia.clock_out, NOW())) AS duration_mins
+       FROM instructor_attendance ia ${where}
+       ORDER BY ia.date DESC, ia.clock_in DESC LIMIT 500`,
+      params
+    );
+    res.json({ success: true, records: rows });
+  } catch (err) { next(err); }
 });
 
 // Public HTML: student-facing driver status page
@@ -2140,7 +2281,8 @@ const ensureComplaintsTable = () => dbPool.query(`
     status          ENUM('Open','In Review','Resolved','Closed') NOT NULL DEFAULT 'Open',
     admin_note      TEXT,
     created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    school_id       INT NOT NULL DEFAULT 1
   )
 `);
 
@@ -2174,9 +2316,9 @@ app.post('/api/student/complaints', requireExamUser, async (req, res, next) => {
   try {
     await ensureComplaintsTable();
     const [result] = await dbPool.query(
-      `INSERT INTO student_complaints (student_email, student_name, booking_id, subject, message, category)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [email, full_name || null, booking_id || null, subject.trim(), message.trim(), cat],
+      `INSERT INTO student_complaints (student_email, student_name, booking_id, subject, message, category, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [email, full_name || null, booking_id || null, subject.trim(), message.trim(), cat, req.schoolId],
     );
     res.json({ success: true, id: result.insertId });
   } catch (err) { next(err); }
@@ -2189,8 +2331,8 @@ app.get('/api/student/complaints', requireExamUser, async (req, res, next) => {
     await ensureComplaintsTable();
     const [rows] = await dbPool.query(
       `SELECT id, subject, message, category, status, admin_note, created_at, updated_at
-       FROM student_complaints WHERE student_email = ? ORDER BY created_at DESC`,
-      [email],
+       FROM student_complaints WHERE student_email = ? AND school_id = ? ORDER BY created_at DESC`,
+      [email, req.schoolId],
     );
     res.json({ success: true, complaints: rows });
   } catch (err) { next(err); }
@@ -2201,11 +2343,11 @@ app.get('/api/admin/complaints', requireAdmin, async (req, res, next) => {
   const { status, category } = req.query;
   try {
     await ensureComplaintsTable();
-    const conditions = [];
-    const params = [];
+    const conditions = ['sc.school_id = ?'];
+    const params = [req.schoolId];
     if (status)   { conditions.push('status = ?');   params.push(status); }
     if (category) { conditions.push('category = ?'); params.push(category); }
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const where = `WHERE ${conditions.join(' AND ')}`;
     const [rows] = await dbPool.query(
       `SELECT sc.id, sc.student_email, COALESCE(sc.student_name, b.customer_name, eu.full_name) AS student_name,
               sc.booking_id, sc.subject, sc.message, sc.category, sc.status, sc.admin_note, sc.created_at, sc.updated_at
@@ -2232,9 +2374,11 @@ app.patch('/api/admin/complaints/:id', requireAdmin, async (req, res, next) => {
   if (status !== undefined)     { updates.push('status = ?');     params.push(status); }
   if (admin_note !== undefined) { updates.push('admin_note = ?'); params.push(admin_note || null); }
   if (updates.length === 0) return res.status(400).json({ success: false, error: 'Nothing to update' });
-  params.push(id);
+  updates.push('updated_by_id = ?', 'updated_by_type = ?');
+  params.push(req.session.adminId, req.session.adminRole || 'instructor', id, req.schoolId);
   try {
-    await dbPool.query(`UPDATE student_complaints SET ${updates.join(', ')} WHERE id = ?`, params);
+    const [result] = await dbPool.query(`UPDATE student_complaints SET ${updates.join(', ')} WHERE id = ? AND school_id = ?`, params);
+    if (!result.affectedRows) return res.json({ success: false, error: 'Complaint not found' });
     res.json({ success: true });
   } catch (err) { next(err); }
 });
@@ -2251,6 +2395,7 @@ const ensureRatingsTable = () => dbPool.query(`
     rating         TINYINT NOT NULL,
     comment        TEXT,
     rated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    school_id      INT NOT NULL DEFAULT 1,
     UNIQUE KEY uniq_user_session (exam_user_id, attendance_id)
   )
 `);
@@ -2262,10 +2407,9 @@ app.get('/api/student/pending-rating', requireExamUser, async (req, res, next) =
     await ensureRatingsTable();
     const [[eu]] = await dbPool.query('SELECT full_name FROM exam_users WHERE id = ? LIMIT 1', [examUserId]);
     const name = eu?.full_name ?? null;
-    const conditions = name ? '(b.email = ? OR b.customer_name = ?)' : 'b.email = ?';
-    const params = name ? [email, name, examUserId] : [email, examUserId];
     // Get the single most recent attended session
-    const params2 = name ? [email, name] : [email];
+    const conditions = name ? '(b.email = ? OR b.customer_name = ?) AND b.school_id = ?' : 'b.email = ? AND b.school_id = ?';
+    const params2 = name ? [email, name, req.schoolId] : [email, req.schoolId];
     const [rows] = await dbPool.query(
       `SELECT a.id AS attendance_id, a.date, a.time, a.booking_id,
               b.instructor_name, b.branch, b.car_name
@@ -2299,10 +2443,10 @@ app.post('/api/student/rate-session', requireExamUser, async (req, res, next) =>
   try {
     await ensureRatingsTable();
     await dbPool.query(
-      `INSERT INTO session_ratings (exam_user_id, attendance_id, booking_id, instructor_name, rating, comment)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO session_ratings (exam_user_id, attendance_id, booking_id, instructor_name, rating, comment, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE rating = VALUES(rating), comment = VALUES(comment), rated_at = NOW()`,
-      [examUserId, attendance_id, booking_id || null, instructor_name || null, rating, comment?.trim() || null],
+      [examUserId, attendance_id, booking_id || null, instructor_name || null, rating, comment?.trim() || null, req.schoolId],
     );
     res.json({ success: true });
   } catch (err) { next(err); }
@@ -2319,7 +2463,9 @@ app.get('/api/admin/session-ratings', requireAdmin, async (req, res, next) => {
        FROM session_ratings sr
        LEFT JOIN exam_users eu ON eu.id = sr.exam_user_id
        LEFT JOIN bookings b ON b.id = sr.booking_id
+       WHERE sr.school_id = ?
        ORDER BY sr.rated_at DESC LIMIT 500`,
+      [req.schoolId],
     );
     res.json({ success: true, ratings: rows });
   } catch (err) { next(err); }
@@ -2357,6 +2503,9 @@ export function requireAdmin(req, res, next) {
 }
 
 export function requireExamUser(req, res, next) {
-  if (req.session && req.session.examUser) return next();
+  if (req.session && req.session.examUser) {
+    req.schoolId = req.session.examUser.school_id || 1;
+    return next();
+  }
   return res.status(401).json({ success: false, error: 'Not logged in' });
 }

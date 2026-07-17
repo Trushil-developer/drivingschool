@@ -41,9 +41,9 @@ router.post('/', requireAdmin, async (req, res) => {
   try {
     const [result] = await dbPool.query(`
       INSERT INTO instructors
-      (instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address, role, is_active, school_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '', role || 'Instructor', req.schoolId]);
+      (instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address, role, is_active, school_id, created_by_id, created_by_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '', role || 'Instructor', req.schoolId, req.session.adminId, req.session.adminRole || 'instructor']);
 
     const newId = result.insertId;
     const employee_no = `EMP${String(newId).padStart(3, '0')}`;
@@ -68,9 +68,10 @@ router.put('/:id', requireAdmin, async (req, res) => {
   try {
     await dbPool.query(`
       UPDATE instructors SET
-        instructor_name=?, email=?, mobile_no=?, branch=?, drivers_license=?, adhar_no=?, address=?, role=?
+        instructor_name=?, email=?, mobile_no=?, branch=?, drivers_license=?, adhar_no=?, address=?, role=?,
+        updated_by_id=?, updated_by_type=?
       WHERE id=? AND school_id=?
-    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '', role || 'Instructor', id, req.schoolId]);
+    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '', role || 'Instructor', req.session.adminId, req.session.adminRole || 'instructor', id, req.schoolId]);
 
     res.json({ success: true });
   } catch (err) {
@@ -86,7 +87,10 @@ router.patch('/:id/active', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { is_active } = req.body;
   try {
-    await dbPool.query(`UPDATE instructors SET is_active=? WHERE id=? AND school_id=?`, [is_active ? 1 : 0, id, req.schoolId]);
+    await dbPool.query(
+      `UPDATE instructors SET is_active=?, updated_by_id=?, updated_by_type=? WHERE id=? AND school_id=?`,
+      [is_active ? 1 : 0, req.session.adminId, req.session.adminRole || 'instructor', id, req.schoolId]
+    );
     res.json({ success: true });
   } catch (err) {
     console.error('INSTRUCTOR STATUS TOGGLE ERROR:', err);

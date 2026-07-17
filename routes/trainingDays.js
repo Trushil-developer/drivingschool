@@ -32,8 +32,8 @@ router.post('/', requireAdmin, async (req, res) => {
 
   try {
     const [result] = await dbPool.query(
-      `INSERT INTO training_days (days, is_active, school_id) VALUES (?, 1, ?)`,
-      [days, req.schoolId]
+      `INSERT INTO training_days (days, is_active, school_id, created_by_id, created_by_type) VALUES (?, 1, ?, ?, ?)`,
+      [days, req.schoolId, req.session.adminId, req.session.adminRole || 'instructor']
     );
     res.json({ success: true, id: result.insertId });
   } catch (err) {
@@ -53,8 +53,8 @@ router.put('/:id', requireAdmin, async (req, res) => {
 
   try {
     await dbPool.query(
-      `UPDATE training_days SET days=? WHERE id=? AND school_id=?`,
-      [days, id, req.schoolId]
+      `UPDATE training_days SET days=?, updated_by_id=?, updated_by_type=? WHERE id=? AND school_id=?`,
+      [days, req.session.adminId, req.session.adminRole || 'instructor', id, req.schoolId]
     );
     res.json({ success: true });
   } catch (err) {
@@ -72,8 +72,8 @@ router.put('/:id/toggle', requireAdmin, async (req, res) => {
 
   try {
     await dbPool.query(
-      `UPDATE training_days SET is_active=? WHERE id=? AND school_id=?`,
-      [is_active ? 1 : 0, id, req.schoolId]
+      `UPDATE training_days SET is_active=?, updated_by_id=?, updated_by_type=? WHERE id=? AND school_id=?`,
+      [is_active ? 1 : 0, req.session.adminId, req.session.adminRole || 'instructor', id, req.schoolId]
     );
     res.json({ success: true });
   } catch (err) {
