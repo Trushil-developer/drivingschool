@@ -2268,7 +2268,9 @@ CREATE TABLE IF NOT EXISTS driver_trips (
     started_at      DATETIME NOT NULL,
     ended_at        DATETIME NULL,
     duration_mins   INT NOT NULL DEFAULT 30,
-    status          ENUM('active','completed') NOT NULL DEFAULT 'active',
+    status          ENUM('active','paused','completed') NOT NULL DEFAULT 'active',
+    paused_at       DATETIME NULL,
+    paused_secs     INT NOT NULL DEFAULT 0,
     created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -2279,6 +2281,14 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- school_id (multi-tenant scoping)
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='school_id');
 SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- pause/resume support
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='paused_at');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN paused_at DATETIME NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='paused_secs');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN paused_secs INT NOT NULL DEFAULT 0;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @enum_ok := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='status' AND COLUMN_TYPE LIKE '%paused%');
+SET @sql := IF(@enum_ok=0,'ALTER TABLE driver_trips MODIFY COLUMN status ENUM(\'active\',\'paused\',\'completed\') NOT NULL DEFAULT \'active\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- APP SETTINGS (Remote Config / Feature Flags)

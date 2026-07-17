@@ -1781,7 +1781,9 @@ const ensureTripsTable = () => dbPool.query(`
     started_at DATETIME NOT NULL,
     ended_at DATETIME NULL,
     duration_mins INT NOT NULL DEFAULT 30,
-    status ENUM('active','completed') NOT NULL DEFAULT 'active',
+    status ENUM('active','paused','completed') NOT NULL DEFAULT 'active',
+    paused_at DATETIME NULL,
+    paused_secs INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
   )
 `);
@@ -1793,9 +1795,9 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
   if (!booking_id) return res.json({ success: false, error: 'booking_id required' });
   try {
     await ensureTripsTable();
-    // Auto-end any existing active trip
+    // Auto-end any existing active/paused trip
     await dbPool.query(
-      `UPDATE driver_trips SET status='completed', ended_at=NOW() WHERE instructor_id=? AND status='active'`,
+      `UPDATE driver_trips SET status='completed', ended_at=NOW() WHERE instructor_id=? AND status IN ('active','paused')`,
       [instructorId]
     );
     const [[inst]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? AND school_id=? LIMIT 1', [instructorId, req.schoolId]);
@@ -1812,29 +1814,71 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Driver: end a trip
+// Driver: pause an active trip
+app.post('/api/driver/trip/pause', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  const { trip_id } = req.body;
+  try {
+    const [result] = await dbPool.query(
+      `UPDATE driver_trips SET status='paused', paused_at=NOW()
+       WHERE id=? AND instructor_id=? AND status='active'`,
+      [trip_id, instructorId]
+    );
+    if (!result.affectedRows) return res.json({ success: false, error: 'Trip is not active' });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// Driver: resume a paused trip
+app.post('/api/driver/trip/resume', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  const { trip_id } = req.body;
+  try {
+    const [result] = await dbPool.query(
+      `UPDATE driver_trips
+       SET status='active',
+           paused_secs = paused_secs + TIMESTAMPDIFF(SECOND, paused_at, NOW()),
+           paused_at = NULL
+       WHERE id=? AND instructor_id=? AND status='paused'`,
+      [trip_id, instructorId]
+    );
+    if (!result.affectedRows) return res.json({ success: false, error: 'Trip is not paused' });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// Driver: end (complete) a trip — once completed it can no longer be started, paused, or resumed
 app.post('/api/driver/trip/end', requireAdmin, async (req, res, next) => {
   const instructorId = req.session.adminId;
   const { trip_id } = req.body;
   try {
+    // If completing directly from a paused state, fold the open pause segment in first
+    await dbPool.query(
+      `UPDATE driver_trips
+       SET paused_secs = paused_secs + TIMESTAMPDIFF(SECOND, paused_at, NOW()),
+           paused_at = NULL
+       WHERE id=? AND instructor_id=? AND status='paused'`,
+      [trip_id, instructorId]
+    );
     await dbPool.query(
       `UPDATE driver_trips
        SET status='completed', ended_at=NOW(),
-           duration_mins = LEAST(120, GREATEST(1, TIMESTAMPDIFF(MINUTE, started_at, NOW())))
-       WHERE id=? AND instructor_id=?`,
+           duration_mins = LEAST(120, GREATEST(1, TIMESTAMPDIFF(MINUTE, started_at, NOW()) - FLOOR(paused_secs / 60)))
+       WHERE id=? AND instructor_id=? AND status IN ('active','paused')`,
       [trip_id, instructorId]
     );
     res.json({ success: true });
   } catch (err) { next(err); }
 });
 
-// Driver: get own active trip
+// Driver: get own active/paused trip
 app.get('/api/driver/trip/active', requireAdmin, async (req, res, next) => {
   const instructorId = req.session.adminId;
   try {
     const [rows] = await dbPool.query(
-      `SELECT *, GREATEST(0, duration_mins * 60 - TIMESTAMPDIFF(SECOND, started_at, NOW())) AS remaining_secs
-       FROM driver_trips WHERE instructor_id=? AND status='active' ORDER BY started_at DESC LIMIT 1`,
+      `SELECT *,
+              GREATEST(0, duration_mins * 60 - (TIMESTAMPDIFF(SECOND, started_at, NOW()) - paused_secs)) AS remaining_secs
+       FROM driver_trips WHERE instructor_id=? AND status IN ('active','paused') ORDER BY started_at DESC LIMIT 1`,
       [instructorId]
     );
     res.json({ success: true, trip: rows[0] ?? null });
@@ -1849,10 +1893,10 @@ app.get('/api/driver/trips/status', requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
       SELECT i.id, i.instructor_name, i.branch,
-             dt.id AS trip_id, dt.booking_id, dt.student_name,
-             GREATEST(0, COALESCE(dt.duration_mins,30)*60 - TIMESTAMPDIFF(SECOND, dt.started_at, NOW())) AS remaining_secs
+             dt.id AS trip_id, dt.booking_id, dt.student_name, dt.status AS trip_status,
+             GREATEST(0, COALESCE(dt.duration_mins,30)*60 - (TIMESTAMPDIFF(SECOND, dt.started_at, NOW()) - COALESCE(dt.paused_secs,0))) AS remaining_secs
       FROM instructors i
-      LEFT JOIN driver_trips dt ON dt.instructor_id = i.id AND dt.status = 'active'
+      LEFT JOIN driver_trips dt ON dt.instructor_id = i.id AND dt.status IN ('active','paused')
       WHERE i.is_active = 1 AND i.school_id = ?
       ORDER BY i.branch, i.instructor_name
     `, [req.schoolId]);
@@ -1861,6 +1905,7 @@ app.get('/api/driver/trips/status', requireAdmin, async (req, res, next) => {
       on_trip: !!r.trip_id,
       trip_id: r.trip_id ?? null,
       student_name: r.student_name ?? null,
+      trip_status: r.trip_status ?? null,
       remaining_secs: Number(r.remaining_secs) || 0,
     }));
     res.json({ success: true, drivers: data });
@@ -1879,7 +1924,7 @@ app.get('/api/driver-status-by-name', async (req, res, next) => {
     const [[row]] = await dbPool.query(`
       SELECT i.id, i.instructor_name, dt.started_at
       FROM instructors i
-      LEFT JOIN driver_trips dt ON dt.instructor_id = i.id AND dt.status = 'active'
+      LEFT JOIN driver_trips dt ON dt.instructor_id = i.id AND dt.status IN ('active','paused')
       WHERE i.instructor_name = ? AND i.is_active = 1
       LIMIT 1
     `, [name]);
@@ -2026,8 +2071,8 @@ app.get('/api/driver-status/:instructor_id', async (req, res, next) => {
     if (!inst) return res.json({ success: false, error: 'Driver not found' });
     const [trips] = await dbPool.query(
       `SELECT student_name,
-              GREATEST(0, duration_mins*60 - TIMESTAMPDIFF(SECOND, started_at, NOW())) AS remaining_secs
-       FROM driver_trips WHERE instructor_id=? AND status='active' ORDER BY started_at DESC LIMIT 1`,
+              GREATEST(0, duration_mins*60 - (TIMESTAMPDIFF(SECOND, started_at, NOW()) - paused_secs)) AS remaining_secs
+       FROM driver_trips WHERE instructor_id=? AND status IN ('active','paused') ORDER BY started_at DESC LIMIT 1`,
       [instructor_id]
     );
     const trip = trips[0] ?? null;
@@ -2055,13 +2100,13 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
   const { date_from, date_to, instructor_id, status } = req.query;
   try {
     await ensureTripsTable();
-    // Auto-complete any trip that has been active for more than 2 hours
+    // Auto-complete any trip that has been active/paused for more than 2 hours
     await dbPool.query(
       `UPDATE driver_trips
        SET status='completed',
            ended_at = DATE_ADD(started_at, INTERVAL 120 MINUTE),
            duration_mins = 120
-       WHERE status='active' AND TIMESTAMPDIFF(MINUTE, started_at, NOW()) > 120`
+       WHERE status IN ('active','paused') AND TIMESTAMPDIFF(MINUTE, started_at, NOW()) > 120`
     );
     const conditions = ['i.school_id = ?'];
     const params = [schoolId];
@@ -2069,7 +2114,7 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
     if (date_from) { conditions.push('DATE(dt.started_at) >= ?'); params.push(date_from); }
     if (date_to)   { conditions.push('DATE(dt.started_at) <= ?'); params.push(date_to); }
     if (instructor_id) { conditions.push('dt.instructor_id = ?'); params.push(instructor_id); }
-    if (status && ['active','completed'].includes(status)) { conditions.push('dt.status = ?'); params.push(status); }
+    if (status && ['active','paused','completed'].includes(status)) { conditions.push('dt.status = ?'); params.push(status); }
 
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
     const [rows] = await dbPool.query(`
@@ -2112,16 +2157,16 @@ app.post('/api/driver/attendance/clock-in', requireAdmin, async (req, res, next)
   try {
     await ensureInstructorAttendanceTable();
     const [[inst]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? AND school_id=? LIMIT 1', [instructorId, req.schoolId]);
-    const today = new Date().toISOString().slice(0, 10);
-    // Prevent duplicate clock-in on same day
+    // Use the DB's IST-forced CURDATE(), not Node's UTC date — avoids the
+    // 00:00-05:30 IST window being bucketed into the previous calendar day.
     const [[existing]] = await dbPool.query(
-      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND date=? AND school_id=? LIMIT 1',
-      [instructorId, today, req.schoolId]
+      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND date=CURDATE() AND school_id=? LIMIT 1',
+      [instructorId, req.schoolId]
     );
     if (existing) return res.json({ success: false, error: 'Already clocked in today' });
     await dbPool.query(
-      'INSERT INTO instructor_attendance (instructor_id, instructor_name, clock_in, date, school_id) VALUES (?, ?, NOW(), ?, ?)',
-      [instructorId, inst?.instructor_name ?? '', today, req.schoolId]
+      'INSERT INTO instructor_attendance (instructor_id, instructor_name, clock_in, date, school_id) VALUES (?, ?, NOW(), CURDATE(), ?)',
+      [instructorId, inst?.instructor_name ?? '', req.schoolId]
     );
     res.json({ success: true });
   } catch (err) { next(err); }
@@ -2132,10 +2177,9 @@ app.post('/api/driver/attendance/clock-out', requireAdmin, async (req, res, next
   const instructorId = req.session.adminId;
   try {
     await ensureInstructorAttendanceTable();
-    const today = new Date().toISOString().slice(0, 10);
     const [[record]] = await dbPool.query(
-      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND date=? AND clock_out IS NULL AND school_id=? LIMIT 1',
-      [instructorId, today, req.schoolId]
+      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND date=CURDATE() AND clock_out IS NULL AND school_id=? LIMIT 1',
+      [instructorId, req.schoolId]
     );
     if (!record) return res.json({ success: false, error: 'No active clock-in found for today' });
     await dbPool.query(
@@ -2151,10 +2195,9 @@ app.get('/api/driver/attendance/today', requireAdmin, async (req, res, next) => 
   const instructorId = req.session.adminId;
   try {
     await ensureInstructorAttendanceTable();
-    const today = new Date().toISOString().slice(0, 10);
     const [[record]] = await dbPool.query(
-      'SELECT * FROM instructor_attendance WHERE instructor_id=? AND date=? AND school_id=? LIMIT 1',
-      [instructorId, today, req.schoolId]
+      'SELECT * FROM instructor_attendance WHERE instructor_id=? AND date=CURDATE() AND school_id=? LIMIT 1',
+      [instructorId, req.schoolId]
     );
     res.json({ success: true, record: record ?? null });
   } catch (err) { next(err); }
