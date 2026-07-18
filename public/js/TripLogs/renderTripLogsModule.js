@@ -18,7 +18,7 @@ window.renderTripLogsModule = async function (tableWrap) {
     }
 
     function actualDur(trip) {
-        if (trip.status === 'missing') return '—';
+        if (trip.status === 'missing' || trip.status === 'absent') return '—';
         const MAX_MINS = 120;
         const start = trip.started_at ? new Date(trip.started_at) : null;
         if (!start) return '—';
@@ -68,6 +68,7 @@ window.renderTripLogsModule = async function (tableWrap) {
                         <option value="active">Active</option>
                         <option value="completed">Completed</option>
                         <option value="missing">Missing</option>
+                        <option value="absent">Absent</option>
                     </select>
                 </div>
                 <button class="tl-apply-btn" id="tlApply">Apply</button>
@@ -109,6 +110,8 @@ window.renderTripLogsModule = async function (tableWrap) {
         const completed = trips.filter(t => t.status === 'completed');
         const active    = trips.filter(t => t.status === 'active');
         const missing   = trips.filter(t => t.status === 'missing');
+        const absent    = trips.filter(t => t.status === 'absent');
+        const pendingAbsent = absent.filter(t => t.approval_status !== 'approved');
         const totalMins = completed.reduce((s, t) => {
             const start = t.started_at ? new Date(t.started_at) : null;
             const end   = t.ended_at   ? new Date(t.ended_at)   : null;
@@ -120,7 +123,7 @@ window.renderTripLogsModule = async function (tableWrap) {
         summary.innerHTML = `
             <div class="tl-stat-cards">
                 <div class="tl-stat">
-                    <span class="tl-stat-val">${trips.length - missing.length}</span>
+                    <span class="tl-stat-val">${trips.length - missing.length - absent.length}</span>
                     <span class="tl-stat-label">Total Trips</span>
                 </div>
                 <div class="tl-stat">
@@ -134,6 +137,10 @@ window.renderTripLogsModule = async function (tableWrap) {
                 <div class="tl-stat tl-stat--missing">
                     <span class="tl-stat-val">${missing.length}</span>
                     <span class="tl-stat-label">Missing</span>
+                </div>
+                <div class="tl-stat tl-stat--missing">
+                    <span class="tl-stat-val">${pendingAbsent.length}</span>
+                    <span class="tl-stat-label">Pending Absences</span>
                 </div>
                 <div class="tl-stat">
                     <span class="tl-stat-val">${fmtDur(totalMins)}</span>
@@ -185,15 +192,17 @@ window.renderTripLogsModule = async function (tableWrap) {
                                         ? '<span class="tl-badge tl-badge--active"><span class="tl-pulse"></span>Active</span>'
                                         : t.status === 'missing'
                                             ? '<span class="tl-badge tl-badge--missing">Missing</span>'
-                                            : '<span class="tl-badge tl-badge--done">Completed</span>'
+                                            : t.status === 'absent'
+                                                ? '<span class="tl-badge tl-badge--missing">Absent</span>'
+                                                : '<span class="tl-badge tl-badge--done">Completed</span>'
                                     }
                                 </td>
                                 <td>
-                                    ${t.status !== 'completed'
+                                    ${(t.status !== 'completed' && t.status !== 'absent')
                                         ? '<span class="tl-approve-na">—</span>'
                                         : t.approval_status === 'approved'
                                             ? '<span class="tl-badge tl-badge--approved">✓ Approved</span>'
-                                            : `<button class="tl-approve-btn" data-id="${t.id}">Approve</button>`
+                                            : `<button class="tl-approve-btn" data-id="${t.id}" data-status="${t.status}">Approve</button>`
                                     }
                                 </td>
                             </tr>
@@ -205,7 +214,10 @@ window.renderTripLogsModule = async function (tableWrap) {
 
         content.querySelectorAll('.tl-approve-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
-                if (!confirm('Approve this trip and mark the student present for this lesson?')) return;
+                const confirmMsg = btn.dataset.status === 'absent'
+                    ? 'Confirm this absence for the student?'
+                    : 'Approve this trip and mark the student present for this lesson?';
+                if (!confirm(confirmMsg)) return;
                 btn.disabled = true;
                 btn.textContent = 'Approving...';
                 try {

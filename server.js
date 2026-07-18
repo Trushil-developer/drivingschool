@@ -1303,6 +1303,27 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.marked_by_type:', e.message); }
 })();
 
+// Migration: manager-approval fields for attendance, mirroring driver_trips —
+// when an instructor marks a student absent from the driver app, a manager
+// reviews and approves it in Trip Logs before it's considered final. Defaults
+// to 'approved' (not 'pending' like driver_trips) so the ~17k existing
+// attendance rows aren't all retroactively flagged as needing review; only
+// new instructor-marked absences are inserted as 'pending' going forward.
+(async () => {
+  try {
+    await dbPool.query(`ALTER TABLE attendance ADD COLUMN approval_status ENUM('pending','approved') NOT NULL DEFAULT 'approved'`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.approval_status:', e.message); }
+  try {
+    await dbPool.query(`ALTER TABLE attendance ADD COLUMN approved_by_id INT NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.approved_by_id:', e.message); }
+  try {
+    await dbPool.query(`ALTER TABLE attendance ADD COLUMN approved_by_type VARCHAR(20) NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.approved_by_type:', e.message); }
+  try {
+    await dbPool.query(`ALTER TABLE attendance ADD COLUMN approved_at DATETIME NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.approved_at:', e.message); }
+})();
+
 app.get('/api/attendance-all', requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`
@@ -1397,12 +1418,17 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
             await conn.beginTransaction();
 
             const storedValue = value >= 1 ? 1 : 0;
+            // An instructor marking a student absent from the driver app needs a
+            // manager's sign-off in Trip Logs; anything an admin/manager marks
+            // directly (web Schedule grid) is already staff-confirmed.
+            const needsApproval = markedByType === 'instructor' && storedValue === 0;
+            const approvalStatus = needsApproval ? 'pending' : 'approved';
             await conn.query(
-                `INSERT INTO attendance (booking_id, date, time, present, marked_at, marked_by_id, marked_by_type)
-                 VALUES (?, ?, ?, ?, NOW(), ?, ?)
-                 ON DUPLICATE KEY UPDATE present = ?, marked_at = NOW(), marked_by_id = ?, marked_by_type = ?`,
-                [booking_id, mysqlDate, slotTime, storedValue, markedById, markedByType,
-                 storedValue, markedById, markedByType]
+                `INSERT INTO attendance (booking_id, date, time, present, marked_at, marked_by_id, marked_by_type, approval_status)
+                 VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE present = ?, marked_at = NOW(), marked_by_id = ?, marked_by_type = ?, approval_status = ?`,
+                [booking_id, mysqlDate, slotTime, storedValue, markedById, markedByType, approvalStatus,
+                 storedValue, markedById, markedByType, approvalStatus]
             );
 
             const [presentSumRows] = await conn.query(
@@ -2361,6 +2387,50 @@ async function computeMissingSlots(schoolId, dateFrom, dateTo, instructorId) {
   return instructorId ? missing.filter(m => String(m.instructor_id) === String(instructorId)) : missing;
 }
 
+// Instructor-marked absences (from the driver app) surfaced in Trip Logs for
+// manager review — mirrors how completed trips need approval before they
+// count as present, except these already default to 'approved' for anything
+// marked directly by staff (see the approval_status migration above).
+async function computeInstructorMarkedAbsences(schoolId, dateFrom, dateTo, instructorId) {
+  const conditions = [
+    'b.school_id = ?', 'a.present = 0', "a.marked_by_type = 'instructor'",
+    'a.date BETWEEN ? AND ?',
+  ];
+  const params = [schoolId, dateFrom, dateTo];
+  if (instructorId) { conditions.push('i.id = ?'); params.push(instructorId); }
+
+  const [rows] = await dbPool.query(
+    `SELECT a.id, a.booking_id, b.customer_name AS student_name, b.instructor_name,
+            i.id AS instructor_id, TRIM(i.branch) AS branch,
+            DATE_FORMAT(a.date, '%Y-%m-%d') AS date, a.time, a.approval_status
+     FROM attendance a
+     JOIN bookings b ON b.id = a.booking_id
+     LEFT JOIN instructors i ON i.instructor_name = b.instructor_name AND i.school_id = b.school_id
+     WHERE ${conditions.join(' AND ')}
+     ORDER BY a.date DESC, a.time DESC
+     LIMIT 500`,
+    params
+  );
+
+  return rows.map(r => {
+    const hhmm = (r.time || '00:00').slice(0, 5);
+    return {
+      id: `absent-${r.id}`,
+      instructor_id: r.instructor_id,
+      instructor_name: r.instructor_name,
+      booking_id: r.booking_id,
+      student_name: r.student_name,
+      branch: r.branch,
+      started_at: `${r.date}T${hhmm}:00+05:30`,
+      ended_at: null,
+      duration_mins: null,
+      status: 'absent',
+      start_odometer: null,
+      approval_status: r.approval_status,
+    };
+  });
+}
+
 // Admin: trip logs history
 app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
   const schoolId = req.schoolId || req.session?.schoolId || 1;
@@ -2384,7 +2454,8 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
     if (status && ['active','paused','completed'].includes(status)) { conditions.push('dt.status = ?'); params.push(status); }
 
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
-    const rows = status === 'missing' ? [] : (await dbPool.query(`
+    const skipRealTrips = status === 'missing' || status === 'absent';
+    const rows = skipRealTrips ? [] : (await dbPool.query(`
       SELECT dt.id, dt.instructor_id, dt.instructor_name, dt.booking_id, dt.student_name,
              dt.started_at, dt.ended_at, dt.duration_mins, dt.status, dt.start_odometer,
              dt.approval_status, dt.approved_by_id, dt.approved_at,
@@ -2396,20 +2467,23 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
       LIMIT 500
     `, params))[0];
 
+    const now = new Date();
+    const monthAgo = new Date(now);
+    monthAgo.setDate(monthAgo.getDate() - 30);
+    const rangeFrom = date_from || ymd(monthAgo);
+    const rangeTo = date_to || ymd(now);
+
     let missingRows = [];
     if (!status || status === 'missing') {
-      const now = new Date();
-      const monthAgo = new Date(now);
-      monthAgo.setDate(monthAgo.getDate() - 30);
-      missingRows = await computeMissingSlots(
-        schoolId,
-        date_from || ymd(monthAgo),
-        date_to || ymd(now),
-        instructor_id
-      );
+      missingRows = await computeMissingSlots(schoolId, rangeFrom, rangeTo, instructor_id);
     }
 
-    const trips = [...rows, ...missingRows]
+    let absentRows = [];
+    if (!status || status === 'absent') {
+      absentRows = await computeInstructorMarkedAbsences(schoolId, rangeFrom, rangeTo, instructor_id);
+    }
+
+    const trips = [...rows, ...missingRows, ...absentRows]
       .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))
       .slice(0, 500);
     res.json({ success: true, trips });
@@ -2419,10 +2493,31 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
   }
 });
 
-// Manager/admin: approve a completed trip — marks the student present for that lesson
+// Manager/admin: approve a completed trip (marks the student present) or an
+// instructor-marked absence (confirms the absence) surfaced in Trip Logs
 app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, next) => {
   const { id } = req.params;
   const schoolId = req.schoolId || req.session?.schoolId || 1;
+
+  if (String(id).startsWith('absent-')) {
+    const attendanceId = id.slice('absent-'.length);
+    try {
+      const [[att]] = await dbPool.query(
+        `SELECT a.id, a.approval_status FROM attendance a
+         JOIN bookings b ON b.id = a.booking_id
+         WHERE a.id = ? AND b.school_id = ? LIMIT 1`,
+        [attendanceId, schoolId]
+      );
+      if (!att) return res.json({ success: false, error: 'Attendance record not found' });
+      if (att.approval_status === 'approved') return res.json({ success: true, already_approved: true });
+      await dbPool.query(
+        `UPDATE attendance SET approval_status='approved', approved_by_id=?, approved_by_type=?, approved_at=NOW() WHERE id=?`,
+        [req.session.adminId || null, req.session.adminRole || 'admin', att.id]
+      );
+      return res.json({ success: true });
+    } catch (err) { return next(err); }
+  }
+
   let conn;
   try {
     const [[trip]] = await dbPool.query(

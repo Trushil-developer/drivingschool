@@ -906,6 +906,18 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN marked_by_id INT
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='marked_by_type');
 SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN marked_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='approval_status');
+SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN approval_status ENUM(\'pending\',\'approved\') NOT NULL DEFAULT \'approved\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='approved_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN approved_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='approved_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN approved_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='approved_at');
+SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN approved_at DATETIME NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- SCHOOLS TABLE (multi-tenant anchor)
 -- =====================================
