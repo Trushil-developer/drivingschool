@@ -21,6 +21,7 @@ window.renderBranchesModule = function (tableWrap) {
                             <th>State</th>
                             <th>Mobile</th>
                             <th>Email</th>
+                            <th>WiFi SSID</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -33,6 +34,7 @@ window.renderBranchesModule = function (tableWrap) {
                                 <td>${b.state || '-'}</td>
                                 <td>${b.mobile_no || '-'}</td>
                                 <td>${b.email || '-'}</td>
+                                <td>${b.wifi_ssid || '-'}</td>
                                 <td>
                                     <button class="btn edit-branch"
                                         data-id="${b.id}"

@@ -567,6 +567,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 state: e.target.dataset.state,
                 mobile_no: e.target.dataset.mobile,
                 email: e.target.dataset.email,
+                wifi_ssid: e.target.dataset.wifi,
             };
             openBranchEditModal(id, data, tabRenderers, currentTab)();
         }

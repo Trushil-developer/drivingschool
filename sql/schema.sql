@@ -2271,6 +2271,7 @@ CREATE TABLE IF NOT EXISTS driver_trips (
     status          ENUM('active','paused','completed') NOT NULL DEFAULT 'active',
     paused_at       DATETIME NULL,
     paused_secs     INT NOT NULL DEFAULT 0,
+    start_odometer  INT NULL,
     created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -2289,6 +2290,20 @@ SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_
 SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN paused_secs INT NOT NULL DEFAULT 0;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @enum_ok := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='status' AND COLUMN_TYPE LIKE '%paused%');
 SET @sql := IF(@enum_ok=0,'ALTER TABLE driver_trips MODIFY COLUMN status ENUM(\'active\',\'paused\',\'completed\') NOT NULL DEFAULT \'active\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- car odometer (meter) reading entered by the instructor at the start of each lesson
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='start_odometer');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN start_odometer INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- manager approval of completed trips (approving marks the student present for that lesson)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='approval_status');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN approval_status ENUM(\'pending\',\'approved\') NOT NULL DEFAULT \'pending\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='approved_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN approved_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='approved_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN approved_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='approved_at');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN approved_at DATETIME NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
 -- APP SETTINGS (Remote Config / Feature Flags)
