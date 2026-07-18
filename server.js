@@ -531,10 +531,8 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
               b.starting_from, b.total_fees, b.advance,
               b.car_name, b.instructor_name,
               b.attendance_status, b.certificate_url, b.created_at,
-              COALESCE(att.present_days, 0) AS present_days
+              b.present_days
        FROM bookings b
-       LEFT JOIN (SELECT booking_id, COUNT(*) AS present_days FROM attendance WHERE present = 1 GROUP BY booking_id) att
-         ON att.booking_id = b.id
        WHERE ${conditions}
        ORDER BY b.created_at DESC`,
       params
@@ -902,12 +900,11 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
       b.occupation, b.ref, b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4, b.duration_minutes, b.starting_from, b.total_fees, b.advance,
       b.car_name, b.instructor_name,
       b.ac_facility, b.pickup_drop, b.has_licence,
-      COALESCE(att.present_days, 0) AS present_days,
+      b.present_days,
       b.hold_status, b.attendance_status, b.certificate_url,
       b.created_at`;
 
-    const joinAtt = `LEFT JOIN (SELECT booking_id, COUNT(*) AS present_days FROM attendance WHERE present = 1 GROUP BY booking_id) att ON att.booking_id = b.id`;
-    const fromClause = `FROM bookings b ${joinAtt}`;
+    const fromClause = `FROM bookings b`;
 
     if (page !== null) {
       const offset = (page - 1) * limit;
