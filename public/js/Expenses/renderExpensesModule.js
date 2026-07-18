@@ -287,6 +287,7 @@ window.renderExpensesModule = async function (tableWrap) {
                             <th style="width:40px;">#</th>
                             <th>Category Name</th>
                             <th style="width:140px;">Extra Field</th>
+                            <th style="width:120px;">Instructor Earnings</th>
                             <th style="width:120px;"></th>
                         </tr>
                     </thead>
@@ -296,14 +297,16 @@ window.renderExpensesModule = async function (tableWrap) {
                             const efLabel = ef === 'car' ? '<span class="exp-badge-yes">Car</span>'
                                           : ef === 'employee' ? '<span class="exp-badge-emp">Employee</span>'
                                           : '<span class="exp-badge-no">None</span>';
+                            const earnLabel = c.show_in_earnings ? '<span class="exp-badge-yes">Shown</span>' : '<span class="exp-badge-no">Hidden</span>';
                             return `
                             <tr data-id="${c.id}" data-custom="${c.is_custom}">
                                 <td>${i + 1}</td>
                                 <td class="cat-name-cell">${c.name}</td>
                                 <td class="cat-ef-cell">${efLabel}</td>
+                                <td class="cat-earn-cell">${earnLabel}</td>
                                 <td class="cat-actions">
                                     ${c.is_custom
-                                        ? `<button class="btn-cat-edit" data-id="${c.id}" data-name="${c.name}" data-extra="${ef}">Edit</button>
+                                        ? `<button class="btn-cat-edit" data-id="${c.id}" data-name="${c.name}" data-extra="${ef}" data-earn="${c.show_in_earnings ? 1 : 0}">Edit</button>
                                            <button class="btn-exp-delete btn-cat-delete" data-id="${c.id}">Delete</button>`
                                         : '<span style="color:#9CA3AF;font-size:12px;">—</span>'
                                     }
@@ -335,6 +338,9 @@ window.renderExpensesModule = async function (tableWrap) {
                         <option value="employee">Employee</option>
                     </select>
                 </td>
+                <td style="text-align:center;">
+                    <input type="checkbox" id="newCatShowEarnings" />
+                </td>
                 <td>
                     <button class="btn-exp-submit btn-cat-save" id="btnSaveNewCat" style="padding:5px 12px;font-size:12px;">Save</button>
                     <button class="btn-cat-cancel" id="btnCancelNewCat">Cancel</button>
@@ -346,10 +352,11 @@ window.renderExpensesModule = async function (tableWrap) {
             document.getElementById('btnSaveNewCat').addEventListener('click', async () => {
                 const name = document.getElementById('newCatName').value.trim();
                 const extra_field = document.getElementById('newCatExtraField').value;
+                const show_in_earnings = document.getElementById('newCatShowEarnings').checked;
                 if (!name) { msg.className = 'exp-form-msg error'; msg.textContent = 'Category name is required.'; return; }
                 const r = await window.api('/api/expenses/categories', {
                     method: 'POST',
-                    body: JSON.stringify({ name, extra_field: extra_field || null })
+                    body: JSON.stringify({ name, extra_field: extra_field || null, show_in_earnings })
                 });
                 if (!r.success) { msg.className = 'exp-form-msg error'; msg.textContent = r.error || 'Failed to add.'; return; }
                 expCategoriesCache = null;
@@ -370,8 +377,10 @@ window.renderExpensesModule = async function (tableWrap) {
 
                 const nameCell = row.querySelector('.cat-name-cell');
                 const efCell = row.querySelector('.cat-ef-cell');
+                const earnCell = row.querySelector('.cat-earn-cell');
                 const currentName = e.target.dataset.name;
                 const currentExtra = e.target.dataset.extra || '';
+                const currentEarn = e.target.dataset.earn === '1';
 
                 nameCell.innerHTML = `<input type="text" class="cat-input" id="editCatName_${id}" value="${currentName.replace(/"/g, '&quot;')}" style="width:100%;" />`;
                 efCell.innerHTML = `
@@ -380,6 +389,7 @@ window.renderExpensesModule = async function (tableWrap) {
                         <option value="car" ${currentExtra === 'car' ? 'selected' : ''}>Car</option>
                         <option value="employee" ${currentExtra === 'employee' ? 'selected' : ''}>Employee</option>
                     </select>`;
+                earnCell.innerHTML = `<input type="checkbox" id="editCatShowEarnings_${id}" ${currentEarn ? 'checked' : ''} />`;
                 const actionsCell = row.querySelector('.cat-actions');
                 actionsCell.innerHTML = `
                     <button class="btn-exp-submit btn-cat-save-edit" style="padding:5px 12px;font-size:12px;">Save</button>
@@ -389,10 +399,11 @@ window.renderExpensesModule = async function (tableWrap) {
                 actionsCell.querySelector('.btn-cat-save-edit').addEventListener('click', async () => {
                     const name = document.getElementById(`editCatName_${id}`).value.trim();
                     const extra_field = document.getElementById(`editCatExtra_${id}`).value;
+                    const show_in_earnings = document.getElementById(`editCatShowEarnings_${id}`).checked;
                     if (!name) { msg.className = 'exp-form-msg error'; msg.textContent = 'Category name is required.'; return; }
                     const r = await window.api(`/api/expenses/categories/${id}`, {
                         method: 'PUT',
-                        body: JSON.stringify({ name, extra_field: extra_field || null })
+                        body: JSON.stringify({ name, extra_field: extra_field || null, show_in_earnings })
                     });
                     if (!r.success) { msg.className = 'exp-form-msg error'; msg.textContent = r.error || 'Failed to update.'; return; }
                     expCategoriesCache = null;

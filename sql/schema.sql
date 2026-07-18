@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS expense_categories (
     is_car_related TINYINT(1) NOT NULL DEFAULT 0,
     extra_field VARCHAR(20) DEFAULT NULL,
     is_custom TINYINT(1) NOT NULL DEFAULT 0,
-    school_id INT NOT NULL DEFAULT 0
+    school_id INT NOT NULL DEFAULT 0,
+    show_in_earnings TINYINT(1) NOT NULL DEFAULT 0
 );
 
 

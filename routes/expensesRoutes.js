@@ -23,15 +23,16 @@ router.get("/categories", requireAdmin, async (req, res, next) => {
 
 router.post("/categories", requireAdmin, async (req, res, next) => {
     const schoolId = req.schoolId;
-    const { name, extra_field } = req.body;
+    const { name, extra_field, show_in_earnings } = req.body;
     if (!name || !name.trim()) return res.json({ success: false, error: "Category name required" });
     const validExtra = ['car', 'employee', null, ''];
     const ef = validExtra.includes(extra_field) ? (extra_field || null) : null;
     const isCarRelated = ef === 'car' ? 1 : 0;
+    const showInEarnings = show_in_earnings ? 1 : 0;
     try {
         const [result] = await dbPool.query(
-            "INSERT INTO expense_categories (name, is_car_related, extra_field, is_custom, school_id) VALUES (?, ?, ?, 1, ?)",
-            [name.trim(), isCarRelated, ef, schoolId]
+            "INSERT INTO expense_categories (name, is_car_related, extra_field, is_custom, school_id, show_in_earnings) VALUES (?, ?, ?, 1, ?, ?)",
+            [name.trim(), isCarRelated, ef, schoolId, showInEarnings]
         );
         res.json({ success: true, id: result.insertId });
     } catch (err) {
@@ -42,11 +43,12 @@ router.post("/categories", requireAdmin, async (req, res, next) => {
 router.put("/categories/:id", requireAdmin, async (req, res, next) => {
     const schoolId = req.schoolId;
     const { id } = req.params;
-    const { name, extra_field } = req.body;
+    const { name, extra_field, show_in_earnings } = req.body;
     if (!name || !name.trim()) return res.json({ success: false, error: "Category name required" });
     const validExtra = ['car', 'employee', null, ''];
     const ef = validExtra.includes(extra_field) ? (extra_field || null) : null;
     const isCarRelated = ef === 'car' ? 1 : 0;
+    const showInEarnings = show_in_earnings ? 1 : 0;
     try {
         const [rows] = await dbPool.query(
             "SELECT is_custom, school_id FROM expense_categories WHERE id = ?", [id]
@@ -55,8 +57,8 @@ router.put("/categories/:id", requireAdmin, async (req, res, next) => {
         if (!rows[0].is_custom) return res.json({ success: false, error: "Default categories cannot be edited" });
         if (rows[0].school_id !== schoolId) return res.json({ success: false, error: "Not allowed" });
         await dbPool.query(
-            "UPDATE expense_categories SET name = ?, is_car_related = ?, extra_field = ? WHERE id = ? AND school_id = ?",
-            [name.trim(), isCarRelated, ef, id, schoolId]
+            "UPDATE expense_categories SET name = ?, is_car_related = ?, extra_field = ?, show_in_earnings = ? WHERE id = ? AND school_id = ?",
+            [name.trim(), isCarRelated, ef, showInEarnings, id, schoolId]
         );
         res.json({ success: true });
     } catch (err) {
@@ -154,7 +156,7 @@ router.get("/", requireAdmin, async (req, res, next) => {
         const where = 'WHERE ' + conditions.join(' AND ');
         const selectCols = `
             e.id, e.branch, e.debitor, e.employee_name,
-            e.category_id, ec.name AS category, ec.is_car_related, ec.extra_field,
+            e.category_id, ec.name AS category, ec.is_car_related, ec.extra_field, ec.show_in_earnings,
             e.car_id, c.car_name,
             e.amount,
             e.payment_mode_id, pm.name AS payment_mode,

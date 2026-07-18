@@ -734,6 +734,45 @@ app.post('/api/dev/student-login', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ---------- STUDENT/CUSTOMER LOGIN: booking row ID + mobile number as password ----------
+app.post('/api/student-login', loginLimiter, async (req, res, next) => {
+  const { student_id, password } = req.body;
+  try {
+    if (!student_id || !password) return res.json({ success: false, error: 'Student ID and password required' });
+
+    const [[booking]] = await dbPool.query(
+      'SELECT id, customer_name, email, mobile_no, school_id FROM bookings WHERE id = ? LIMIT 1',
+      [student_id]
+    );
+    if (!booking || !booking.email) return res.json({ success: false, error: 'Invalid credentials' });
+
+    const mobileClean = (booking.mobile_no || '').replace(/\D/g, '');
+    const passClean = (password || '').replace(/\D/g, '');
+    if (!mobileClean || passClean !== mobileClean) return res.json({ success: false, error: 'Invalid credentials' });
+
+    const schoolId = booking.school_id || 1;
+    await dbPool.query(
+      `INSERT INTO exam_users (email, full_name, mobile_no, school_id, first_verified_at, last_seen_at)
+       VALUES (?, ?, ?, ?, NOW(), NOW())
+       ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), mobile_no = COALESCE(mobile_no, VALUES(mobile_no)), school_id = VALUES(school_id), last_seen_at = NOW()`,
+      [booking.email, booking.customer_name || null, booking.mobile_no || null, schoolId]
+    );
+    const [[userRow]] = await dbPool.query('SELECT id, email, full_name, school_id FROM exam_users WHERE email = ? LIMIT 1', [booking.email]);
+    req.session.examUser = { id: userRow.id, email: userRow.email, full_name: userRow.full_name || null, school_id: userRow.school_id || 1 };
+    await new Promise((resolve, reject) => req.session.save((err) => (err ? reject(err) : resolve(undefined))));
+    const signed = 's:' + cookieSign(req.session.id, process.env.SESSION_SECRET);
+    const sessionToken = `session_cookie=${encodeURIComponent(signed)}`;
+    res.json({
+      success: true,
+      sessionToken,
+      student: { id: userRow.id, email: userRow.email, full_name: userRow.full_name, mobile_no: booking.mobile_no },
+    });
+  } catch (err) {
+    console.error('STUDENT LOGIN ERROR:', err);
+    next(err);
+  }
+});
+
 // ---------- BOOKINGS CRUD ----------
 app.post('/api/bookings', async (req, res, next) => {
   const data = req.body;
@@ -1183,6 +1222,21 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
     await dbPool.query(`UPDATE expense_categories SET school_id = 1, is_custom = 1 WHERE school_id = 0`);
     // Ensure extra_field is set for any rows missing it
     await dbPool.query(`UPDATE expense_categories SET extra_field = 'car' WHERE is_car_related = 1 AND (extra_field IS NULL OR extra_field = '')`);
+
+    // show_in_earnings: which categories' expenses surface in the instructor app's
+    // Earning tab (distinct from extra_field='employee', which only controls
+    // whether the admin form shows an employee picker).
+    const [earnCols] = await dbPool.query(
+      `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'expense_categories' AND COLUMN_NAME = 'show_in_earnings'`
+    );
+    if (earnCols[0].cnt === 0) {
+      await dbPool.query(`ALTER TABLE expense_categories ADD COLUMN show_in_earnings TINYINT(1) NOT NULL DEFAULT 0`);
+      // One-time seed: salary + overtime are the only categories instructors should see as earnings
+      await dbPool.query(
+        `UPDATE expense_categories SET show_in_earnings = 1 WHERE name IN ('Salary Withdrawal Slip', 'OVER TIME')`
+      );
+    }
     // expense_categories ready
   } catch (err) {
     console.error('expense_categories migration error:', err);
@@ -2465,24 +2519,43 @@ const ensureInstructorAttendanceTable = async () => {
       INDEX idx_inst_date (instructor_id, date)
     )
   `);
+  // person_type disambiguates instructor_id, which is only unique *within*
+  // its source table (instructors vs admins) — without it, an admin/manager
+  // clocking in could collide with an unrelated instructor sharing the same id.
+  await dbPool.query(`
+    ALTER TABLE instructor_attendance
+    ADD COLUMN IF NOT EXISTS person_type VARCHAR(20) NOT NULL DEFAULT 'instructor'
+  `);
 };
+
+// Resolve the logged-in session's display name from the correct source table.
+async function resolveClockPersonName(req) {
+  const personType = req.session.adminRole || 'instructor';
+  if (personType === 'admin') {
+    const [[adm]] = await dbPool.query('SELECT full_name, username FROM admins WHERE id=? AND school_id=? LIMIT 1', [req.session.adminId, req.schoolId]);
+    return adm?.full_name || adm?.username || '';
+  }
+  const [[inst]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? AND school_id=? LIMIT 1', [req.session.adminId, req.schoolId]);
+  return inst?.instructor_name ?? '';
+}
 
 // Driver: clock in
 app.post('/api/driver/attendance/clock-in', requireAdmin, async (req, res, next) => {
   const instructorId = req.session.adminId;
+  const personType = req.session.adminRole || 'instructor';
   try {
     await ensureInstructorAttendanceTable();
-    const [[inst]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? AND school_id=? LIMIT 1', [instructorId, req.schoolId]);
+    const clockName = await resolveClockPersonName(req);
     // Use the DB's IST-forced CURDATE(), not Node's UTC date — avoids the
     // 00:00-05:30 IST window being bucketed into the previous calendar day.
     const [[existing]] = await dbPool.query(
-      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND date=CURDATE() AND school_id=? LIMIT 1',
-      [instructorId, req.schoolId]
+      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND person_type=? AND date=CURDATE() AND school_id=? LIMIT 1',
+      [instructorId, personType, req.schoolId]
     );
     if (existing) return res.json({ success: false, error: 'Already clocked in today' });
     await dbPool.query(
-      'INSERT INTO instructor_attendance (instructor_id, instructor_name, clock_in, date, school_id) VALUES (?, ?, NOW(), CURDATE(), ?)',
-      [instructorId, inst?.instructor_name ?? '', req.schoolId]
+      'INSERT INTO instructor_attendance (instructor_id, instructor_name, person_type, clock_in, date, school_id) VALUES (?, ?, ?, NOW(), CURDATE(), ?)',
+      [instructorId, clockName, personType, req.schoolId]
     );
     res.json({ success: true });
   } catch (err) { next(err); }
@@ -2491,11 +2564,12 @@ app.post('/api/driver/attendance/clock-in', requireAdmin, async (req, res, next)
 // Driver: clock out
 app.post('/api/driver/attendance/clock-out', requireAdmin, async (req, res, next) => {
   const instructorId = req.session.adminId;
+  const personType = req.session.adminRole || 'instructor';
   try {
     await ensureInstructorAttendanceTable();
     const [[record]] = await dbPool.query(
-      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND date=CURDATE() AND clock_out IS NULL AND school_id=? LIMIT 1',
-      [instructorId, req.schoolId]
+      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND person_type=? AND date=CURDATE() AND clock_out IS NULL AND school_id=? LIMIT 1',
+      [instructorId, personType, req.schoolId]
     );
     if (!record) return res.json({ success: false, error: 'No active clock-in found for today' });
     await dbPool.query(
@@ -2509,11 +2583,12 @@ app.post('/api/driver/attendance/clock-out', requireAdmin, async (req, res, next
 // Driver: get today's attendance record
 app.get('/api/driver/attendance/today', requireAdmin, async (req, res, next) => {
   const instructorId = req.session.adminId;
+  const personType = req.session.adminRole || 'instructor';
   try {
     await ensureInstructorAttendanceTable();
     const [[record]] = await dbPool.query(
-      'SELECT * FROM instructor_attendance WHERE instructor_id=? AND date=CURDATE() AND school_id=? LIMIT 1',
-      [instructorId, req.schoolId]
+      'SELECT * FROM instructor_attendance WHERE instructor_id=? AND person_type=? AND date=CURDATE() AND school_id=? LIMIT 1',
+      [instructorId, personType, req.schoolId]
     );
     res.json({ success: true, record: record ?? null });
   } catch (err) { next(err); }
@@ -2537,6 +2612,32 @@ app.get('/api/admin/instructor-attendance', requireAdmin, async (req, res, next)
       params
     );
     res.json({ success: true, records: rows });
+  } catch (err) { next(err); }
+});
+
+app.get('/api/admin/attendance-roster', requireAdmin, async (req, res, next) => {
+  const role = (req.query.role || 'manager').toLowerCase();
+  try {
+    await ensureInstructorAttendanceTable();
+    const [rows] = await dbPool.query(
+      `SELECT i.id AS instructor_id, i.instructor_name, i.branch,
+              ia.clock_in, ia.clock_out
+       FROM instructors i
+       LEFT JOIN instructor_attendance ia
+         ON ia.instructor_id = i.id AND ia.person_type = ? AND ia.school_id = i.school_id AND ia.date = CURDATE()
+       WHERE i.is_active = 1 AND LOWER(i.role) = ? AND i.school_id = ?
+       ORDER BY i.instructor_name ASC`,
+      [role, role, req.schoolId]
+    );
+    const roster = rows.map(r => ({
+      instructor_id: r.instructor_id,
+      name: r.instructor_name,
+      branch: r.branch,
+      clock_in: r.clock_in,
+      clock_out: r.clock_out,
+      status: !r.clock_in ? 'Not Clocked In' : (r.clock_out ? 'Clocked Out' : 'Clocked In'),
+    }));
+    res.json({ success: true, date: new Date().toISOString().slice(0, 10), roster });
   } catch (err) { next(err); }
 });
 

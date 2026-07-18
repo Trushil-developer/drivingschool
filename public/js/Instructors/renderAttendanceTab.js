@@ -37,6 +37,7 @@ window.renderAttendanceTab = function (container) {
             .filter(i => i.is_active && (i.role || '').toLowerCase() === 'instructor');
 
         container.innerHTML = `
+            <div id="mgrRosterWrap" style="margin-bottom:22px;"></div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;">
                 <div>
                     <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px">From</label>
@@ -149,6 +150,44 @@ window.renderAttendanceTab = function (container) {
             `;
         }
 
+        async function loadManagerRoster() {
+            const wrap = document.getElementById('mgrRosterWrap');
+            if (!wrap) return;
+            wrap.innerHTML = `<div style="padding:16px;color:#6b7280">Loading today's manager attendance…</div>`;
+
+            const res = await window.api('/api/admin/attendance-roster?role=manager').catch(() => ({ success: false, roster: [] }));
+            const roster = res?.success ? (res.roster || []) : [];
+
+            if (!roster.length) {
+                wrap.innerHTML = '';
+                return;
+            }
+
+            const statusStyle = {
+                'Clocked In':     { bg: '#dcfce7', color: '#16a34a', label: 'Clocked In' },
+                'Clocked Out':    { bg: '#e5e7eb', color: '#374151', label: 'Clocked Out' },
+                'Not Clocked In': { bg: '#fee2e2', color: '#dc2626', label: 'Not Clocked In' },
+            };
+
+            wrap.innerHTML = `
+                <h3 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 10px">Today's Manager Attendance</h3>
+                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                    ${roster.map(r => {
+                        const st = statusStyle[r.status] || statusStyle['Not Clocked In'];
+                        return `
+                            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 16px;min-width:180px">
+                                <div style="font-weight:600;font-size:13px;color:#111827">${r.name || '—'}</div>
+                                <div style="font-size:11px;color:#6b7280;margin:2px 0 6px">${r.branch || ''}</div>
+                                <span style="display:inline-block;font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;background:${st.bg};color:${st.color}">
+                                    ${st.label}${r.clock_in ? ' · ' + fmtDT(r.clock_in).split(', ').pop() : ''}
+                                </span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
         container.querySelector('#attApply')?.addEventListener('click', loadData);
         container.querySelector('#attClear')?.addEventListener('click', () => {
             document.getElementById('attDateFrom').value   = isoDate(fromDate);
@@ -157,6 +196,7 @@ window.renderAttendanceTab = function (container) {
             loadData();
         });
 
+        await loadManagerRoster();
         await loadData();
     };
 };
