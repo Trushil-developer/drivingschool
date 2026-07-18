@@ -40,6 +40,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+// Behind Nginx: trust exactly one proxy hop so req.ip reflects the real client
+// IP (from X-Forwarded-For) instead of the proxy's own address. Without this,
+// the login rate limiter below buckets every user on the site together.
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 4000;
 
 const s3 = new AWS.S3({
