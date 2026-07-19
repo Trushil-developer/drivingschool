@@ -1265,6 +1265,7 @@ body {
 }
 
 .tl-badge--approved { background: #dbeafe; color: #1d4ed8; }
+.tl-badge--rejected { background: #fee2e2; color: #b91c1c; }
 .tl-approve-na { color: var(--text-secondary, #9ca3af); }
 .tl-approve-btn {
     padding: 4px 12px; border: none; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
@@ -1272,6 +1273,12 @@ body {
 }
 .tl-approve-btn:hover { background: #1d4ed8; }
 .tl-approve-btn:disabled { background: #93c5fd; cursor: default; }
+.tl-reject-btn {
+    padding: 4px 12px; border: none; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+    background: #dc2626; color: #fff; cursor: pointer; margin-left: 6px;
+}
+.tl-reject-btn:hover { background: #b91c1c; }
+.tl-reject-btn:disabled { background: #fca5a5; cursor: default; }
 
 .tl-empty { text-align: center; padding: 48px 24px; color: var(--text-secondary, #9ca3af); font-size: 0.95rem; }
 

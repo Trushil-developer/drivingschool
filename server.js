@@ -533,7 +533,7 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
       `SELECT b.id, b.branch, b.training_days, b.customer_name, b.mobile_no, b.email,
               b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4,
               b.starting_from, b.total_fees, b.advance,
-              b.car_name, b.instructor_name,
+              b.car_name, b.instructor_name, b.duration_minutes,
               b.attendance_status, b.certificate_url, b.created_at,
               b.present_days
        FROM bookings b
@@ -566,7 +566,7 @@ app.get('/api/student/sessions', requireExamUser, async (req, res, next) => {
               b.branch, b.instructor_name, b.car_name, b.training_days, b.starting_from
        FROM attendance a
        JOIN bookings b ON b.id = a.booking_id
-       WHERE ${conditions} AND a.present = 1
+       WHERE ${conditions}
        ORDER BY a.date DESC, a.time ASC`,
       params
     );
@@ -1374,7 +1374,7 @@ app.get('/api/attendance-by-date', requireAdmin, async (req, res, next) => {
     if (!date) return res.status(400).json({ success: false, error: 'date required' });
 
     let sql = `
-      SELECT a.booking_id, DATE_FORMAT(a.date, '%Y-%m-%d') AS date, a.time, a.present
+      SELECT a.booking_id, DATE_FORMAT(a.date, '%Y-%m-%d') AS date, a.time, a.present, a.change_source
       FROM attendance a
       JOIN bookings b ON a.booking_id = b.id
       WHERE b.school_id = ? AND DATE(a.date) = ?
@@ -1888,7 +1888,7 @@ const ensureTripsTable = () => dbPool.query(`
     paused_at DATETIME NULL,
     paused_secs INT NOT NULL DEFAULT 0,
     start_odometer INT NULL,
-    approval_status ENUM('pending','approved') NOT NULL DEFAULT 'pending',
+    approval_status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
     approved_by_id INT NULL,
     approved_by_type VARCHAR(20) NULL,
     approved_at DATETIME NULL,
@@ -1919,6 +1919,14 @@ const ensureTripsTable = () => dbPool.query(`
   try {
     await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN approved_at DATETIME NULL`);
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.approved_at:', e.message); }
+  try {
+    const [[col]] = await dbPool.query(
+      `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema=DATABASE() AND table_name='driver_trips' AND column_name='approval_status'`
+    );
+    if (col && !col.COLUMN_TYPE.includes('rejected')) {
+      await dbPool.query(`ALTER TABLE driver_trips MODIFY COLUMN approval_status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending'`);
+    }
+  } catch (e) { console.error('[Migration] driver_trips.approval_status rejected:', e.message); }
 })();
 
 // Driver: start a trip
@@ -1940,8 +1948,8 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
     await ensureTripsTable();
     await ensureInstructorAttendanceTable();
     const [[attendance]] = await dbPool.query(
-      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND date=CURDATE() AND clock_out IS NULL AND school_id=? LIMIT 1',
-      [instructorId, req.schoolId]
+      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND person_type=? AND date=CURDATE() AND clock_out IS NULL AND school_id=? LIMIT 1',
+      [instructorId, req.session.adminRole || 'instructor', req.schoolId]
     );
     if (!attendance) return res.json({ success: false, error: 'You must clock in before starting a lesson.' });
     const [[bk]] = await dbPool.query(
@@ -2368,7 +2376,7 @@ async function computeMissingSlots(schoolId, dateFrom, dateTo, instructorId) {
         if (tripMatch) return; // a trip was already started for this slot
 
         missing.push({
-          id: `missing-${b.id}-${dateStr}-${hhmm}`,
+          id: `missing|${b.id}|${dateStr}|${hhmm}`,
           instructor_id: b.instructor_id,
           instructor_name: b.instructor_name,
           booking_id: b.id,
@@ -2518,6 +2526,54 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
     } catch (err) { return next(err); }
   }
 
+  // A "missing" row is synthesized (not a real DB record) for a scheduled slot
+  // where nothing happened — the manager resolves it directly as present/absent.
+  if (String(id).startsWith('missing|')) {
+    const [, bookingIdStr, dateStr, hhmm] = String(id).split('|');
+    const bookingId = Number(bookingIdStr);
+    const presentValue = Number(req.body?.value) >= 1 ? 1 : 0;
+    let mConn;
+    try {
+      const [[bk]] = await dbPool.query('SELECT id FROM bookings WHERE id=? AND school_id=? LIMIT 1', [bookingId, schoolId]);
+      if (!bk) return res.json({ success: false, error: 'Booking not found' });
+
+      const markedById = req.session.adminId || null;
+      const markedByType = req.session.adminRole || 'admin';
+
+      mConn = await dbPool.getConnection();
+      await mConn.beginTransaction();
+
+      await mConn.query(
+        `INSERT INTO attendance (booking_id, date, time, present, marked_at, marked_by_id, marked_by_type, approval_status)
+         VALUES (?, ?, ?, ?, NOW(), ?, ?, 'approved')
+         ON DUPLICATE KEY UPDATE present=?, marked_at=NOW(), marked_by_id=?, marked_by_type=?, approval_status='approved'`,
+        [bookingId, dateStr, hhmm, presentValue, markedById, markedByType,
+         presentValue, markedById, markedByType]
+      );
+
+      const [presentSumRows] = await mConn.query(
+        `SELECT COUNT(*) AS total_present FROM attendance WHERE booking_id=? AND present=1`, [bookingId]
+      );
+      const totalPresent = Math.max(0, Number(presentSumRows[0].total_present));
+      await mConn.query(`UPDATE bookings SET present_days=? WHERE id=?`, [totalPresent, bookingId]);
+
+      const [bookingRows] = await mConn.query(
+        `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id=?`,
+        [bookingId]
+      );
+      const newStatus = computeAttendanceStatus(bookingRows[0]);
+      await mConn.query(`UPDATE bookings SET attendance_status=? WHERE id=?`, [newStatus, bookingId]);
+
+      await mConn.commit();
+      return res.json({ success: true });
+    } catch (err) {
+      if (mConn) await mConn.rollback().catch(() => {});
+      return next(err);
+    } finally {
+      if (mConn) mConn.release();
+    }
+  }
+
   let conn;
   try {
     const [[trip]] = await dbPool.query(
@@ -2599,6 +2655,92 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
   }
 });
 
+// Manager/admin: reject a completed trip (e.g. the session went badly and the
+// customer wasn't satisfied) — marks the student absent for that lesson instead
+app.patch('/api/admin/trip-logs/:id/reject', requireAdmin, async (req, res, next) => {
+  const { id } = req.params;
+  const schoolId = req.schoolId || req.session?.schoolId || 1;
+  let conn;
+  try {
+    const [[trip]] = await dbPool.query(
+      `SELECT dt.id, dt.booking_id, dt.started_at, dt.status, dt.approval_status
+       FROM driver_trips dt
+       JOIN instructors i ON i.id = dt.instructor_id
+       WHERE dt.id = ? AND i.school_id = ? LIMIT 1`,
+      [id, schoolId]
+    );
+    if (!trip) return res.json({ success: false, error: 'Trip not found' });
+    if (trip.status !== 'completed') return res.json({ success: false, error: 'Only completed trips can be rejected' });
+    if (trip.approval_status === 'rejected') return res.json({ success: true, already_rejected: true });
+
+    const [[bk]] = await dbPool.query(
+      `SELECT allotted_time, allotted_time2, allotted_time3, allotted_time4
+       FROM bookings WHERE id = ? AND school_id = ? LIMIT 1`,
+      [trip.booking_id, schoolId]
+    );
+    if (!bk) return res.json({ success: false, error: 'Booking not found' });
+
+    // Match the trip's start time to whichever of the booking's scheduled slots is
+    // closest, so attendance is recorded against the right (booking_id, date, time).
+    const slots = [bk.allotted_time, bk.allotted_time2, bk.allotted_time3, bk.allotted_time4]
+      .filter(Boolean)
+      .map(t => {
+        const [h, m] = t.split(':').map(Number);
+        return { time: t.substring(0, 5), mins: h * 60 + m };
+      });
+    const started = new Date(trip.started_at);
+    const startMins = started.getHours() * 60 + started.getMinutes();
+    const slotTime = slots.length
+      ? slots.reduce((best, s) => Math.abs(s.mins - startMins) < Math.abs(best.mins - startMins) ? s : best).time
+      : '';
+    const dateStr = [
+      started.getFullYear(),
+      String(started.getMonth() + 1).padStart(2, '0'),
+      String(started.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    const markedById = req.session.adminId || null;
+    const markedByType = req.session.adminRole || 'instructor';
+
+    conn = await dbPool.getConnection();
+    await conn.beginTransaction();
+
+    await conn.query(
+      `INSERT INTO attendance (booking_id, date, time, present, marked_at, marked_by_id, marked_by_type)
+       VALUES (?, ?, ?, 0, NOW(), ?, ?)
+       ON DUPLICATE KEY UPDATE present = 0, marked_at = NOW(), marked_by_id = ?, marked_by_type = ?`,
+      [trip.booking_id, dateStr, slotTime, markedById, markedByType, markedById, markedByType]
+    );
+
+    const [presentSumRows] = await conn.query(
+      `SELECT COUNT(*) AS total_present FROM attendance WHERE booking_id = ? AND present = 1`,
+      [trip.booking_id]
+    );
+    const totalPresent = Math.max(0, Number(presentSumRows[0].total_present));
+    await conn.query(`UPDATE bookings SET present_days = ? WHERE id = ?`, [totalPresent, trip.booking_id]);
+
+    const [bookingRows] = await conn.query(
+      `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?`,
+      [trip.booking_id]
+    );
+    const newStatus = computeAttendanceStatus(bookingRows[0]);
+    await conn.query(`UPDATE bookings SET attendance_status = ? WHERE id = ?`, [newStatus, trip.booking_id]);
+
+    await conn.query(
+      `UPDATE driver_trips SET approval_status='rejected', approved_by_id=?, approved_by_type=?, approved_at=NOW() WHERE id=?`,
+      [markedById, markedByType, trip.id]
+    );
+
+    await conn.commit();
+    res.json({ success: true, present_days: totalPresent, attendance_status: newStatus });
+  } catch (err) {
+    if (conn) await conn.rollback().catch(() => {});
+    next(err);
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
 // ── Instructor Attendance (Clock In / Clock Out) ──────────────────────────────
 
 const ensureInstructorAttendanceTable = async () => {
@@ -2611,16 +2753,18 @@ const ensureInstructorAttendanceTable = async () => {
       clock_out    DATETIME NULL,
       date         DATE NOT NULL,
       school_id    INT NOT NULL DEFAULT 1,
+      person_type  VARCHAR(20) NOT NULL DEFAULT 'instructor',
       INDEX idx_inst_date (instructor_id, date)
     )
   `);
   // person_type disambiguates instructor_id, which is only unique *within*
   // its source table (instructors vs admins) — without it, an admin/manager
   // clocking in could collide with an unrelated instructor sharing the same id.
-  await dbPool.query(`
-    ALTER TABLE instructor_attendance
-    ADD COLUMN IF NOT EXISTS person_type VARCHAR(20) NOT NULL DEFAULT 'instructor'
-  `);
+  // MySQL here doesn't support ADD COLUMN IF NOT EXISTS, so use the errno-1060
+  // (duplicate column) guard like every other migration in this file.
+  try {
+    await dbPool.query(`ALTER TABLE instructor_attendance ADD COLUMN person_type VARCHAR(20) NOT NULL DEFAULT 'instructor'`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] instructor_attendance.person_type:', e.message); }
 };
 
 // Resolve the logged-in session's display name from the correct source table.
@@ -2687,6 +2831,36 @@ app.get('/api/driver/attendance/today', requireAdmin, async (req, res, next) => 
     );
     res.json({ success: true, record: record ?? null });
   } catch (err) { next(err); }
+});
+
+// Driver: today's ad-hoc (makeup/extra) lesson slots added from the web admin
+// Schedule page — these aren't part of the booking's regular allotted_time,
+// so they don't show up in the normal bookings list the driver app fetches.
+app.get('/api/driver/schedule-slots', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  const { date } = req.query;
+  if (!date) return res.json({ success: false, error: 'date required' });
+  try {
+    const [[inst]] = await dbPool.query(
+      'SELECT instructor_name FROM instructors WHERE id=? AND school_id=? LIMIT 1',
+      [instructorId, req.schoolId]
+    );
+    if (!inst) return res.json({ success: true, slots: [] });
+    const [rows] = await dbPool.query(
+      `SELECT ss.id, ss.booking_id, ss.time, ss.car_name, ss.instructor_name, ss.present,
+              ss.source, ss.replaced_from_time,
+              b.customer_name, b.mobile_no
+       FROM schedule_slots ss
+       JOIN bookings b ON ss.booking_id = b.id
+       WHERE ss.date = ? AND ss.instructor_name = ? AND b.school_id = ?
+       ORDER BY ss.time ASC`,
+      [date, inst.instructor_name, req.schoolId]
+    );
+    res.json({ success: true, slots: rows });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, slots: [] });
+    next(err);
+  }
 });
 
 // Admin: view instructor attendance
@@ -2936,6 +3110,297 @@ app.patch('/api/admin/complaints/:id', requireAdmin, async (req, res, next) => {
     if (!result.affectedRows) return res.json({ success: false, error: 'Complaint not found' });
     res.json({ success: true });
   } catch (err) { next(err); }
+});
+
+// ── Schedule Change Requests (student-initiated cancel/replacement) ────────────
+
+const ensureScheduleRequestsTable = () => dbPool.query(`
+  CREATE TABLE IF NOT EXISTS schedule_change_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    booking_id INT NOT NULL,
+    student_email VARCHAR(255) NOT NULL,
+    request_type ENUM('Cancel','Replacement') NOT NULL,
+    occurrence_date DATE NOT NULL,
+    original_time VARCHAR(10) NOT NULL,
+    new_time VARCHAR(10) NULL,
+    reason TEXT,
+    status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+    admin_note TEXT,
+    resulting_attendance_id INT NULL,
+    resulting_schedule_slot_id INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by_id INT NULL,
+    updated_by_type VARCHAR(20) NULL,
+    school_id INT NOT NULL DEFAULT 1
+  )
+`);
+
+// Server-side port of register.js's fetchBookedSlots() date-overlap logic
+// (public/js/Register/register.js), plus a check against schedule_slots so
+// already-approved replacements/ad-hoc lessons also block the same time —
+// a gap the web registration flow has that this feature must not repeat,
+// since double-booking an instructor/car here would be a real conflict.
+async function getOccupiedTimesForDay(db, { schoolId, branch, carName, date, excludeBookingId }) {
+  const occupied = new Set();
+
+  const [bookings] = await db.query(
+    `SELECT starting_from, training_days, present_days, allotted_time, allotted_time2, allotted_time3, allotted_time4
+     FROM bookings
+     WHERE school_id = ? AND branch = ? AND car_name = ? AND attendance_status IN ('Active','Pending') AND id != ?`,
+    [schoolId, branch, carName, excludeBookingId]
+  );
+
+  const targetTime = new Date(date).getTime();
+  for (const b of bookings) {
+    if (!b.starting_from) continue;
+    const start = new Date(b.starting_from);
+    const end = new Date(start);
+    const totalSessions = Number(b.training_days) || 15;
+    const doneSessions = Number(b.present_days) || 0;
+    const remaining = totalSessions - doneSessions;
+    if (remaining <= 0) continue;
+
+    if (remaining < totalSessions / 2) {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      end.setTime(today.getTime());
+      end.setDate(end.getDate() + remaining + 3);
+    } else {
+      end.setDate(start.getDate() + 29);
+    }
+
+    if (targetTime < start.getTime() || targetTime > end.getTime()) continue;
+
+    for (const key of ['allotted_time', 'allotted_time2', 'allotted_time3', 'allotted_time4']) {
+      if (b[key]) occupied.add(String(b[key]).substring(0, 5));
+    }
+  }
+
+  const [slotRows] = await db.query(
+    `SELECT time FROM schedule_slots WHERE school_id = ? AND car_name = ? AND date = ? AND booking_id != ?`,
+    [schoolId, carName, date, excludeBookingId]
+  );
+  for (const s of slotRows) occupied.add(String(s.time).substring(0, 5));
+
+  return occupied;
+}
+
+// Student: submit a cancel/replacement request for one upcoming class occurrence
+app.post('/api/student/schedule-requests', requireExamUser, async (req, res, next) => {
+  const { email, full_name } = req.session.examUser;
+  const { booking_id, request_type, occurrence_date, new_time, reason } = req.body;
+
+  if (!booking_id || !['Cancel', 'Replacement'].includes(request_type) || !occurrence_date) {
+    return res.status(400).json({ success: false, error: 'booking_id, request_type and occurrence_date are required' });
+  }
+  if (request_type === 'Replacement' && !new_time) {
+    return res.status(400).json({ success: false, error: 'new_time is required for a replacement request' });
+  }
+  if (occurrence_date < toMySQLDate(new Date())) {
+    return res.status(400).json({ success: false, error: 'Cannot request a change for a past date' });
+  }
+
+  try {
+    await ensureScheduleRequestsTable();
+
+    const [[booking]] = await dbPool.query(
+      `SELECT id, allotted_time, branch, car_name, instructor_name
+       FROM bookings WHERE id = ? AND school_id = ? AND (email = ? OR customer_name = ?) LIMIT 1`,
+      [booking_id, req.schoolId, email, full_name || '']
+    );
+    if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
+
+    const [[existing]] = await dbPool.query(
+      `SELECT id FROM schedule_change_requests WHERE booking_id = ? AND occurrence_date = ? AND status = 'Pending' LIMIT 1`,
+      [booking_id, occurrence_date]
+    );
+    if (existing) return res.json({ success: false, error: 'A request for this class is already pending' });
+
+    const originalTime = (booking.allotted_time || '').substring(0, 5);
+    const newTime = request_type === 'Replacement' ? String(new_time).substring(0, 5) : null;
+
+    if (request_type === 'Replacement') {
+      if (newTime === originalTime) {
+        return res.json({ success: false, error: 'Please choose a different time than the current slot' });
+      }
+      const occupied = await getOccupiedTimesForDay(dbPool, {
+        schoolId: req.schoolId, branch: booking.branch, carName: booking.car_name,
+        date: occurrence_date, excludeBookingId: booking_id,
+      });
+      if (occupied.has(newTime)) {
+        return res.json({ success: false, error: 'Selected time is not available on this date' });
+      }
+    }
+
+    const [result] = await dbPool.query(
+      `INSERT INTO schedule_change_requests (booking_id, student_email, request_type, occurrence_date, original_time, new_time, reason, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [booking_id, email, request_type, occurrence_date, originalTime, newTime, reason?.trim() || null, req.schoolId]
+    );
+    res.json({ success: true, id: result.insertId });
+  } catch (err) { next(err); }
+});
+
+// Student: view own schedule-change requests
+app.get('/api/student/schedule-requests', requireExamUser, async (req, res, next) => {
+  const { email } = req.session.examUser;
+  try {
+    await ensureScheduleRequestsTable();
+    const [rows] = await dbPool.query(
+      `SELECT id, booking_id, request_type, DATE_FORMAT(occurrence_date, '%Y-%m-%d') AS occurrence_date,
+              original_time, new_time, reason, status, admin_note, created_at
+       FROM schedule_change_requests WHERE student_email = ? AND school_id = ? ORDER BY created_at DESC LIMIT 100`,
+      [email, req.schoolId]
+    );
+    res.json({ success: true, requests: rows });
+  } catch (err) { next(err); }
+});
+
+// Student: available times for a given booking + date, for the Replacement slot picker
+app.get('/api/student/day-availability', requireExamUser, async (req, res, next) => {
+  const { email, full_name } = req.session.examUser;
+  const { booking_id, date } = req.query;
+  if (!booking_id || !date) return res.status(400).json({ success: false, error: 'booking_id and date required' });
+  try {
+    const [[booking]] = await dbPool.query(
+      `SELECT id, branch, car_name, duration_minutes
+       FROM bookings WHERE id = ? AND school_id = ? AND (email = ? OR customer_name = ?) LIMIT 1`,
+      [booking_id, req.schoolId, email, full_name || '']
+    );
+    if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
+
+    const occupied = await getOccupiedTimesForDay(dbPool, {
+      schoolId: req.schoolId, branch: booking.branch, carName: booking.car_name,
+      date, excludeBookingId: Number(booking_id),
+    });
+    res.json({ success: true, occupiedTimes: Array.from(occupied), durationMinutes: booking.duration_minutes || 30 });
+  } catch (err) { next(err); }
+});
+
+// Admin: list schedule-change requests
+app.get('/api/admin/schedule-requests', requireAdmin, async (req, res, next) => {
+  const { status } = req.query;
+  try {
+    await ensureScheduleRequestsTable();
+    const conditions = ['b.school_id = ?'];
+    const params = [req.schoolId];
+    if (status) { conditions.push('scr.status = ?'); params.push(status); }
+    const [rows] = await dbPool.query(
+      `SELECT scr.id, scr.booking_id, scr.request_type, DATE_FORMAT(scr.occurrence_date, '%Y-%m-%d') AS occurrence_date,
+              scr.original_time, scr.new_time, scr.reason, scr.status, scr.admin_note, scr.created_at,
+              b.customer_name, b.branch, b.car_name, b.instructor_name
+       FROM schedule_change_requests scr
+       JOIN bookings b ON b.id = scr.booking_id
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY scr.created_at DESC LIMIT 200`,
+      params
+    );
+    res.json({ success: true, requests: rows });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, requests: [] });
+    next(err);
+  }
+});
+
+// Admin: approve or reject a schedule-change request
+app.patch('/api/admin/schedule-requests/:id', requireAdmin, async (req, res, next) => {
+  const { id } = req.params;
+  const { status, admin_note } = req.body;
+  if (!['Approved', 'Rejected'].includes(status)) {
+    return res.json({ success: false, error: 'Status must be Approved or Rejected' });
+  }
+  const adminId = req.session.adminId;
+  const adminType = req.session.adminRole || 'admin';
+
+  if (status === 'Rejected') {
+    try {
+      const [result] = await dbPool.query(
+        `UPDATE schedule_change_requests SET status='Rejected', admin_note=?, updated_by_id=?, updated_by_type=?
+         WHERE id=? AND school_id=? AND status='Pending'`,
+        [admin_note || null, adminId, adminType, id, req.schoolId]
+      );
+      if (!result.affectedRows) return res.json({ success: false, error: 'Request not found or already processed' });
+      return res.json({ success: true });
+    } catch (err) { return next(err); }
+  }
+
+  // Approved — mutate attendance/schedule_slots inside a transaction so a
+  // slot-conflict discovered mid-approval can't leave a half-applied change.
+  const conn = await dbPool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [[reqRow]] = await conn.query(
+      `SELECT scr.*, b.branch, b.car_name, b.instructor_name
+       FROM schedule_change_requests scr JOIN bookings b ON b.id = scr.booking_id
+       WHERE scr.id = ? AND scr.school_id = ? AND scr.status = 'Pending' FOR UPDATE`,
+      [id, req.schoolId]
+    );
+    if (!reqRow) { await conn.rollback(); return res.json({ success: false, error: 'Request not found or already processed' }); }
+
+    if (reqRow.request_type === 'Replacement') {
+      const occupied = await getOccupiedTimesForDay(conn, {
+        schoolId: req.schoolId, branch: reqRow.branch, carName: reqRow.car_name,
+        date: reqRow.occurrence_date, excludeBookingId: reqRow.booking_id,
+      });
+      if (occupied.has(reqRow.new_time)) {
+        await conn.rollback();
+        return res.json({ success: false, error: 'Selected slot is no longer available — reject this request or ask the student to resubmit' });
+      }
+    }
+
+    const changeSource = reqRow.request_type === 'Replacement' ? 'student_replacement' : 'student_cancel';
+
+    // Mark the original occurrence absent — both Cancel and Replacement clear the old slot the same way
+    await conn.query(
+      `INSERT INTO attendance (booking_id, date, time, present, marked_at, marked_by_id, marked_by_type, approval_status, change_source, change_request_id)
+       VALUES (?, ?, ?, 0, NOW(), ?, ?, 'approved', ?, ?)
+       ON DUPLICATE KEY UPDATE present=0, marked_at=NOW(), marked_by_id=?, marked_by_type=?, approval_status='approved', change_source=?, change_request_id=?`,
+      [reqRow.booking_id, reqRow.occurrence_date, reqRow.original_time, adminId, adminType, changeSource, id,
+       adminId, adminType, changeSource, id]
+    );
+    const [[attRow]] = await conn.query(
+      `SELECT id FROM attendance WHERE booking_id=? AND date=? AND time=? LIMIT 1`,
+      [reqRow.booking_id, reqRow.occurrence_date, reqRow.original_time]
+    );
+
+    let resultingScheduleSlotId = null;
+    if (reqRow.request_type === 'Replacement') {
+      const [slotResult] = await conn.query(
+        `INSERT INTO schedule_slots (booking_id, date, time, car_name, instructor_name, present, school_id, source, change_request_id, replaced_from_time)
+         VALUES (?, ?, ?, ?, ?, 0, ?, 'student_replacement', ?, ?)`,
+        [reqRow.booking_id, reqRow.occurrence_date, reqRow.new_time, reqRow.car_name, reqRow.instructor_name, req.schoolId, id, reqRow.original_time]
+      );
+      resultingScheduleSlotId = slotResult.insertId;
+    }
+
+    const [[attSum]] = await conn.query(`SELECT COUNT(*) AS total FROM attendance WHERE booking_id=? AND present=1`, [reqRow.booking_id]);
+    const [[adhocSum]] = await conn.query(`SELECT COUNT(*) AS total FROM schedule_slots WHERE booking_id=? AND present=1`, [reqRow.booking_id]);
+    const totalPresent = Number(attSum.total) + Number(adhocSum.total);
+    await conn.query(`UPDATE bookings SET present_days=? WHERE id=?`, [totalPresent, reqRow.booking_id]);
+
+    const [[bookingRow]] = await conn.query(
+      `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id=?`,
+      [reqRow.booking_id]
+    );
+    const newStatus = computeAttendanceStatus(bookingRow);
+    await conn.query(`UPDATE bookings SET attendance_status=? WHERE id=?`, [newStatus, reqRow.booking_id]);
+
+    await conn.query(
+      `UPDATE schedule_change_requests SET status='Approved', admin_note=?, updated_by_id=?, updated_by_type=?, resulting_attendance_id=?, resulting_schedule_slot_id=?
+       WHERE id=?`,
+      [admin_note || null, adminId, adminType, attRow?.id ?? null, resultingScheduleSlotId, id]
+    );
+
+    await conn.commit();
+    res.json({ success: true, attendance_status: newStatus });
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    console.error('SCHEDULE REQUEST APPROVE ERROR:', err);
+    next(err);
+  } finally {
+    conn.release();
+  }
 });
 
 // ── Session Ratings ───────────────────────────────────────────────────────────

@@ -173,7 +173,7 @@ window.renderTripLogsModule = async function (tableWrap) {
                             <th>End Time</th>
                             <th>Duration</th>
                             <th>Status</th>
-                            <th>Approve</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -198,11 +198,19 @@ window.renderTripLogsModule = async function (tableWrap) {
                                     }
                                 </td>
                                 <td>
-                                    ${(t.status !== 'completed' && t.status !== 'absent')
+                                    ${t.status === 'active'
                                         ? '<span class="tl-approve-na">—</span>'
-                                        : t.approval_status === 'approved'
-                                            ? '<span class="tl-badge tl-badge--approved">✓ Approved</span>'
-                                            : `<button class="tl-approve-btn" data-id="${t.id}" data-status="${t.status}">Approve</button>`
+                                        : t.status === 'missing'
+                                            ? `<button class="tl-approve-btn tl-action-present" data-id="${t.id}" data-status="missing" data-value="1">Present</button>
+                                               <button class="tl-approve-btn tl-action-absent" data-id="${t.id}" data-status="missing" data-value="0">Absent</button>`
+                                            : t.approval_status === 'approved'
+                                                ? '<span class="tl-badge tl-badge--approved">✓ Approved</span>'
+                                                : t.approval_status === 'rejected'
+                                                    ? '<span class="tl-badge tl-badge--rejected">✕ Rejected</span>'
+                                                    : t.status === 'completed'
+                                                        ? `<button class="tl-approve-btn" data-id="${t.id}" data-status="${t.status}">Approve</button>
+                                                           <button class="tl-reject-btn" data-id="${t.id}">Reject</button>`
+                                                        : `<button class="tl-approve-btn" data-id="${t.id}" data-status="${t.status}">Approve</button>`
                                     }
                                 </td>
                             </tr>
@@ -214,25 +222,66 @@ window.renderTripLogsModule = async function (tableWrap) {
 
         content.querySelectorAll('.tl-approve-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
-                const confirmMsg = btn.dataset.status === 'absent'
-                    ? 'Confirm this absence for the student?'
-                    : 'Approve this trip and mark the student present for this lesson?';
+                const isMissing = btn.dataset.status === 'missing';
+                const label = btn.textContent;
+                const confirmMsg = isMissing
+                    ? `Mark this student ${btn.dataset.value === '1' ? 'present' : 'absent'} for this lesson?`
+                    : btn.dataset.status === 'absent'
+                        ? 'Confirm this absence for the student?'
+                        : 'Approve this trip and mark the student present for this lesson?';
                 if (!confirm(confirmMsg)) return;
-                btn.disabled = true;
-                btn.textContent = 'Approving...';
+
+                // Missing rows have two buttons (Present/Absent); completed rows have
+                // Approve + Reject — disable every button in the row while saving.
+                const rowBtns = content.querySelectorAll(
+                    `.tl-approve-btn[data-id="${btn.dataset.id}"], .tl-reject-btn[data-id="${btn.dataset.id}"]`
+                );
+                rowBtns.forEach(b => { b.disabled = true; });
+                btn.textContent = isMissing ? 'Saving...' : 'Approving...';
                 try {
-                    const r = await window.api(`/api/admin/trip-logs/${btn.dataset.id}/approve`, { method: 'PATCH' });
+                    const r = await window.api(`/api/admin/trip-logs/${btn.dataset.id}/approve`, {
+                        method: 'PATCH',
+                        ...(isMissing ? {
+                            body: JSON.stringify({ value: Number(btn.dataset.value) }),
+                            headers: { 'Content-Type': 'application/json' },
+                        } : {}),
+                    });
                     if (!r.success) {
-                        alert('Error: ' + (r.error || 'Failed to approve trip'));
-                        btn.disabled = false;
-                        btn.textContent = 'Approve';
+                        alert('Error: ' + (r.error || 'Failed to save'));
+                        rowBtns.forEach(b => { b.disabled = false; });
+                        btn.textContent = label;
                         return;
                     }
                     load();
                 } catch (e) {
                     alert('Error: ' + e.message);
-                    btn.disabled = false;
-                    btn.textContent = 'Approve';
+                    rowBtns.forEach(b => { b.disabled = false; });
+                    btn.textContent = label;
+                }
+            });
+        });
+
+        content.querySelectorAll('.tl-reject-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('Reject this trip and mark the student absent for this lesson?')) return;
+                const rowBtns = content.querySelectorAll(
+                    `.tl-approve-btn[data-id="${btn.dataset.id}"], .tl-reject-btn[data-id="${btn.dataset.id}"]`
+                );
+                rowBtns.forEach(b => { b.disabled = true; });
+                btn.textContent = 'Rejecting...';
+                try {
+                    const r = await window.api(`/api/admin/trip-logs/${btn.dataset.id}/reject`, { method: 'PATCH' });
+                    if (!r.success) {
+                        alert('Error: ' + (r.error || 'Failed to reject trip'));
+                        rowBtns.forEach(b => { b.disabled = false; });
+                        btn.textContent = 'Reject';
+                        return;
+                    }
+                    load();
+                } catch (e) {
+                    alert('Error: ' + e.message);
+                    rowBtns.forEach(b => { b.disabled = false; });
+                    btn.textContent = 'Reject';
                 }
             });
         });

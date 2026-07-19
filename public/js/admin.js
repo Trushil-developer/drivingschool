@@ -423,6 +423,18 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 hideLoading();
             }
         },
+        scheduleRequests: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderScheduleRequestsModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Schedule Requests module not loaded</div>';
+                    return;
+                }
+                await window.renderScheduleRequestsModule(tableWrap)();
+            } finally {
+                hideLoading();
+            }
+        },
     };
 
     attachFilterListeners(tabRenderers, () => currentTab);
@@ -441,7 +453,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
             }
         }
 
-        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams' || tab === 'expenses' || tab === 'tripLogs' || tab === 'appSettings' || tab === 'complaints' || tab === 'ratings' || tab === 'inbox') {
+        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams' || tab === 'expenses' || tab === 'tripLogs' || tab === 'appSettings' || tab === 'complaints' || tab === 'ratings' || tab === 'inbox' || tab === 'scheduleRequests') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
         } else if (tab === 'trainingDays' || tab === 'courses' || tab === 'packages') {

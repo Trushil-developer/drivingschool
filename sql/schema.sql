@@ -2318,6 +2318,10 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN approved_by_ty
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='approved_at');
 SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN approved_at DATETIME NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- widen approval_status to allow rejecting a completed trip (marks the student absent instead)
+SET @enum_ok := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='approval_status' AND COLUMN_TYPE LIKE '%rejected%');
+SET @sql := IF(@enum_ok=0,'ALTER TABLE driver_trips MODIFY COLUMN approval_status ENUM(\'pending\',\'approved\',\'rejected\') NOT NULL DEFAULT \'pending\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- APP SETTINGS (Remote Config / Feature Flags)
 -- =====================================
@@ -2403,6 +2407,58 @@ CREATE TABLE IF NOT EXISTS instructor_attendance (
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructor_attendance' AND column_name='instructor_name');
 SET @sql := IF(@col_exists=0,'ALTER TABLE instructor_attendance ADD COLUMN instructor_name VARCHAR(100) NOT NULL DEFAULT \'\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- person_type disambiguates instructor_id, which is only unique *within* its
+-- source table (instructors vs admins) — without it, an admin/manager clocking
+-- in could collide with an unrelated instructor sharing the same id.
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructor_attendance' AND column_name='person_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE instructor_attendance ADD COLUMN person_type VARCHAR(20) NOT NULL DEFAULT \'instructor\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- Seed wifi_ssid into app_settings if not already present
 INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES
     ('wifi_ssid', '', 'School WiFi SSID', 'SSID of the school WiFi network; instructors must be connected to this network to clock in/out');
+
+-- =====================================
+-- SCHEDULE CHANGE REQUESTS TABLE (student-initiated cancel/replacement)
+-- =====================================
+CREATE TABLE IF NOT EXISTS schedule_change_requests (
+    id                          INT AUTO_INCREMENT PRIMARY KEY,
+    booking_id                  INT NOT NULL,
+    student_email               VARCHAR(255) NOT NULL,
+    request_type                ENUM('Cancel','Replacement') NOT NULL,
+    occurrence_date             DATE NOT NULL,
+    original_time               VARCHAR(10) NOT NULL,
+    new_time                    VARCHAR(10) NULL,
+    reason                      TEXT,
+    status                      ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+    admin_note                  TEXT,
+    resulting_attendance_id     INT NULL,
+    resulting_schedule_slot_id  INT NULL,
+    created_at                  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by_id               INT NULL,
+    updated_by_type             VARCHAR(20) NULL,
+    school_id                   INT NOT NULL DEFAULT 1,
+    CONSTRAINT fk_scr_booking FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
+);
+
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='schedule_change_requests' AND index_name='idx_scr_booking_date');
+SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_scr_booking_date ON schedule_change_requests (booking_id, occurrence_date);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- change_source: distinguishes a student-approved cancel/replacement from an
+-- ordinary manually-marked attendance record, so the instructor app can show
+-- a "Cancelled"/"Rescheduled" label instead of a plain Absent toggle.
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='change_source');
+SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN change_source ENUM(\'manual\',\'student_cancel\',\'student_replacement\') NOT NULL DEFAULT \'manual\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='change_request_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN change_request_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- schedule_slots: mark a slot inserted by an approved student replacement,
+-- and remember which time it replaced (shown in the instructor app).
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='source');
+SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN source ENUM(\'adhoc\',\'student_replacement\') NOT NULL DEFAULT \'adhoc\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='change_request_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN change_request_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='replaced_from_time');
+SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN replaced_from_time VARCHAR(10) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

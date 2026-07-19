@@ -187,7 +187,7 @@ window.renderScheduleModule = function(tableWrap) {
 
                 try {
                     const res = await window.api(`/api/instructors?branch=${encodeURIComponent(branch)}`);
-                    const instructors = (res.success ? res.instructors : []).filter(i => i.is_active);
+                    const instructors = (res.success ? res.instructors : []).filter(i => i.is_active && (i.role || '').toLowerCase() === 'instructor');
                     instrSel.innerHTML = '<option value="">— Select instructor —</option>';
                     instructors.forEach(i => {
                         const opt = document.createElement('option');
@@ -280,7 +280,7 @@ window.renderScheduleModule = function(tableWrap) {
 
                 try {
                     const res = await window.api(`/api/instructors?branch=${encodeURIComponent(branch)}`);
-                    const instructors = (res.success ? res.instructors : []).filter(i => i.is_active);
+                    const instructors = (res.success ? res.instructors : []).filter(i => i.is_active && (i.role || '').toLowerCase() === 'instructor');
                     instrSel.innerHTML = '<option value="">— Select instructor —</option>';
                     instructors.forEach(i => {
                         const opt = document.createElement('option');
