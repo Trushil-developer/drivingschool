@@ -153,7 +153,8 @@ window.CommonReady = (async () => {
         appSettings: 'admin.html?tab=appSettings',
         complaints: 'admin.html?tab=complaints',
         ratings: 'admin.html?tab=ratings',
-        inbox: 'admin.html?tab=inbox'
+        inbox: 'admin.html?tab=inbox',
+        scheduleRequests: 'admin.html?tab=scheduleRequests'
     };
 
     sidebarItems.forEach(li => {
