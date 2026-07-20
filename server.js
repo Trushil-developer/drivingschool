@@ -498,16 +498,16 @@ app.patch('/api/student/profile', requireExamUser, async (req, res, next) => {
 
 // ── Student Bookings (match by email OR customer_name) ────────────────────────
 app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
-  const { id: examUserId, email } = req.session.examUser;
+  const { login_booking_id } = req.session.examUser;
   try {
-    // Get student's stored name (set during dev login from booking record)
-    const [[eu]] = await dbPool.query('SELECT full_name FROM exam_users WHERE id = ? LIMIT 1', [examUserId]);
-    const name = eu?.full_name ?? null;
-
-    const conditions = name
-      ? '(b.email = ? OR b.customer_name = ?) AND b.school_id = ?'
-      : 'b.email = ? AND b.school_id = ?';
-    const params = name ? [email, name, req.schoolId] : [email, req.schoolId];
+    // Anchor on the exact booking used to log in, then find other bookings for the
+    // same person by matching customer_name + mobile_no (avoids shared dummy emails
+    // returning hundreds of unrelated students' records).
+    const [[anchor]] = await dbPool.query(
+      'SELECT customer_name, mobile_no FROM bookings WHERE id = ? LIMIT 1',
+      [login_booking_id]
+    );
+    if (!anchor) return res.json({ success: true, bookings: [] });
 
     const [rows] = await dbPool.query(
       `SELECT b.id, b.branch, b.training_days, b.customer_name, b.mobile_no, b.email,
@@ -517,9 +517,9 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
               b.attendance_status, b.certificate_url, b.created_at,
               b.present_days
        FROM bookings b
-       WHERE ${conditions}
+       WHERE b.customer_name = ? AND b.mobile_no = ? AND b.school_id = ?
        ORDER BY b.created_at DESC`,
-      params
+      [anchor.customer_name, anchor.mobile_no, req.schoolId]
     );
     const bookings = rows.map(b => ({
       ...b,
@@ -534,21 +534,22 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
 
 // ── Student Sessions (individual attended classes) ─────────────────────────────
 app.get('/api/student/sessions', requireExamUser, async (req, res, next) => {
-  const { id: examUserId, email } = req.session.examUser;
+  const { login_booking_id } = req.session.examUser;
   try {
-    const [[eu]] = await dbPool.query('SELECT full_name FROM exam_users WHERE id = ? LIMIT 1', [examUserId]);
-    const name = eu?.full_name ?? null;
-    const conditions = name ? '(b.email = ? OR b.customer_name = ?) AND b.school_id = ?' : 'b.email = ? AND b.school_id = ?';
-    const params = name ? [email, name, req.schoolId] : [email, req.schoolId];
+    const [[anchor]] = await dbPool.query(
+      'SELECT customer_name, mobile_no FROM bookings WHERE id = ? LIMIT 1',
+      [login_booking_id]
+    );
+    if (!anchor) return res.json({ success: true, sessions: [] });
 
     const [rows] = await dbPool.query(
       `SELECT a.id, a.booking_id, a.date, a.time, a.present,
               b.branch, b.instructor_name, b.car_name, b.training_days, b.starting_from
        FROM attendance a
        JOIN bookings b ON b.id = a.booking_id
-       WHERE ${conditions}
+       WHERE b.customer_name = ? AND b.mobile_no = ? AND b.school_id = ?
        ORDER BY a.date DESC, a.time ASC`,
-      params
+      [anchor.customer_name, anchor.mobile_no, req.schoolId]
     );
     res.json({ success: true, sessions: rows });
   } catch (err) { next(err); }
@@ -738,7 +739,7 @@ app.post('/api/student-login', loginLimiter, async (req, res, next) => {
       [booking.email, booking.customer_name || null, booking.mobile_no || null, schoolId]
     );
     const [[userRow]] = await dbPool.query('SELECT id, email, full_name, school_id FROM exam_users WHERE email = ? LIMIT 1', [booking.email]);
-    req.session.examUser = { id: userRow.id, email: userRow.email, full_name: userRow.full_name || null, school_id: userRow.school_id || 1 };
+    req.session.examUser = { id: userRow.id, email: userRow.email, full_name: userRow.full_name || null, school_id: userRow.school_id || 1, login_booking_id: Number(student_id) };
     await new Promise((resolve, reject) => req.session.save((err) => (err ? reject(err) : resolve(undefined))));
     const signed = 's:' + cookieSign(req.session.id, process.env.SESSION_SECRET);
     const sessionToken = `session_cookie=${encodeURIComponent(signed)}`;
