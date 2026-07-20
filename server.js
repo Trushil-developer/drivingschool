@@ -471,20 +471,11 @@ app.get('/api/student/profile', requireExamUser, async (req, res, next) => {
   const { id } = req.session.examUser;
   try {
     const [[row]] = await dbPool.query(
-      `SELECT eu.id, eu.email,
-              COALESCE(b.customer_name, eu.full_name) AS full_name,
-              COALESCE(eu.mobile_no,    b.mobile_no)  AS mobile_no,
-              eu.first_verified_at
-       FROM exam_users eu
-       LEFT JOIN (
-         SELECT customer_name, mobile_no, email
-         FROM bookings
-         WHERE email = (SELECT email FROM exam_users WHERE id = ?)
-         ORDER BY created_at DESC LIMIT 1
-       ) b ON b.email = eu.email
-       WHERE eu.id = ?
+      `SELECT id, email, full_name, mobile_no, first_verified_at
+       FROM exam_users
+       WHERE id = ?
        LIMIT 1`,
-      [id, id]
+      [id]
     );
     if (!row) return res.json({ success: false, error: 'Student not found' });
     res.json({ success: true, student: row });
@@ -492,7 +483,7 @@ app.get('/api/student/profile', requireExamUser, async (req, res, next) => {
 });
 
 app.patch('/api/student/profile', requireExamUser, async (req, res, next) => {
-  const { id, email } = req.session.examUser;
+  const { id } = req.session.examUser;
   const { full_name, mobile_no } = req.body;
   const updates = [];
   const params  = [];
@@ -501,17 +492,6 @@ app.patch('/api/student/profile', requireExamUser, async (req, res, next) => {
   if (updates.length === 0) return res.json({ success: false, error: 'Nothing to update' });
   try {
     await dbPool.query(`UPDATE exam_users SET ${updates.join(', ')} WHERE id = ? AND school_id = ?`, [...params, id, req.schoolId]);
-    // Keep bookings in sync so changes appear on the website
-    const bookingUpdates = [];
-    const bookingParams  = [];
-    if (full_name !== undefined) { bookingUpdates.push('customer_name = ?'); bookingParams.push(full_name.trim() || null); }
-    if (mobile_no !== undefined) { bookingUpdates.push('mobile_no = ?');     bookingParams.push(mobile_no.trim() || null); }
-    if (bookingUpdates.length) {
-      await dbPool.query(
-        `UPDATE bookings SET ${bookingUpdates.join(', ')} WHERE email = ? AND school_id = ?`,
-        [...bookingParams, email, req.schoolId]
-      );
-    }
     res.json({ success: true });
   } catch (err) { next(err); }
 });
