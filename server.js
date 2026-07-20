@@ -1884,6 +1884,15 @@ const ensureTripsTable = () => dbPool.query(`
   )
 `);
 
+// Migration: add car_name to driver_trips (denormalized from booking at trip-start time)
+(async () => {
+  try {
+    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN car_name VARCHAR(100) NULL`);
+    // Back-fill existing rows from their linked booking
+    await dbPool.query(`UPDATE driver_trips dt JOIN bookings bk ON bk.id = dt.booking_id SET dt.car_name = bk.car_name WHERE dt.car_name IS NULL OR dt.car_name = ''`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.car_name:', e.message); }
+})();
+
 // Migration: add start_odometer column to driver_trips (car meter reading entered by
 // the instructor at the start of each lesson)
 (async () => {
@@ -1950,7 +1959,7 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
     );
     if (!attendance) return res.json({ success: false, error: 'You must clock in before starting a lesson.' });
     const [[bk]] = await dbPool.query(
-      `SELECT customer_name, allotted_time, allotted_time2, allotted_time3, allotted_time4
+      `SELECT customer_name, car_name, allotted_time, allotted_time2, allotted_time3, allotted_time4
        FROM bookings WHERE id=? AND school_id=? LIMIT 1`,
       [booking_id, req.schoolId]
     );
@@ -1990,9 +1999,9 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
     );
     const [[inst]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? AND school_id=? LIMIT 1', [instructorId, req.schoolId]);
     const [result] = await dbPool.query(
-      `INSERT INTO driver_trips (instructor_id, instructor_name, booking_id, student_name, started_at, duration_mins, status, start_odometer, school_id)
-       VALUES (?, ?, ?, ?, NOW(), ?, 'active', ?, ?)`,
-      [instructorId, inst?.instructor_name ?? '', booking_id, bk?.customer_name ?? '', duration_mins, startOdometer, req.schoolId]
+      `INSERT INTO driver_trips (instructor_id, instructor_name, booking_id, student_name, car_name, started_at, duration_mins, status, start_odometer, school_id)
+       VALUES (?, ?, ?, ?, ?, NOW(), ?, 'active', ?, ?)`,
+      [instructorId, inst?.instructor_name ?? '', booking_id, bk?.customer_name ?? '', bk?.car_name ?? '', duration_mins, startOdometer, req.schoolId]
     );
     const [[trip]] = await dbPool.query('SELECT * FROM driver_trips WHERE id=?', [result.insertId]);
     const remainingSecs = trip.duration_mins * 60;
@@ -2467,7 +2476,7 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
       SELECT dt.id, dt.instructor_id, dt.instructor_name, dt.booking_id, dt.student_name,
              dt.started_at, dt.ended_at, dt.duration_mins, dt.status, dt.start_odometer,
              dt.approval_status, dt.approved_by_id, dt.approved_at,
-             i.branch, bk.car_name
+             i.branch, COALESCE(NULLIF(dt.car_name,''), bk.car_name) AS car_name
       FROM driver_trips dt
       JOIN instructors i ON i.id = dt.instructor_id
       LEFT JOIN bookings bk ON bk.id = dt.booking_id
@@ -2770,6 +2779,17 @@ const ensureInstructorAttendanceTable = async () => {
   } catch (e) { /* 1091 = key not found — already dropped or never existed */ }
 };
 
+// Force clock-out anyone who forgot to clock out on a previous day — nobody's
+// shift should still show as "Clocked In" once that calendar day has ended.
+// Caps clock_out at 23:59:59 of the day they clocked in, so the still-open
+// row doesn't keep accumulating duration forever (e.g. "21h 57m" and climbing).
+const closeStaleInstructorAttendance = (schoolId) => dbPool.query(
+  `UPDATE instructor_attendance
+   SET clock_out = DATE_ADD(date, INTERVAL 1 DAY) - INTERVAL 1 SECOND
+   WHERE clock_out IS NULL AND date < CURDATE() AND school_id = ?`,
+  [schoolId]
+);
+
 // Resolve the logged-in session's display name from the correct source table.
 async function resolveClockPersonName(req) {
   const personType = req.session.adminRole || 'instructor';
@@ -2787,6 +2807,7 @@ app.post('/api/driver/attendance/clock-in', requireAdmin, async (req, res, next)
   const personType = req.session.adminRole || 'instructor';
   try {
     await ensureInstructorAttendanceTable();
+    await closeStaleInstructorAttendance(req.schoolId);
     const clockName = await resolveClockPersonName(req);
     // Use the DB's IST-forced CURDATE(), not Node's UTC date — avoids the
     // 00:00-05:30 IST window being bucketed into the previous calendar day.
@@ -2871,6 +2892,7 @@ app.get('/api/admin/instructor-attendance', requireAdmin, async (req, res, next)
   const { date_from, date_to, instructor_id } = req.query;
   try {
     await ensureInstructorAttendanceTable();
+    await closeStaleInstructorAttendance(req.schoolId);
     const conditions = ['ia.school_id = ?'];
     const params = [req.schoolId];
     if (date_from)     { conditions.push('ia.date >= ?'); params.push(date_from); }

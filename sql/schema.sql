@@ -2322,6 +2322,13 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN approved_at DA
 SET @enum_ok := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='approval_status' AND COLUMN_TYPE LIKE '%rejected%');
 SET @sql := IF(@enum_ok=0,'ALTER TABLE driver_trips MODIFY COLUMN approval_status ENUM(\'pending\',\'approved\',\'rejected\') NOT NULL DEFAULT \'pending\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- car_name (denormalized from booking at trip-start; back-filled for existing rows)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema=DATABASE() AND table_name='driver_trips' AND column_name='car_name');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN car_name VARCHAR(100) NULL','SELECT "exists"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Back-fill existing rows that have no car_name stored
+UPDATE driver_trips dt JOIN bookings bk ON bk.id = dt.booking_id SET dt.car_name = bk.car_name WHERE (dt.car_name IS NULL OR dt.car_name = '') AND (bk.car_name IS NOT NULL AND bk.car_name != '');
+
 -- =====================================
 -- APP SETTINGS (Remote Config / Feature Flags)
 -- =====================================
