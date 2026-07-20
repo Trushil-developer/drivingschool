@@ -3433,24 +3433,25 @@ const ensureRatingsTable = () => dbPool.query(`
 
 // GET /api/student/pending-rating — returns last attended session not yet rated
 app.get('/api/student/pending-rating', requireExamUser, async (req, res, next) => {
-  const { id: examUserId, email } = req.session.examUser;
+  const { id: examUserId, login_booking_id } = req.session.examUser;
   try {
     await ensureRatingsTable();
-    const [[eu]] = await dbPool.query('SELECT full_name FROM exam_users WHERE id = ? LIMIT 1', [examUserId]);
-    const name = eu?.full_name ?? null;
-    // Get the single most recent attended session
-    const conditions = name ? '(b.email = ? OR b.customer_name = ?) AND b.school_id = ?' : 'b.email = ? AND b.school_id = ?';
-    const params2 = name ? [email, name, req.schoolId] : [email, req.schoolId];
+    if (!login_booking_id) return res.json({ success: true, pending: null });
+    const [[anchor]] = await dbPool.query(
+      'SELECT customer_name, mobile_no FROM bookings WHERE id = ? LIMIT 1',
+      [login_booking_id],
+    );
+    if (!anchor) return res.json({ success: true, pending: null });
     const [rows] = await dbPool.query(
       `SELECT a.id AS attendance_id, a.date, a.time, a.booking_id,
               b.instructor_name, b.branch, b.car_name
        FROM attendance a
        JOIN bookings b ON b.id = a.booking_id
-       WHERE ${conditions}
+       WHERE b.customer_name = ? AND b.mobile_no = ? AND b.school_id = ?
          AND a.present = 1
        ORDER BY a.date DESC, a.time DESC
        LIMIT 1`,
-      params2,
+      [anchor.customer_name, anchor.mobile_no, req.schoolId],
     );
     if (rows.length === 0) return res.json({ success: true, pending: null });
     const last = rows[0];
