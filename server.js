@@ -2148,6 +2148,7 @@ const ensureAppSettingsTable = async () => {
     { key: 'maintenance_message',   value: 'We are currently performing maintenance. Please check back soon.', label: 'Maintenance Message', description: 'Text shown to users during maintenance' },
     { key: 'feature_leave_request', value: 'true',  label: 'Leave Request',     description: 'Drivers can submit leave requests from the app' },
     { key: 'wifi_ssid',             value: '',      label: 'School WiFi SSID',  description: 'Instructors must be on this WiFi to clock in/out. Leave empty to disable WiFi check.' },
+    { key: 'min_version',           value: '',      label: 'Minimum App Version', description: 'Minimum Android/iOS app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13' },
   ];
   for (const d of defaults) {
     await dbPool.query(
@@ -2786,10 +2787,10 @@ app.post('/api/driver/attendance/clock-in', requireAdmin, async (req, res, next)
     // Use the DB's IST-forced CURDATE(), not Node's UTC date — avoids the
     // 00:00-05:30 IST window being bucketed into the previous calendar day.
     const [[existing]] = await dbPool.query(
-      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND person_type=? AND date=CURDATE() AND school_id=? LIMIT 1',
+      'SELECT id FROM instructor_attendance WHERE instructor_id=? AND person_type=? AND date=CURDATE() AND clock_out IS NULL AND school_id=? LIMIT 1',
       [instructorId, personType, req.schoolId]
     );
-    if (existing) return res.json({ success: false, error: 'Already clocked in today' });
+    if (existing) return res.json({ success: false, error: 'Already clocked in' });
     await dbPool.query(
       'INSERT INTO instructor_attendance (instructor_id, instructor_name, person_type, clock_in, date, school_id) VALUES (?, ?, ?, NOW(), CURDATE(), ?)',
       [instructorId, clockName, personType, req.schoolId]

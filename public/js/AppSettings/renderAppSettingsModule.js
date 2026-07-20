@@ -86,6 +86,35 @@ window.renderAppSettingsModule = async function (tableWrap) {
                 </div>
             </div>
 
+            <!-- App Version Control -->
+            <div class="as-section-label" style="margin-top:28px">APP VERSION CONTROL</div>
+            <div class="as-card">
+                <div class="as-item" style="align-items:flex-start;flex-direction:column;gap:12px">
+                    <div style="display:flex;align-items:center;gap:12px;width:100%">
+                        <div class="as-item-icon">📦</div>
+                        <div class="as-item-info">
+                            <div class="as-item-title">Minimum Required Version</div>
+                            <div class="as-item-desc">Users on a version older than this will see a forced-update screen and cannot use the app until they update. Leave empty to allow all versions. Format: <strong>1.0.13</strong></div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;width:100%;align-items:center;padding-left:52px">
+                        <input
+                            type="text"
+                            id="minVersionInput"
+                            placeholder="e.g. 1.0.13 (empty = no minimum)"
+                            value="${val('min_version')}"
+                            ${serverError ? 'disabled' : ''}
+                            style="flex:1;border:1.5px solid var(--border,#e2e8f0);border-radius:8px;padding:9px 12px;font-size:14px;outline:none;font-family:inherit"
+                        >
+                        <button class="as-msg-save-btn" id="saveMinVersionBtn" ${serverError ? 'disabled' : ''}>Save</button>
+                        <span class="as-msg-saved" id="minVersionSaved" style="display:none">Saved ✓</span>
+                    </div>
+                    <div style="padding-left:52px;font-size:12px;color:#888">
+                        Current latest build: <strong>1.0.13</strong> (versionCode 14)
+                    </div>
+                </div>
+            </div>
+
             <p class="as-hint">More features will appear here as they are added to the app.</p>
         </div>
     `;
@@ -134,6 +163,24 @@ window.renderAppSettingsModule = async function (tableWrap) {
     document.getElementById('toggle_feature_leave_request').addEventListener('change', async function () {
         this.closest('label').classList.toggle('as-toggle--on', this.checked);
         await updateSetting('feature_leave_request', this.checked);
+    });
+
+    // ── Wire: Minimum required version ─────────────────────────────────────────
+    document.getElementById('saveMinVersionBtn').addEventListener('click', async function () {
+        const raw = document.getElementById('minVersionInput').value.trim();
+        // Basic format validation
+        if (raw && !/^\d+\.\d+\.\d+$/.test(raw)) {
+            alert('Invalid format. Use X.Y.Z (e.g. 1.0.13)');
+            return;
+        }
+        this.disabled = true;
+        this.textContent = 'Saving…';
+        await updateSetting('min_version', raw);
+        this.textContent = 'Save';
+        this.disabled = false;
+        const saved = document.getElementById('minVersionSaved');
+        saved.style.display = 'inline';
+        setTimeout(() => { saved.style.display = 'none'; }, 2500);
     });
 
 };
