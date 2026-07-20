@@ -1322,6 +1322,12 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
   try {
     await dbPool.query(`ALTER TABLE attendance ADD COLUMN approved_at DATETIME NULL`);
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.approved_at:', e.message); }
+  try {
+    await dbPool.query(`ALTER TABLE attendance ADD COLUMN change_source ENUM('manual','student_cancel','student_replacement') NOT NULL DEFAULT 'manual'`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.change_source:', e.message); }
+  try {
+    await dbPool.query(`ALTER TABLE attendance ADD COLUMN change_request_id INT NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.change_request_id:', e.message); }
 })();
 
 app.get('/api/attendance-all', requireAdmin, async (req, res, next) => {
@@ -1892,7 +1898,8 @@ const ensureTripsTable = () => dbPool.query(`
     approved_by_id INT NULL,
     approved_by_type VARCHAR(20) NULL,
     approved_at DATETIME NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    school_id INT NOT NULL DEFAULT 1
   )
 `);
 
@@ -1902,6 +1909,15 @@ const ensureTripsTable = () => dbPool.query(`
   try {
     await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN start_odometer INT NULL`);
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.start_odometer:', e.message); }
+})();
+
+// Migration: add school_id to driver_trips (multi-tenant scoping — trip start/insert
+// writes this column, so a fresh install must have it even before this table pre-dates
+// the school_id rollout)
+(async () => {
+  try {
+    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN school_id INT NOT NULL DEFAULT 1`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.school_id:', e.message); }
 })();
 
 // Migration: add manager-approval fields to driver_trips (a manager reviews each
@@ -2442,7 +2458,7 @@ async function computeInstructorMarkedAbsences(schoolId, dateFrom, dateTo, instr
 // Admin: trip logs history
 app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
   const schoolId = req.schoolId || req.session?.schoolId || 1;
-  const { date_from, date_to, instructor_id, status } = req.query;
+  const { date_from, date_to, instructor_id, status, car_name, branch } = req.query;
   try {
     await ensureTripsTable();
     // Auto-complete any trip that has been active/paused for more than 2 hours
@@ -2460,6 +2476,8 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
     if (date_to)   { conditions.push('DATE(dt.started_at) <= ?'); params.push(date_to); }
     if (instructor_id) { conditions.push('dt.instructor_id = ?'); params.push(instructor_id); }
     if (status && ['active','paused','completed'].includes(status)) { conditions.push('dt.status = ?'); params.push(status); }
+    if (branch)   { conditions.push('i.branch = ?'); params.push(branch); }
+    if (car_name) { conditions.push('bk.car_name = ?'); params.push(car_name); }
 
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
     const skipRealTrips = status === 'missing' || status === 'absent';
@@ -2467,19 +2485,18 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
       SELECT dt.id, dt.instructor_id, dt.instructor_name, dt.booking_id, dt.student_name,
              dt.started_at, dt.ended_at, dt.duration_mins, dt.status, dt.start_odometer,
              dt.approval_status, dt.approved_by_id, dt.approved_at,
-             i.branch
+             i.branch, bk.car_name
       FROM driver_trips dt
       JOIN instructors i ON i.id = dt.instructor_id
+      LEFT JOIN bookings bk ON bk.id = dt.booking_id
       ${where}
       ORDER BY dt.started_at DESC
       LIMIT 500
     `, params))[0];
 
     const now = new Date();
-    const monthAgo = new Date(now);
-    monthAgo.setDate(monthAgo.getDate() - 30);
-    const rangeFrom = date_from || ymd(monthAgo);
-    const rangeTo = date_to || ymd(now);
+    const rangeFrom = date_from || ymd(now);
+    const rangeTo   = date_to   || ymd(now);
 
     let missingRows = [];
     if (!status || status === 'missing') {
@@ -3011,9 +3028,22 @@ const ensureComplaintsTable = () => dbPool.query(`
     admin_note      TEXT,
     created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    school_id       INT NOT NULL DEFAULT 1
+    school_id       INT NOT NULL DEFAULT 1,
+    updated_by_id   INT NULL,
+    updated_by_type VARCHAR(20) NULL
   )
 `);
+
+// Migration: add updated_by_id/updated_by_type to student_complaints (who last
+// changed the complaint's status/note)
+(async () => {
+  try {
+    await dbPool.query(`ALTER TABLE student_complaints ADD COLUMN updated_by_id INT NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] student_complaints.updated_by_id:', e.message); }
+  try {
+    await dbPool.query(`ALTER TABLE student_complaints ADD COLUMN updated_by_type VARCHAR(20) NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] student_complaints.updated_by_type:', e.message); }
+})();
 
 // Public: delete account — verifies OTP then removes exam_users record
 app.post('/api/student/delete-account', async (req, res, next) => {

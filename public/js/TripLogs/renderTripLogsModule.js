@@ -32,10 +32,22 @@ window.renderTripLogsModule = async function (tableWrap) {
         return `${Math.floor(mins / 60)}h ${mins % 60}m`;
     }
 
-    // ── 1. Load instructors for filter dropdown ─────────────────────────────
-    const resInst = await window.api('/api/instructors');
+    function todayISO() {
+        const d = new Date();
+        return d.toISOString().split('T')[0];
+    }
+
+    // ── 1. Load instructors, cars, branches for filter dropdowns ────────────
+    const [resInst, resCars, resBranches] = await Promise.all([
+        window.api('/api/instructors'),
+        window.api('/api/cars'),
+        window.api('/api/branches'),
+    ]);
+
     const instructors = (resInst?.success ? resInst.instructors : [])
         .filter(i => i.is_active && (i.role || '').toLowerCase() === 'instructor');
+    const cars     = resCars?.success     ? resCars.cars         : [];
+    const branches = resBranches?.success ? resBranches.branches : [];
 
     // ── 2. Main layout ──────────────────────────────────────────────────────
     tableWrap.innerHTML = `
@@ -62,6 +74,20 @@ window.renderTripLogsModule = async function (tableWrap) {
                     </select>
                 </div>
                 <div class="tl-filter-group">
+                    <label>Car</label>
+                    <select id="tlCar">
+                        <option value="">All Cars</option>
+                        ${cars.map(c => `<option value="${c.car_name}">${c.car_name}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="tl-filter-group">
+                    <label>Branch</label>
+                    <select id="tlBranch">
+                        <option value="">All Branches</option>
+                        ${branches.map(b => `<option value="${b.branch_name}">${b.branch_name}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="tl-filter-group">
                     <label>Status</label>
                     <select id="tlStatus">
                         <option value="">All</option>
@@ -80,12 +106,10 @@ window.renderTripLogsModule = async function (tableWrap) {
         </div>
     `;
 
-    // Default date range: last 30 days
-    const today = new Date();
-    const monthAgo = new Date(today);
-    monthAgo.setDate(today.getDate() - 30);
-    document.getElementById('tlDateFrom').value = monthAgo.toISOString().split('T')[0];
-    document.getElementById('tlDateTo').value   = today.toISOString().split('T')[0];
+    // Default: today only
+    const today = todayISO();
+    document.getElementById('tlDateFrom').value = today;
+    document.getElementById('tlDateTo').value   = today;
 
     async function load() {
         const content = document.getElementById('tlContent');
@@ -94,14 +118,18 @@ window.renderTripLogsModule = async function (tableWrap) {
         summary.innerHTML = '';
 
         const params = new URLSearchParams();
-        const from = document.getElementById('tlDateFrom').value;
-        const to   = document.getElementById('tlDateTo').value;
-        const inst = document.getElementById('tlInstructor').value;
-        const stat = document.getElementById('tlStatus').value;
-        if (from) params.set('date_from', from);
-        if (to)   params.set('date_to', to);
-        if (inst) params.set('instructor_id', inst);
-        if (stat) params.set('status', stat);
+        const from   = document.getElementById('tlDateFrom').value;
+        const to     = document.getElementById('tlDateTo').value;
+        const inst   = document.getElementById('tlInstructor').value;
+        const car    = document.getElementById('tlCar').value;
+        const branch = document.getElementById('tlBranch').value;
+        const stat   = document.getElementById('tlStatus').value;
+        if (from)   params.set('date_from', from);
+        if (to)     params.set('date_to', to);
+        if (inst)   params.set('instructor_id', inst);
+        if (car)    params.set('car_name', car);
+        if (branch) params.set('branch', branch);
+        if (stat)   params.set('status', stat);
 
         const res = await window.api(`/api/admin/trip-logs?${params}`);
         const trips = res?.success ? res.trips : [];
@@ -167,6 +195,7 @@ window.renderTripLogsModule = async function (tableWrap) {
                             <th>#</th>
                             <th>Instructor</th>
                             <th>Branch</th>
+                            <th>Car</th>
                             <th>Student</th>
                             <th>Start Meter</th>
                             <th>Start Time</th>
@@ -182,6 +211,7 @@ window.renderTripLogsModule = async function (tableWrap) {
                                 <td class="tl-num">${i + 1}</td>
                                 <td class="tl-name">${t.instructor_name || '—'}</td>
                                 <td class="tl-branch">${t.branch || '—'}</td>
+                                <td class="tl-car">${t.car_name || '—'}</td>
                                 <td class="tl-student">${t.student_name || '—'}</td>
                                 <td class="tl-odometer">${(t.start_odometer ?? '—')}</td>
                                 <td class="tl-time">${fmtDT(t.started_at)}</td>
@@ -231,8 +261,6 @@ window.renderTripLogsModule = async function (tableWrap) {
                         : 'Approve this trip and mark the student present for this lesson?';
                 if (!confirm(confirmMsg)) return;
 
-                // Missing rows have two buttons (Present/Absent); completed rows have
-                // Approve + Reject — disable every button in the row while saving.
                 const rowBtns = content.querySelectorAll(
                     `.tl-approve-btn[data-id="${btn.dataset.id}"], .tl-reject-btn[data-id="${btn.dataset.id}"]`
                 );
@@ -289,10 +317,12 @@ window.renderTripLogsModule = async function (tableWrap) {
 
     document.getElementById('tlApply').addEventListener('click', load);
     document.getElementById('tlClear').addEventListener('click', () => {
-        document.getElementById('tlDateFrom').value = monthAgo.toISOString().split('T')[0];
-        document.getElementById('tlDateTo').value   = today.toISOString().split('T')[0];
-        document.getElementById('tlInstructor').value = '';
-        document.getElementById('tlStatus').value = '';
+        document.getElementById('tlDateFrom').value    = today;
+        document.getElementById('tlDateTo').value      = today;
+        document.getElementById('tlInstructor').value  = '';
+        document.getElementById('tlCar').value         = '';
+        document.getElementById('tlBranch').value      = '';
+        document.getElementById('tlStatus').value      = '';
         load();
     });
 
