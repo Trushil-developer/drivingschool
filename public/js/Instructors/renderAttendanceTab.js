@@ -150,13 +150,14 @@ window.renderAttendanceTab = function (container) {
             `;
         }
 
-        async function loadRoster(role, title, wrapId) {
+        async function loadRoster(role, title, wrapId, onlyActive) {
             const wrap = document.getElementById(wrapId);
             if (!wrap) return;
             wrap.innerHTML = `<div style="padding:16px;color:#6b7280">Loading today's ${role} attendance…</div>`;
 
             const res = await window.api(`/api/admin/attendance-roster?role=${role}`).catch(() => ({ success: false, roster: [] }));
-            const roster = res?.success ? (res.roster || []) : [];
+            let roster = res?.success ? (res.roster || []) : [];
+            if (onlyActive) roster = roster.filter(r => r.status === 'Clocked In');
 
             if (!roster.length) {
                 wrap.innerHTML = '';
@@ -198,7 +199,7 @@ window.renderAttendanceTab = function (container) {
 
         await Promise.all([
             loadRoster('manager', "Today's Manager Attendance", 'mgrRosterWrap'),
-            loadRoster('instructor', "Today's Instructor Attendance", 'instRosterWrap'),
+            loadRoster('instructor', "Today's Instructor Attendance", 'instRosterWrap', true),
         ]);
         await loadData();
     };
