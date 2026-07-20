@@ -2400,7 +2400,7 @@ CREATE TABLE IF NOT EXISTS instructor_attendance (
     clock_in        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     clock_out       TIMESTAMP NULL DEFAULT NULL,
     school_id       INT NOT NULL DEFAULT 1,
-    UNIQUE KEY uniq_instructor_date (instructor_id, date)
+    INDEX idx_inst_date (instructor_id, date)
 );
 
 -- instructor_name (denormalized, matches leave_requests/driver_trips convention)
@@ -2413,9 +2413,19 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE instructor_attendance ADD COLUMN instr
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructor_attendance' AND column_name='person_type');
 SET @sql := IF(@col_exists=0,'ALTER TABLE instructor_attendance ADD COLUMN person_type VARCHAR(20) NOT NULL DEFAULT \'instructor\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- Drop unique-per-day constraint on instructor_attendance — drivers may clock in
+-- multiple times per day (e.g. after clocking out for a break).
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema=DATABASE() AND table_name='instructor_attendance' AND index_name='uniq_instructor_date');
+SET @sql := IF(@idx_exists>0, 'ALTER TABLE instructor_attendance DROP INDEX uniq_instructor_date', 'SELECT "index not present"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- Seed wifi_ssid into app_settings if not already present
 INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES
     ('wifi_ssid', '', 'School WiFi SSID', 'SSID of the school WiFi network; instructors must be connected to this network to clock in/out');
+
+-- Seed min_version for force-update gate (empty = no minimum enforced)
+INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES
+    ('min_version', '', 'Minimum App Version', 'Minimum Android/iOS app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13');
 
 -- =====================================
 -- SCHEDULE CHANGE REQUESTS TABLE (student-initiated cancel/replacement)

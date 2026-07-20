@@ -2764,6 +2764,10 @@ const ensureInstructorAttendanceTable = async () => {
   try {
     await dbPool.query(`ALTER TABLE instructor_attendance ADD COLUMN person_type VARCHAR(20) NOT NULL DEFAULT 'instructor'`);
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] instructor_attendance.person_type:', e.message); }
+  // Drop the unique-per-day constraint so drivers can clock in multiple times per day.
+  try {
+    await dbPool.query(`ALTER TABLE instructor_attendance DROP INDEX uniq_instructor_date`);
+  } catch (e) { /* 1091 = key not found — already dropped or never existed */ }
 };
 
 // Resolve the logged-in session's display name from the correct source table.
@@ -2874,7 +2878,9 @@ app.get('/api/admin/instructor-attendance', requireAdmin, async (req, res, next)
     if (instructor_id) { conditions.push('ia.instructor_id = ?'); params.push(instructor_id); }
     const where = 'WHERE ' + conditions.join(' AND ');
     const [rows] = await dbPool.query(
-      `SELECT ia.*, TIMESTAMPDIFF(MINUTE, ia.clock_in, COALESCE(ia.clock_out, NOW())) AS duration_mins
+      `SELECT ia.id, ia.instructor_id, ia.instructor_name, ia.clock_in, ia.clock_out,
+              DATE_FORMAT(ia.date, '%Y-%m-%d') AS date, ia.school_id, ia.person_type,
+              TIMESTAMPDIFF(MINUTE, ia.clock_in, COALESCE(ia.clock_out, NOW())) AS duration_mins
        FROM instructor_attendance ia ${where}
        ORDER BY ia.date DESC, ia.clock_in DESC LIMIT 500`,
       params
@@ -2905,7 +2911,7 @@ app.get('/api/admin/attendance-roster', requireAdmin, async (req, res, next) => 
       clock_out: r.clock_out,
       status: !r.clock_in ? 'Not Clocked In' : (r.clock_out ? 'Clocked Out' : 'Clocked In'),
     }));
-    res.json({ success: true, date: new Date().toISOString().slice(0, 10), roster });
+    res.json({ success: true, date: ymd(new Date()), roster });
   } catch (err) { next(err); }
 });
 
