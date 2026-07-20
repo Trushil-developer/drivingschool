@@ -29,7 +29,6 @@ window.renderAttendanceTab = function (container) {
 
         const toDate   = new Date();
         const fromDate = new Date(toDate);
-        fromDate.setDate(fromDate.getDate() - 29);
 
         // Load instructors for filter
         const resInst = await window.api('/api/instructors').catch(() => ({ instructors: [] }));
@@ -38,6 +37,7 @@ window.renderAttendanceTab = function (container) {
 
         container.innerHTML = `
             <div id="mgrRosterWrap" style="margin-bottom:22px;"></div>
+            <div id="instRosterWrap" style="margin-bottom:22px;"></div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;">
                 <div>
                     <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px">From</label>
@@ -150,12 +150,12 @@ window.renderAttendanceTab = function (container) {
             `;
         }
 
-        async function loadManagerRoster() {
-            const wrap = document.getElementById('mgrRosterWrap');
+        async function loadRoster(role, title, wrapId) {
+            const wrap = document.getElementById(wrapId);
             if (!wrap) return;
-            wrap.innerHTML = `<div style="padding:16px;color:#6b7280">Loading today's manager attendance…</div>`;
+            wrap.innerHTML = `<div style="padding:16px;color:#6b7280">Loading today's ${role} attendance…</div>`;
 
-            const res = await window.api('/api/admin/attendance-roster?role=manager').catch(() => ({ success: false, roster: [] }));
+            const res = await window.api(`/api/admin/attendance-roster?role=${role}`).catch(() => ({ success: false, roster: [] }));
             const roster = res?.success ? (res.roster || []) : [];
 
             if (!roster.length) {
@@ -170,7 +170,7 @@ window.renderAttendanceTab = function (container) {
             };
 
             wrap.innerHTML = `
-                <h3 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 10px">Today's Manager Attendance</h3>
+                <h3 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 10px">${title}</h3>
                 <div style="display:flex;gap:10px;flex-wrap:wrap">
                     ${roster.map(r => {
                         const st = statusStyle[r.status] || statusStyle['Not Clocked In'];
@@ -196,7 +196,10 @@ window.renderAttendanceTab = function (container) {
             loadData();
         });
 
-        await loadManagerRoster();
+        await Promise.all([
+            loadRoster('manager', "Today's Manager Attendance", 'mgrRosterWrap'),
+            loadRoster('instructor', "Today's Instructor Attendance", 'instRosterWrap'),
+        ]);
         await loadData();
     };
 };
