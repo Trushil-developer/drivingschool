@@ -555,6 +555,34 @@ app.get('/api/student/sessions', requireExamUser, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Student: today's ad-hoc/makeup lesson slot(s), if the school added one — these
+// aren't part of the booking's regular allotted_time, so they'd otherwise be
+// invisible to the student even though they count toward their session total.
+app.get('/api/student/schedule-slots-today', requireExamUser, async (req, res, next) => {
+  const { login_booking_id } = req.session.examUser;
+  try {
+    const [[anchor]] = await dbPool.query(
+      'SELECT customer_name, mobile_no FROM bookings WHERE id = ? LIMIT 1',
+      [login_booking_id]
+    );
+    if (!anchor) return res.json({ success: true, slots: [] });
+
+    const [rows] = await dbPool.query(
+      `SELECT ss.id, ss.booking_id, ss.time, ss.car_name, ss.instructor_name, ss.present,
+              ss.source, ss.replaced_from_time
+       FROM schedule_slots ss
+       JOIN bookings b ON b.id = ss.booking_id
+       WHERE b.customer_name = ? AND b.mobile_no = ? AND b.school_id = ? AND ss.date = CURDATE()
+       ORDER BY ss.time ASC`,
+      [anchor.customer_name, anchor.mobile_no, req.schoolId]
+    );
+    res.json({ success: true, slots: rows });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, slots: [] });
+    next(err);
+  }
+});
+
 // ── Driver Leave Requests ──────────────────────────────────────────────────────
 
 app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
@@ -1880,7 +1908,8 @@ const ensureTripsTable = () => dbPool.query(`
     approved_by_type VARCHAR(20) NULL,
     approved_at DATETIME NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    school_id INT NOT NULL DEFAULT 1
+    school_id INT NOT NULL DEFAULT 1,
+    schedule_slot_id INT NULL
   )
 `);
 
@@ -1908,6 +1937,16 @@ const ensureTripsTable = () => dbPool.query(`
   try {
     await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN school_id INT NOT NULL DEFAULT 1`);
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.school_id:', e.message); }
+})();
+
+// Migration: add schedule_slot_id to driver_trips — set when a trip is started for
+// an ad-hoc/makeup or student-replacement lesson instead of a booking's regular
+// allotted_time, so completing/approving the trip marks the right schedule_slots
+// row present instead of guessing via the booking's normal time.
+(async () => {
+  try {
+    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN schedule_slot_id INT NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.schedule_slot_id:', e.message); }
 })();
 
 // Migration: add manager-approval fields to driver_trips (a manager reviews each
@@ -1944,7 +1983,7 @@ const TRIP_START_LATE_GRACE_MIN = 30;
 
 app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
   const instructorId = req.session.adminId;
-  const { booking_id, duration_mins = 30, start_odometer } = req.body;
+  const { booking_id, duration_mins = 30, start_odometer, schedule_slot_id } = req.body;
   if (!booking_id) return res.json({ success: false, error: 'booking_id required' });
   const startOdometer = Number(start_odometer);
   if (!Number.isFinite(startOdometer) || startOdometer < 0) {
@@ -1958,6 +1997,22 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
       [instructorId, req.session.adminRole || 'instructor', req.schoolId]
     );
     if (!attendance) return res.json({ success: false, error: 'You must clock in before starting a lesson.' });
+
+    // Starting a trip for an ad-hoc/makeup or student-replacement lesson (rather
+    // than the booking's regular allotted_time) — validate against that slot's
+    // own specific time instead of the booking's normal recurring schedule.
+    let slot = null;
+    if (schedule_slot_id) {
+      const [[row]] = await dbPool.query(
+        `SELECT ss.id, ss.time, ss.car_name, b.customer_name
+         FROM schedule_slots ss JOIN bookings b ON b.id = ss.booking_id
+         WHERE ss.id=? AND ss.booking_id=? AND b.school_id=? LIMIT 1`,
+        [schedule_slot_id, booking_id, req.schoolId]
+      );
+      if (!row) return res.json({ success: false, error: 'Ad-hoc lesson slot not found' });
+      slot = row;
+    }
+
     const [[bk]] = await dbPool.query(
       `SELECT customer_name, car_name, allotted_time, allotted_time2, allotted_time3, allotted_time4
        FROM bookings WHERE id=? AND school_id=? LIMIT 1`,
@@ -1965,7 +2020,7 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
     );
     if (!bk) return res.json({ success: false, error: 'Booking not found' });
 
-    const slotTimes = [bk.allotted_time, bk.allotted_time2, bk.allotted_time3, bk.allotted_time4]
+    const slotTimes = (slot ? [slot.time] : [bk.allotted_time, bk.allotted_time2, bk.allotted_time3, bk.allotted_time4])
       .filter(Boolean)
       .map(t => {
         const [h, m] = t.split(':').map(Number);
@@ -1999,9 +2054,9 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
     );
     const [[inst]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? AND school_id=? LIMIT 1', [instructorId, req.schoolId]);
     const [result] = await dbPool.query(
-      `INSERT INTO driver_trips (instructor_id, instructor_name, booking_id, student_name, car_name, started_at, duration_mins, status, start_odometer, school_id)
-       VALUES (?, ?, ?, ?, ?, NOW(), ?, 'active', ?, ?)`,
-      [instructorId, inst?.instructor_name ?? '', booking_id, bk?.customer_name ?? '', bk?.car_name ?? '', duration_mins, startOdometer, req.schoolId]
+      `INSERT INTO driver_trips (instructor_id, instructor_name, booking_id, student_name, car_name, started_at, duration_mins, status, start_odometer, school_id, schedule_slot_id)
+       VALUES (?, ?, ?, ?, ?, NOW(), ?, 'active', ?, ?, ?)`,
+      [instructorId, inst?.instructor_name ?? '', booking_id, slot ? slot.customer_name : (bk?.customer_name ?? ''), slot ? (slot.car_name || bk?.car_name || '') : (bk?.car_name ?? ''), duration_mins, startOdometer, req.schoolId, schedule_slot_id || null]
     );
     const [[trip]] = await dbPool.query('SELECT * FROM driver_trips WHERE id=?', [result.insertId]);
     const remainingSecs = trip.duration_mins * 60;
@@ -2585,7 +2640,7 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
   let conn;
   try {
     const [[trip]] = await dbPool.query(
-      `SELECT dt.id, dt.booking_id, dt.started_at, dt.status, dt.approval_status
+      `SELECT dt.id, dt.booking_id, dt.started_at, dt.status, dt.approval_status, dt.schedule_slot_id
        FROM driver_trips dt
        JOIN instructors i ON i.id = dt.instructor_id
        WHERE dt.id = ? AND i.school_id = ? LIMIT 1`,
@@ -2595,48 +2650,57 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
     if (trip.status !== 'completed') return res.json({ success: false, error: 'Only completed trips can be approved' });
     if (trip.approval_status === 'approved') return res.json({ success: true, already_approved: true });
 
-    const [[bk]] = await dbPool.query(
-      `SELECT allotted_time, allotted_time2, allotted_time3, allotted_time4
-       FROM bookings WHERE id = ? AND school_id = ? LIMIT 1`,
-      [trip.booking_id, schoolId]
-    );
-    if (!bk) return res.json({ success: false, error: 'Booking not found' });
-
-    // Match the trip's start time to whichever of the booking's scheduled slots is
-    // closest, so attendance is recorded against the right (booking_id, date, time).
-    const slots = [bk.allotted_time, bk.allotted_time2, bk.allotted_time3, bk.allotted_time4]
-      .filter(Boolean)
-      .map(t => {
-        const [h, m] = t.split(':').map(Number);
-        return { time: t.substring(0, 5), mins: h * 60 + m };
-      });
-    const started = new Date(trip.started_at);
-    const startMins = started.getHours() * 60 + started.getMinutes();
-    const slotTime = slots.length
-      ? slots.reduce((best, s) => Math.abs(s.mins - startMins) < Math.abs(best.mins - startMins) ? s : best).time
-      : '';
-    const dateStr = [
-      started.getFullYear(),
-      String(started.getMonth() + 1).padStart(2, '0'),
-      String(started.getDate()).padStart(2, '0'),
-    ].join('-');
-
     const markedById = req.session.adminId || null;
     const markedByType = req.session.adminRole || 'instructor';
 
     conn = await dbPool.getConnection();
     await conn.beginTransaction();
 
-    await conn.query(
-      `INSERT INTO attendance (booking_id, date, time, present, marked_at, marked_by_id, marked_by_type)
-       VALUES (?, ?, ?, 1, NOW(), ?, ?)
-       ON DUPLICATE KEY UPDATE present = 1, marked_at = NOW(), marked_by_id = ?, marked_by_type = ?`,
-      [trip.booking_id, dateStr, slotTime, markedById, markedByType, markedById, markedByType]
-    );
+    if (trip.schedule_slot_id) {
+      // This trip was for an ad-hoc/makeup or student-replacement lesson —
+      // mark that specific schedule_slots row present instead of guessing an
+      // attendance slot from the booking's regular allotted_time.
+      await conn.query(`UPDATE schedule_slots SET present=1 WHERE id=?`, [trip.schedule_slot_id]);
+    } else {
+      const [[bk]] = await conn.query(
+        `SELECT allotted_time, allotted_time2, allotted_time3, allotted_time4
+         FROM bookings WHERE id = ? AND school_id = ? LIMIT 1`,
+        [trip.booking_id, schoolId]
+      );
+      if (!bk) { await conn.rollback(); return res.json({ success: false, error: 'Booking not found' }); }
+
+      // Match the trip's start time to whichever of the booking's scheduled slots is
+      // closest, so attendance is recorded against the right (booking_id, date, time).
+      const slots = [bk.allotted_time, bk.allotted_time2, bk.allotted_time3, bk.allotted_time4]
+        .filter(Boolean)
+        .map(t => {
+          const [h, m] = t.split(':').map(Number);
+          return { time: t.substring(0, 5), mins: h * 60 + m };
+        });
+      const started = new Date(trip.started_at);
+      const startMins = started.getHours() * 60 + started.getMinutes();
+      const slotTime = slots.length
+        ? slots.reduce((best, s) => Math.abs(s.mins - startMins) < Math.abs(best.mins - startMins) ? s : best).time
+        : '';
+      const dateStr = [
+        started.getFullYear(),
+        String(started.getMonth() + 1).padStart(2, '0'),
+        String(started.getDate()).padStart(2, '0'),
+      ].join('-');
+
+      await conn.query(
+        `INSERT INTO attendance (booking_id, date, time, present, marked_at, marked_by_id, marked_by_type)
+         VALUES (?, ?, ?, 1, NOW(), ?, ?)
+         ON DUPLICATE KEY UPDATE present = 1, marked_at = NOW(), marked_by_id = ?, marked_by_type = ?`,
+        [trip.booking_id, dateStr, slotTime, markedById, markedByType, markedById, markedByType]
+      );
+    }
 
     const [presentSumRows] = await conn.query(
-      `SELECT COUNT(*) AS total_present FROM attendance WHERE booking_id = ? AND present = 1`,
-      [trip.booking_id]
+      `SELECT
+         (SELECT COUNT(*) FROM attendance WHERE booking_id = ? AND present = 1) +
+         (SELECT COUNT(*) FROM schedule_slots WHERE booking_id = ? AND present = 1) AS total_present`,
+      [trip.booking_id, trip.booking_id]
     );
     const totalPresent = Math.max(0, Number(presentSumRows[0].total_present));
     await conn.query(`UPDATE bookings SET present_days = ? WHERE id = ?`, [totalPresent, trip.booking_id]);
@@ -2671,7 +2735,7 @@ app.patch('/api/admin/trip-logs/:id/reject', requireAdmin, async (req, res, next
   let conn;
   try {
     const [[trip]] = await dbPool.query(
-      `SELECT dt.id, dt.booking_id, dt.started_at, dt.status, dt.approval_status
+      `SELECT dt.id, dt.booking_id, dt.started_at, dt.status, dt.approval_status, dt.schedule_slot_id
        FROM driver_trips dt
        JOIN instructors i ON i.id = dt.instructor_id
        WHERE dt.id = ? AND i.school_id = ? LIMIT 1`,
@@ -2681,48 +2745,54 @@ app.patch('/api/admin/trip-logs/:id/reject', requireAdmin, async (req, res, next
     if (trip.status !== 'completed') return res.json({ success: false, error: 'Only completed trips can be rejected' });
     if (trip.approval_status === 'rejected') return res.json({ success: true, already_rejected: true });
 
-    const [[bk]] = await dbPool.query(
-      `SELECT allotted_time, allotted_time2, allotted_time3, allotted_time4
-       FROM bookings WHERE id = ? AND school_id = ? LIMIT 1`,
-      [trip.booking_id, schoolId]
-    );
-    if (!bk) return res.json({ success: false, error: 'Booking not found' });
-
-    // Match the trip's start time to whichever of the booking's scheduled slots is
-    // closest, so attendance is recorded against the right (booking_id, date, time).
-    const slots = [bk.allotted_time, bk.allotted_time2, bk.allotted_time3, bk.allotted_time4]
-      .filter(Boolean)
-      .map(t => {
-        const [h, m] = t.split(':').map(Number);
-        return { time: t.substring(0, 5), mins: h * 60 + m };
-      });
-    const started = new Date(trip.started_at);
-    const startMins = started.getHours() * 60 + started.getMinutes();
-    const slotTime = slots.length
-      ? slots.reduce((best, s) => Math.abs(s.mins - startMins) < Math.abs(best.mins - startMins) ? s : best).time
-      : '';
-    const dateStr = [
-      started.getFullYear(),
-      String(started.getMonth() + 1).padStart(2, '0'),
-      String(started.getDate()).padStart(2, '0'),
-    ].join('-');
-
     const markedById = req.session.adminId || null;
     const markedByType = req.session.adminRole || 'instructor';
 
     conn = await dbPool.getConnection();
     await conn.beginTransaction();
 
-    await conn.query(
-      `INSERT INTO attendance (booking_id, date, time, present, marked_at, marked_by_id, marked_by_type)
-       VALUES (?, ?, ?, 0, NOW(), ?, ?)
-       ON DUPLICATE KEY UPDATE present = 0, marked_at = NOW(), marked_by_id = ?, marked_by_type = ?`,
-      [trip.booking_id, dateStr, slotTime, markedById, markedByType, markedById, markedByType]
-    );
+    if (trip.schedule_slot_id) {
+      await conn.query(`UPDATE schedule_slots SET present=0 WHERE id=?`, [trip.schedule_slot_id]);
+    } else {
+      const [[bk]] = await conn.query(
+        `SELECT allotted_time, allotted_time2, allotted_time3, allotted_time4
+         FROM bookings WHERE id = ? AND school_id = ? LIMIT 1`,
+        [trip.booking_id, schoolId]
+      );
+      if (!bk) { await conn.rollback(); return res.json({ success: false, error: 'Booking not found' }); }
+
+      // Match the trip's start time to whichever of the booking's scheduled slots is
+      // closest, so attendance is recorded against the right (booking_id, date, time).
+      const slots = [bk.allotted_time, bk.allotted_time2, bk.allotted_time3, bk.allotted_time4]
+        .filter(Boolean)
+        .map(t => {
+          const [h, m] = t.split(':').map(Number);
+          return { time: t.substring(0, 5), mins: h * 60 + m };
+        });
+      const started = new Date(trip.started_at);
+      const startMins = started.getHours() * 60 + started.getMinutes();
+      const slotTime = slots.length
+        ? slots.reduce((best, s) => Math.abs(s.mins - startMins) < Math.abs(best.mins - startMins) ? s : best).time
+        : '';
+      const dateStr = [
+        started.getFullYear(),
+        String(started.getMonth() + 1).padStart(2, '0'),
+        String(started.getDate()).padStart(2, '0'),
+      ].join('-');
+
+      await conn.query(
+        `INSERT INTO attendance (booking_id, date, time, present, marked_at, marked_by_id, marked_by_type)
+         VALUES (?, ?, ?, 0, NOW(), ?, ?)
+         ON DUPLICATE KEY UPDATE present = 0, marked_at = NOW(), marked_by_id = ?, marked_by_type = ?`,
+        [trip.booking_id, dateStr, slotTime, markedById, markedByType, markedById, markedByType]
+      );
+    }
 
     const [presentSumRows] = await conn.query(
-      `SELECT COUNT(*) AS total_present FROM attendance WHERE booking_id = ? AND present = 1`,
-      [trip.booking_id]
+      `SELECT
+         (SELECT COUNT(*) FROM attendance WHERE booking_id = ? AND present = 1) +
+         (SELECT COUNT(*) FROM schedule_slots WHERE booking_id = ? AND present = 1) AS total_present`,
+      [trip.booking_id, trip.booking_id]
     );
     const totalPresent = Math.max(0, Number(presentSumRows[0].total_present));
     await conn.query(`UPDATE bookings SET present_days = ? WHERE id = ?`, [totalPresent, trip.booking_id]);

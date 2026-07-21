@@ -2329,6 +2329,13 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- Back-fill existing rows that have no car_name stored
 UPDATE driver_trips dt JOIN bookings bk ON bk.id = dt.booking_id SET dt.car_name = bk.car_name WHERE (dt.car_name IS NULL OR dt.car_name = '') AND (bk.car_name IS NOT NULL AND bk.car_name != '');
 
+-- schedule_slot_id: set when a trip is started for an ad-hoc/makeup or student-
+-- replacement lesson instead of a booking's regular allotted_time, so completing/
+-- approving the trip marks the right schedule_slots row present.
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema=DATABASE() AND table_name='driver_trips' AND column_name='schedule_slot_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN schedule_slot_id INT NULL','SELECT "exists"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- APP SETTINGS (Remote Config / Feature Flags)
 -- =====================================
