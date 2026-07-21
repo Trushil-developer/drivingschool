@@ -3,7 +3,7 @@ window.renderInstructorsModule = function(tableWrap, tabRenderers, currentTab) {
 
         // -------------------- Sub-tab switcher --------------------
         const subTabBar = document.createElement('div');
-        subTabBar.style.cssText = 'display:flex;gap:8px;margin-bottom:20px;border-bottom:2px solid #e5e7eb;padding-bottom:0;';
+        subTabBar.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;border-bottom:2px solid #e5e7eb;padding-bottom:0;';
         subTabBar.innerHTML = `
             <button class="ins-sub-tab ins-sub-active" data-subtab="attendance"
                 style="padding:8px 18px;border:none;background:none;cursor:pointer;font-weight:600;font-size:14px;border-bottom:2px solid #185fa5;margin-bottom:-2px;color:#185fa5">

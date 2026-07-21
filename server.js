@@ -2849,8 +2849,12 @@ app.get('/api/driver/attendance/today', requireAdmin, async (req, res, next) => 
   const personType = req.session.adminRole || 'instructor';
   try {
     await ensureInstructorAttendanceTable();
+    // Multiple clock-in/out cycles are allowed per day — prefer the currently
+    // open session (clock_out IS NULL) if any, else the most recently closed one.
     const [[record]] = await dbPool.query(
-      'SELECT * FROM instructor_attendance WHERE instructor_id=? AND person_type=? AND date=CURDATE() AND school_id=? LIMIT 1',
+      `SELECT * FROM instructor_attendance
+       WHERE instructor_id=? AND person_type=? AND date=CURDATE() AND school_id=?
+       ORDER BY (clock_out IS NULL) DESC, clock_in DESC LIMIT 1`,
       [instructorId, personType, req.schoolId]
     );
     res.json({ success: true, record: record ?? null });

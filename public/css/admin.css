@@ -1054,6 +1054,35 @@ body {
         max-width: 95%;
         padding: 20px;
     }
+
+    /* Instructors tab: sub-tab bar + actions bar */
+    .ins-sub-tab-bar {
+        gap: 4px !important;
+        margin-bottom: 14px !important;
+    }
+
+    .ins-sub-tab {
+        padding: 8px 12px !important;
+        font-size: 13px !important;
+    }
+
+    .ins-actions-bar button {
+        width: 100%;
+    }
+
+    /* Trip Logs table */
+    .tl-table th,
+    .tl-table td {
+        font-size: 12px;
+        padding: 8px 10px;
+    }
+
+    .tl-badge,
+    .tl-approve-btn,
+    .tl-reject-btn {
+        font-size: 11px;
+        padding: 3px 9px;
+    }
 }
 
 /* ========================================
@@ -1072,6 +1101,17 @@ body {
     .bookings-table td {
         font-size: 11px;
         padding: 8px 10px;
+    }
+
+    .tl-table th,
+    .tl-table td {
+        font-size: 11px;
+        padding: 7px 8px;
+    }
+
+    .ins-sub-tab {
+        padding: 7px 9px !important;
+        font-size: 12px !important;
     }
 
     .btn {
@@ -1235,7 +1275,7 @@ body {
 .tl-stat-label { font-size: 0.78rem; color: var(--text-secondary, #666); font-weight: 500; }
 
 .tl-table-wrap { overflow-x: auto; border: 1px solid var(--border, #e5e7eb); border-radius: 10px; }
-.tl-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.tl-table { width: 100%; min-width: 920px; border-collapse: collapse; font-size: 0.875rem; }
 .tl-table thead { background: var(--table-head-bg, #f9fafb); }
 .tl-table th { padding: 10px 14px; text-align: left; font-size: 0.78rem; font-weight: 600; color: var(--text-secondary, #6b7280); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; border-bottom: 1px solid var(--border, #e5e7eb); }
 .tl-table td { padding: 11px 14px; border-bottom: 1px solid var(--border, #f3f4f6); vertical-align: middle; }
