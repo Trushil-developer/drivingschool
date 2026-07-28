@@ -1446,13 +1446,20 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
                  storedValue, markedById, markedByType, approvalStatus]
             );
 
+            // present_days = regular attendance + ad-hoc present slots (see
+            // /api/schedule-slots/:id/present, which this must stay in sync with —
+            // otherwise marking a regular slot here silently drops ad-hoc presents)
             const [presentSumRows] = await conn.query(
                 `SELECT COUNT(*) AS total_present
                  FROM attendance
                  WHERE booking_id = ? AND present = 1`,
                 [booking_id]
             );
-            const totalPresent = Math.max(0, Number(presentSumRows[0].total_present));
+            const [adhocSumRows] = await conn.query(
+                `SELECT COUNT(*) AS total FROM schedule_slots WHERE booking_id = ? AND present = 1`,
+                [booking_id]
+            );
+            const totalPresent = Math.max(0, Number(presentSumRows[0].total_present) + Number(adhocSumRows[0].total));
 
             await conn.query(
                 `UPDATE bookings SET present_days = ? WHERE id = ?`,
@@ -1524,11 +1531,17 @@ app.delete('/api/attendance/:booking_id/:attendance_id', requireAdmin, async (re
 
         await conn.query(`DELETE FROM attendance WHERE id = ?`, [attendance_id]);
 
+        // present_days = regular attendance + ad-hoc present slots (see
+        // /api/schedule-slots/:id/present, which this must stay in sync with)
         const [presentSumRows] = await conn.query(
             `SELECT COUNT(*) AS total_present FROM attendance WHERE booking_id = ? AND present = 1`,
             [booking_id]
         );
-        const totalPresent = Number(presentSumRows[0].total_present);
+        const [adhocSumRows] = await conn.query(
+            `SELECT COUNT(*) AS total FROM schedule_slots WHERE booking_id = ? AND present = 1`,
+            [booking_id]
+        );
+        const totalPresent = Number(presentSumRows[0].total_present) + Number(adhocSumRows[0].total);
 
         await conn.query(`UPDATE bookings SET present_days = ? WHERE id = ?`, [totalPresent, booking_id]);
 
@@ -2614,10 +2627,15 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
          presentValue, markedById, markedByType]
       );
 
+      // present_days = regular attendance + ad-hoc present slots (see
+      // /api/schedule-slots/:id/present, which this must stay in sync with)
       const [presentSumRows] = await mConn.query(
         `SELECT COUNT(*) AS total_present FROM attendance WHERE booking_id=? AND present=1`, [bookingId]
       );
-      const totalPresent = Math.max(0, Number(presentSumRows[0].total_present));
+      const [adhocSumRows] = await mConn.query(
+        `SELECT COUNT(*) AS total FROM schedule_slots WHERE booking_id=? AND present=1`, [bookingId]
+      );
+      const totalPresent = Math.max(0, Number(presentSumRows[0].total_present) + Number(adhocSumRows[0].total));
       await mConn.query(`UPDATE bookings SET present_days=? WHERE id=?`, [totalPresent, bookingId]);
 
       const [bookingRows] = await mConn.query(
@@ -2821,6 +2839,13 @@ app.patch('/api/admin/trip-logs/:id/reject', requireAdmin, async (req, res, next
 
 // ── Instructor Attendance (Clock In / Clock Out) ──────────────────────────────
 
+// Table creation is cheap and idempotent, safe to call per-request. The
+// column/index migrations below are NOT — they used to run unconditionally
+// inside this function, which was called on every clock-in/clock-out/trip-start
+// request. Under concurrent traffic, repeated ALTER TABLE attempts queue up
+// waiting for MySQL's exclusive metadata lock, and every other query on this
+// table (and eventually every pool connection app-wide) queues up behind them —
+// this once froze the entire site. They now run exactly once at startup instead.
 const ensureInstructorAttendanceTable = async () => {
   await dbPool.query(`
     CREATE TABLE IF NOT EXISTS instructor_attendance (
@@ -2835,19 +2860,22 @@ const ensureInstructorAttendanceTable = async () => {
       INDEX idx_inst_date (instructor_id, date)
     )
   `);
+};
+
+// Migration: person_type + drop legacy unique-per-day constraint on
+// instructor_attendance. Runs once at startup — see comment above.
+(async () => {
   // person_type disambiguates instructor_id, which is only unique *within*
   // its source table (instructors vs admins) — without it, an admin/manager
   // clocking in could collide with an unrelated instructor sharing the same id.
-  // MySQL here doesn't support ADD COLUMN IF NOT EXISTS, so use the errno-1060
-  // (duplicate column) guard like every other migration in this file.
   try {
     await dbPool.query(`ALTER TABLE instructor_attendance ADD COLUMN person_type VARCHAR(20) NOT NULL DEFAULT 'instructor'`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] instructor_attendance.person_type:', e.message); }
+  } catch (e) { if (e.errno !== 1060 && e.errno !== 1146) console.error('[Migration] instructor_attendance.person_type:', e.message); }
   // Drop the unique-per-day constraint so drivers can clock in multiple times per day.
   try {
     await dbPool.query(`ALTER TABLE instructor_attendance DROP INDEX uniq_instructor_date`);
-  } catch (e) { /* 1091 = key not found — already dropped or never existed */ }
-};
+  } catch (e) { /* 1091 = key not found (already dropped/never existed), 1146 = table not yet created */ }
+})();
 
 // Force clock-out anyone who forgot to clock out on a previous day — nobody's
 // shift should still show as "Clocked In" once that calendar day has ended.
