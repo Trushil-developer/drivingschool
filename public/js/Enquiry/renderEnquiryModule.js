@@ -54,7 +54,7 @@ window.renderEnquiryModule = async function (tableWrap) {
         const tbody = tableWrap.querySelector(".enquiries-table tbody");
 
         if (!data.length) {
-            tbody.innerHTML = `<tr><td colspan="12" class="empty">No enquiries found</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="13" class="empty">No enquiries found</td></tr>`;
             return;
         }
 
@@ -68,6 +68,7 @@ window.renderEnquiryModule = async function (tableWrap) {
                 <td>${e.course_name || "-"}</td>
                 <td>${e.has_licence || "-"}</td>
                 <td>${e.hear_about || "-"}</td>
+                <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(e.message || "").replace(/"/g, '&quot;')}">${e.message || "-"}</td>
                 <td>${statusBadge(e.status)}</td>
                 <td>${e.created_at ? formatDate(e.created_at) : "-"}</td>
                 <td>
@@ -308,6 +309,7 @@ window.renderEnquiryModule = async function (tableWrap) {
                             <th>Course</th>
                             <th>Licence</th>
                             <th>Heard About</th>
+                            <th>Message</th>
                             <th>Status</th>
                             <th>Created</th>
                             <th>Actions</th>
@@ -328,7 +330,7 @@ window.renderEnquiryModule = async function (tableWrap) {
             tableWrap.innerHTML = branchFilterHTML + tableHTML + paginationHTML;
 
             if (!enquiries.length) {
-                tableWrap.querySelector("tbody").innerHTML = `<tr><td colspan="11" class="empty">No enquiries found</td></tr>`;
+                tableWrap.querySelector("tbody").innerHTML = `<tr><td colspan="13" class="empty">No enquiries found</td></tr>`;
             } else {
                 renderEnquiryRows(enquiries);
             }

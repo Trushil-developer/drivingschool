@@ -86,6 +86,108 @@ p {
 }
 
 /* =========================================================
+   NEW ARRIVAL SECTION
+========================================================= */
+.new-arrival-section {
+    padding: 0 1rem 1rem;
+    max-width: 1100px;
+    margin: auto;
+}
+
+.new-arrival-card {
+    display: flex;
+    align-items: stretch;
+    background: #fff;
+    border-radius: var(--radius-lg);
+    border: 3px solid var(--primary);
+    overflow: hidden;
+    animation: new-arrival-glow 2.2s ease-in-out infinite;
+}
+
+@keyframes new-arrival-glow {
+
+    0%,
+    100% {
+        box-shadow: var(--shadow-md), 0 0 0 0 rgba(26, 115, 232, 0.45);
+    }
+
+    50% {
+        box-shadow: var(--shadow-md), 0 0 22px 6px rgba(26, 115, 232, 0.35);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .new-arrival-card {
+        animation: none;
+        box-shadow: var(--shadow-md);
+    }
+}
+
+.new-arrival-media {
+    flex: 1 1 42%;
+    min-width: 0;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.new-arrival-media img {
+    width: 100%;
+    height: 100%;
+    min-height: 260px;
+    object-fit: contain;
+    display: block;
+}
+
+.new-arrival-content {
+    flex: 1 1 58%;
+    padding: 2rem 2.2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.new-arrival-tag {
+    align-self: flex-start;
+    background: var(--success);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    margin-bottom: 0.8rem;
+}
+
+.new-arrival-content h2 {
+    color: var(--primary);
+    font-size: clamp(1.4rem, 3vw, 1.8rem);
+    margin-bottom: 0.6rem;
+}
+
+.new-arrival-content p {
+    margin-bottom: 1.2rem;
+}
+
+.new-arrival-btn {
+    align-self: flex-start;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+    padding: 0.7rem 1.6rem;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.new-arrival-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+/* =========================================================
    PACKAGES SECTION
 ========================================================= */
 .packages-section {
@@ -470,6 +572,25 @@ p {
    RESPONSIVE
 ========================================================= */
 @media (max-width: 768px) {
+    .new-arrival-card {
+        flex-direction: column;
+    }
+
+    .new-arrival-media img {
+        min-height: 200px;
+    }
+
+    .new-arrival-content {
+        padding: 1.5rem;
+        align-items: center;
+        text-align: center;
+    }
+
+    .new-arrival-tag,
+    .new-arrival-btn {
+        align-self: center;
+    }
+
     .reviews-header {
         flex-direction: column;
         text-align: center;
