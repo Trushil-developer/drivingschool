@@ -1979,6 +1979,33 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE cms_pages ADD COLUMN updated_by_id INT
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND column_name='updated_by_type');
 SET @sql := IF(@col_exists=0,'ALTER TABLE cms_pages ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- Seed the Support page (used as the App Store Connect Support URL:
+-- dwarkeshdrivingschool.com/cms.html?slug=support). Stored as real HTML,
+-- unlike privacy-policy/terms/faqs which store escaped Markdown that cms.js
+-- injects via innerHTML as-is (pre-existing issue, not fixed here).
+INSERT IGNORE INTO cms_pages (school_id, slug, title, content, status) VALUES (
+  1,
+  'support',
+  'Support',
+  '<p>Need help with the BookMyDrive app or your driving lessons? We are here for you.</p>
+
+<h2>Contact Us</h2>
+<p><strong>Email:</strong> <a href="mailto:info@dwarkeshdrivingschool.com">info@dwarkeshdrivingschool.com</a></p>
+<p>We aim to respond to all support requests within 24-48 hours.</p>
+
+<h2>App Issues</h2>
+<p>If you are experiencing a technical issue with the BookMyDrive app (login problems, clock-in/out issues, trip tracking, bookings, etc.), please email us with:</p>
+<ul>
+  <li>Your registered mobile number, employee ID, or student ID</li>
+  <li>A description of the issue</li>
+  <li>A screenshot, if possible</li>
+</ul>
+
+<h2>Other Questions</h2>
+<p>For general questions about lessons, fees, or enrollment, see our <a href="/cms.html?slug=faqs">FAQs</a> or contact us using the email above.</p>',
+  1
+);
+
 -- =====================================
 -- DRIVING PACKAGES TABLE
 -- =====================================
