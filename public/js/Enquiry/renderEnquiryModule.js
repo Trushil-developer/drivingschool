@@ -68,7 +68,7 @@ window.renderEnquiryModule = async function (tableWrap) {
                 <td>${e.course_name || "-"}</td>
                 <td>${e.has_licence || "-"}</td>
                 <td>${e.hear_about || "-"}</td>
-                <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(e.message || "").replace(/"/g, '&quot;')}">${e.message || "-"}</td>
+                <td style="max-width:220px;white-space:normal;word-break:break-word;">${e.message || "-"}</td>
                 <td>${statusBadge(e.status)}</td>
                 <td>${e.created_at ? formatDate(e.created_at) : "-"}</td>
                 <td>
