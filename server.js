@@ -7,7 +7,6 @@ import cors from 'cors';
 import path from 'path';
 import session from 'express-session';
 import bcrypt from 'bcrypt';
-import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import MySQLStoreImport from 'express-mysql-session';
@@ -168,14 +167,6 @@ app.use(
   })
 );
 
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,                   // max 10 attempts per window
-  message: { success: false, error: 'Too many login attempts. Please try again in 15 minutes.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 // ---------- Helpers ----------
 export function computeAttendanceStatus(booking) {
   const hold = Number(booking.hold_status) === 1;
@@ -311,7 +302,7 @@ async function checkSlotConflicts(schoolId, branch, car, startingFrom, slots, ex
 }
 
 // ---------- AUTH ----------
-app.post('/api/login', loginLimiter, async (req, res, next) => {
+app.post('/api/login', async (req, res, next) => {
   const { username, password } = req.body;
   try {
     // ── Path 1: full admin account (admins table, bcrypt password) ──
@@ -363,7 +354,7 @@ app.post('/api/login', loginLimiter, async (req, res, next) => {
   }
 });
 
-app.post('/api/driver-login', loginLimiter, async (req, res, next) => {
+app.post('/api/driver-login', async (req, res, next) => {
   const { employee_no, password } = req.body;
   try {
     if (!employee_no || !password) return res.json({ success: false, error: 'Employee number and password required' });
@@ -744,7 +735,7 @@ app.post('/api/dev/student-login', async (req, res, next) => {
 });
 
 // ---------- STUDENT/CUSTOMER LOGIN: booking row ID + mobile number as password ----------
-app.post('/api/student-login', loginLimiter, async (req, res, next) => {
+app.post('/api/student-login', async (req, res, next) => {
   const { student_id, password } = req.body;
   try {
     if (!student_id || !password) return res.json({ success: false, error: 'Student ID and password required' });
