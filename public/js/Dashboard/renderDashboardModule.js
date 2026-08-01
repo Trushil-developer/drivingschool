@@ -674,7 +674,10 @@ function formatPeriodLabel(period, granularity) {
   if (granularity === 'year') {
     return period.toString();
   } else if (granularity === 'day') {
-    const date = new Date(period);
+    // Parse Y-M-D manually (not `new Date(period)`) so the label doesn't shift
+    // a day depending on the viewer's browser timezone vs. the school's.
+    const [y, m, d] = period.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } else if (granularity === 'week') {
     // period format: YYYY-Www (e.g. 2026-W27)

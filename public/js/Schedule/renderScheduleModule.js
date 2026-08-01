@@ -499,8 +499,66 @@ window.renderScheduleModule = function(tableWrap) {
                         <span class="available-slots">Available Slots: ${totalSlots - activeSlots}</span>
                     `;
 
+                    // ── Upcoming bookings (starts in the future) — rendered above the grid,
+                    // with a loud banner, so staff can't miss reaching out before day 1 ──
+                    const upcomingBookings = bookings.filter(b => {
+                        if (!b.starting_from) return false;
+                        if ((b.branch || '').trim().toLowerCase() !== branch.trim().toLowerCase()) return false;
+                        const status = (b.attendance_status || '').trim().toLowerCase();
+                        if (status !== 'pending') return false;
+                        const startDate = new Date(b.starting_from);
+                        startDate.setHours(0, 0, 0, 0);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return startDate > today;
+                    }).sort((a, b) => new Date(a.starting_from) - new Date(b.starting_from));
+
+                    let upcomingHtml = '';
+                    if (upcomingBookings.length > 0) {
+                        const today0 = new Date();
+                        today0.setHours(0, 0, 0, 0);
+                        upcomingHtml = `
+                            <div class="upcoming-bookings-wrap">
+                                <h3 class="upcoming-bookings-title">⚠ Upcoming Bookings — reach out before their start date <span class="upcoming-count-badge">${upcomingBookings.length}</span></h3>
+                                <table class="upcoming-bookings-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Car</th>
+                                            <th>Slots</th>
+                                            <th>Instructor</th>
+                                            <th>Starts On</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${upcomingBookings.map(b => {
+                                            const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
+                                                .filter(Boolean)
+                                                .map(t => to12HourFormat(t.substring(0, 5)))
+                                                .join(', ');
+                                            const startDate = new Date(b.starting_from);
+                                            startDate.setHours(0, 0, 0, 0);
+                                            const daysAway = Math.round((startDate - today0) / 86400000);
+                                            const startStr = new Date(b.starting_from).toLocaleDateString('en-IN', {
+                                                day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata'
+                                            });
+                                            const soon = daysAway <= 2;
+                                            const dueLabel = daysAway === 0 ? 'Today' : daysAway === 1 ? 'Tomorrow' : `in ${daysAway}d`;
+                                            return `<tr class="${soon ? 'upcoming-row-soon' : ''}">
+                                                <td><a href="details.html?id=${b.id}" style="color:inherit;text-decoration:none;font-weight:600;">${b.customer_name || '-'}</a></td>
+                                                <td>${b.car_name || '-'}</td>
+                                                <td>${slots || '-'}</td>
+                                                <td>${b.instructor_name || '-'}</td>
+                                                <td>${startStr} ${soon ? `<span class="upcoming-soon-badge">${dueLabel}</span>` : ''}</td>
+                                            </tr>`;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>`;
+                    }
+
                     // Build table
-                    let html = `<table class="schedule-table">
+                    let html = upcomingHtml + `<table class="schedule-table">
                         <thead>
                             <tr>
                                 <th>Time</th>
@@ -578,56 +636,6 @@ window.renderScheduleModule = function(tableWrap) {
                             `).join('')}
                         </tbody>
                     </table>`;
-
-                    // ── Upcoming bookings table (starts in the future) ──
-                    const upcomingBookings = bookings.filter(b => {
-                        if (!b.starting_from) return false;
-                        if ((b.branch || '').trim().toLowerCase() !== branch.trim().toLowerCase()) return false;
-                        const status = (b.attendance_status || '').trim().toLowerCase();
-                        if (status !== 'pending') return false;
-                        const startDate = new Date(b.starting_from);
-                        startDate.setHours(0, 0, 0, 0);
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        return startDate > today;
-                    }).sort((a, b) => new Date(a.starting_from) - new Date(b.starting_from));
-
-                    if (upcomingBookings.length > 0) {
-                        const upcomingHtml = `
-                            <div class="upcoming-bookings-wrap">
-                                <h3 class="upcoming-bookings-title">Upcoming Bookings</h3>
-                                <table class="upcoming-bookings-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Student</th>
-                                            <th>Car</th>
-                                            <th>Slots</th>
-                                            <th>Instructor</th>
-                                            <th>Starts On</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${upcomingBookings.map(b => {
-                                            const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
-                                                .filter(Boolean)
-                                                .map(t => to12HourFormat(t.substring(0, 5)))
-                                                .join(', ');
-                                            const startStr = new Date(b.starting_from).toLocaleDateString('en-IN', {
-                                                day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata'
-                                            });
-                                            return `<tr>
-                                                <td><a href="details.html?id=${b.id}" style="color:inherit;text-decoration:none;font-weight:600;">${b.customer_name || '-'}</a></td>
-                                                <td>${b.car_name || '-'}</td>
-                                                <td>${slots || '-'}</td>
-                                                <td>${b.instructor_name || '-'}</td>
-                                                <td>${startStr}</td>
-                                            </tr>`;
-                                        }).join('')}
-                                    </tbody>
-                                </table>
-                            </div>`;
-                        html += upcomingHtml;
-                    }
 
                     // ── Build per-instructor slot map for modal ──────────
                     const instrSlotMap = {};

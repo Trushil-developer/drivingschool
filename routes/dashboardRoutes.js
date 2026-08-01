@@ -566,7 +566,7 @@ router.get("/enquiry-trends", requireAdmin, async (req, res) => {
 
     const periodExpr = granularity === 'year' ? 'YEAR(e.created_at)'
       : granularity === 'week' ? "DATE_FORMAT(e.created_at, '%x-W%v')"
-      : granularity === 'day'  ? 'DATE(e.created_at)'
+      : granularity === 'day'  ? "DATE_FORMAT(e.created_at, '%Y-%m-%d')"
       : "DATE_FORMAT(e.created_at, '%Y-%m')";
     const limitVal = granularity === 'day' ? 30 : granularity === 'week' ? 16 : granularity === 'year' ? 10 : 12;
 
@@ -622,7 +622,7 @@ router.get("/enrollment-trends", requireAdmin, async (req, res) => {
 
     const periodExpr = granularity === 'year' ? 'YEAR(created_at)'
       : granularity === 'week' ? "DATE_FORMAT(created_at, '%x-W%v')"
-      : granularity === 'day'  ? 'DATE(created_at)'
+      : granularity === 'day'  ? "DATE_FORMAT(created_at, '%Y-%m-%d')"
       : "DATE_FORMAT(created_at, '%Y-%m')";
     const limitVal = granularity === 'day' ? 30 : granularity === 'week' ? 16 : granularity === 'year' ? 10 : 12;
 
