@@ -568,6 +568,12 @@ body {
     font-weight: 600;
 }
 
+.status-reverted {
+    color: var(--text-muted);
+    font-weight: 600;
+    text-decoration: line-through;
+}
+
 /* ========================================
    Links
 ======================================== */

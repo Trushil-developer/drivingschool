@@ -2480,19 +2480,36 @@ CREATE TABLE IF NOT EXISTS schedule_change_requests (
     original_time               VARCHAR(10) NOT NULL,
     new_time                    VARCHAR(10) NULL,
     reason                      TEXT,
-    status                      ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+    status                      ENUM('Pending','Approved','Rejected','Reverted') NOT NULL DEFAULT 'Pending',
     admin_note                  TEXT,
     resulting_attendance_id     INT NULL,
     resulting_schedule_slot_id  INT NULL,
     created_at                  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_by_id               INT NULL,
     updated_by_type             VARCHAR(20) NULL,
+    reverted_by_id              INT NULL,
+    reverted_by_type            VARCHAR(20) NULL,
+    reverted_at                 DATETIME NULL,
     school_id                   INT NOT NULL DEFAULT 1,
     CONSTRAINT fk_scr_booking FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
 );
 
 SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='schedule_change_requests' AND index_name='idx_scr_booking_date');
 SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_scr_booking_date ON schedule_change_requests (booking_id, occurrence_date);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Reverted: an admin can undo an approved cancel/replacement, restoring the
+-- occurrence to its pre-approval state (see server.js revert endpoint).
+SET @enum_ok := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_change_requests' AND column_name='status' AND COLUMN_TYPE LIKE '%Reverted%');
+SET @sql := IF(@enum_ok=0,'ALTER TABLE schedule_change_requests MODIFY COLUMN status ENUM(\'Pending\',\'Approved\',\'Rejected\',\'Reverted\') NOT NULL DEFAULT \'Pending\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_change_requests' AND column_name='reverted_by_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_change_requests ADD COLUMN reverted_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_change_requests' AND column_name='reverted_by_type');
+SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_change_requests ADD COLUMN reverted_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_change_requests' AND column_name='reverted_at');
+SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_change_requests ADD COLUMN reverted_at DATETIME NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- change_source: distinguishes a student-approved cancel/replacement from an
 -- ordinary manually-marked attendance record, so the instructor app can show

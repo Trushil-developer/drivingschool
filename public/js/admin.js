@@ -65,6 +65,29 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
         li.classList.toggle('active', li.dataset.section === currentTab);
     });
 
+    // Pending schedule-request count on the sidebar nav item — visible from any
+    // section (including right after login), refreshed periodically and again
+    // right after an admin approves/rejects/reverts one (see
+    // renderScheduleRequestsModule.js) so it never lags behind an action taken
+    // in the same session.
+    async function refreshScheduleRequestsBadge() {
+        try {
+            const r = await window.api('/api/admin/schedule-requests?status=Pending');
+            const cnt = (r.requests || []).length;
+            const badge = document.getElementById('scheduleRequestsPendingBadge');
+            if (!badge) return;
+            if (cnt > 0) {
+                badge.textContent = cnt > 99 ? '99+' : cnt;
+                badge.style.display = 'inline';
+            } else {
+                badge.style.display = 'none';
+            }
+        } catch (_) {}
+    }
+    window.refreshScheduleRequestsBadge = refreshScheduleRequestsBadge;
+    refreshScheduleRequestsBadge();
+    setInterval(refreshScheduleRequestsBadge, 60000);
+
     let lastSearch = '';
 
     const MS_PER_DAY = 1000 * 60 * 60 * 24;

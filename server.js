@@ -534,7 +534,7 @@ app.get('/api/student/sessions', requireExamUser, async (req, res, next) => {
     if (!anchor) return res.json({ success: true, sessions: [] });
 
     const [rows] = await dbPool.query(
-      `SELECT a.id, a.booking_id, a.date, a.time, a.present,
+      `SELECT a.id, a.booking_id, a.date, a.time, a.present, a.change_source,
               b.branch, b.instructor_name, b.car_name, b.training_days, b.starting_from
        FROM attendance a
        JOIN bookings b ON b.id = a.booking_id
@@ -3287,16 +3287,43 @@ const ensureScheduleRequestsTable = () => dbPool.query(`
     original_time VARCHAR(10) NOT NULL,
     new_time VARCHAR(10) NULL,
     reason TEXT,
-    status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+    status ENUM('Pending','Approved','Rejected','Reverted') NOT NULL DEFAULT 'Pending',
     admin_note TEXT,
     resulting_attendance_id INT NULL,
     resulting_schedule_slot_id INT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_by_id INT NULL,
     updated_by_type VARCHAR(20) NULL,
+    reverted_by_id INT NULL,
+    reverted_by_type VARCHAR(20) NULL,
+    reverted_at DATETIME NULL,
     school_id INT NOT NULL DEFAULT 1
   )
 `);
+
+// Migration: allow an admin to revert an approved schedule change request
+// back to its pre-approval state — widen status ENUM and add revert audit
+// columns, for installs that already had this table before 'Reverted' existed.
+(async () => {
+  try {
+    const [[col]] = await dbPool.query(
+      `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schedule_change_requests' AND COLUMN_NAME = 'status'`
+    );
+    if (col && !col.COLUMN_TYPE.includes('Reverted')) {
+      await dbPool.query(`ALTER TABLE schedule_change_requests MODIFY COLUMN status ENUM('Pending','Approved','Rejected','Reverted') NOT NULL DEFAULT 'Pending'`);
+    }
+  } catch (e) { console.error('[Migration] schedule_change_requests.status Reverted:', e.message); }
+  try {
+    await dbPool.query(`ALTER TABLE schedule_change_requests ADD COLUMN reverted_by_id INT NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_change_requests.reverted_by_id:', e.message); }
+  try {
+    await dbPool.query(`ALTER TABLE schedule_change_requests ADD COLUMN reverted_by_type VARCHAR(20) NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_change_requests.reverted_by_type:', e.message); }
+  try {
+    await dbPool.query(`ALTER TABLE schedule_change_requests ADD COLUMN reverted_at DATETIME NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_change_requests.reverted_at:', e.message); }
+})();
 
 // Server-side port of register.js's fetchBookedSlots() date-overlap logic
 // (public/js/Register/register.js), plus a check against schedule_slots so
@@ -3560,6 +3587,65 @@ app.patch('/api/admin/schedule-requests/:id', requireAdmin, async (req, res, nex
   } catch (err) {
     await conn.rollback().catch(() => {});
     console.error('SCHEDULE REQUEST APPROVE ERROR:', err);
+    next(err);
+  } finally {
+    conn.release();
+  }
+});
+
+// Admin: revert an approved schedule change request — deletes the attendance
+// row (and schedule_slots row, for a Replacement) that approval created,
+// putting the occurrence back to exactly how it was before the request was
+// approved (nothing recorded, normal recurring slot resumes). The request
+// itself moves to a distinct 'Reverted' status rather than back to 'Pending',
+// so the history stays visible instead of looking like a fresh request.
+app.patch('/api/admin/schedule-requests/:id/revert', requireAdmin, async (req, res, next) => {
+  const { id } = req.params;
+  const adminId = req.session.adminId;
+  const adminType = req.session.adminRole || 'admin';
+  const conn = await dbPool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [[reqRow]] = await conn.query(
+      `SELECT scr.* FROM schedule_change_requests scr
+       JOIN bookings b ON b.id = scr.booking_id
+       WHERE scr.id = ? AND b.school_id = ? AND scr.status = 'Approved' FOR UPDATE`,
+      [id, req.schoolId]
+    );
+    if (!reqRow) { await conn.rollback(); return res.json({ success: false, error: 'Request not found or not currently approved' }); }
+
+    if (reqRow.resulting_attendance_id) {
+      await conn.query(`DELETE FROM attendance WHERE id = ?`, [reqRow.resulting_attendance_id]);
+    }
+    if (reqRow.resulting_schedule_slot_id) {
+      await conn.query(`DELETE FROM schedule_slots WHERE id = ?`, [reqRow.resulting_schedule_slot_id]);
+    }
+
+    const [[attSum]] = await conn.query(`SELECT COUNT(*) AS total FROM attendance WHERE booking_id=? AND present=1`, [reqRow.booking_id]);
+    const [[adhocSum]] = await conn.query(`SELECT COUNT(*) AS total FROM schedule_slots WHERE booking_id=? AND present=1`, [reqRow.booking_id]);
+    const totalPresent = Number(attSum.total) + Number(adhocSum.total);
+    await conn.query(`UPDATE bookings SET present_days=? WHERE id=?`, [totalPresent, reqRow.booking_id]);
+
+    const [[bookingRow]] = await conn.query(
+      `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id=?`,
+      [reqRow.booking_id]
+    );
+    const newStatus = computeAttendanceStatus(bookingRow);
+    await conn.query(`UPDATE bookings SET attendance_status=? WHERE id=?`, [newStatus, reqRow.booking_id]);
+
+    await conn.query(
+      `UPDATE schedule_change_requests SET status='Reverted', reverted_by_id=?, reverted_by_type=?, reverted_at=NOW(),
+              resulting_attendance_id=NULL, resulting_schedule_slot_id=NULL
+       WHERE id=?`,
+      [adminId, adminType, id]
+    );
+
+    await conn.commit();
+    res.json({ success: true, attendance_status: newStatus });
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    console.error('SCHEDULE REQUEST REVERT ERROR:', err);
     next(err);
   } finally {
     conn.release();

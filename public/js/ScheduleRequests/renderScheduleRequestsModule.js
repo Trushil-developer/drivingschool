@@ -10,7 +10,7 @@ window.renderScheduleRequestsModule = function(container) {
 
       const filterBar = `
         <div class="leave-filter-bar" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-          ${['', 'Pending', 'Approved', 'Rejected'].map(s => `
+          ${['', 'Pending', 'Approved', 'Rejected', 'Reverted'].map(s => `
             <button class="btn schedule-request-filter-btn ${filterStatus === s ? 'btn-primary' : ''}" data-status="${s}">
               ${s || 'All'}
             </button>`).join('')}
@@ -33,7 +33,10 @@ window.renderScheduleRequestsModule = function(container) {
         container.innerHTML = filterBar + `<div class="empty">No schedule requests found</div>`;
       } else {
         const rows = reqs.map(r => {
-          const statusCls = r.status === 'Approved' ? 'status-active' : r.status === 'Rejected' ? 'status-expired' : 'status-hold';
+          const statusCls = r.status === 'Approved' ? 'status-active'
+            : r.status === 'Rejected' ? 'status-expired'
+            : r.status === 'Reverted' ? 'status-reverted'
+            : 'status-hold';
           const typeColor = r.request_type === 'Cancel' ? '#a32d2d' : '#185fa5';
           const timeStr = r.request_type === 'Replacement'
             ? `${fmtT(r.original_time)} → ${fmtT(r.new_time)}`
@@ -41,6 +44,8 @@ window.renderScheduleRequestsModule = function(container) {
           const actions = r.status === 'Pending'
             ? `<button class="btn schedule-request-approve" data-id="${r.id}" style="background:#0f6e56;color:#fff;margin-right:4px">Approve</button>
                <button class="btn schedule-request-reject"  data-id="${r.id}" style="background:#a32d2d;color:#fff">Reject</button>`
+            : r.status === 'Approved'
+            ? `<button class="btn schedule-request-revert" data-id="${r.id}" style="background:#6b7280;color:#fff">Revert</button>`
             : `<span style="color:#9ba3b2;font-size:13px">—</span>`;
           const noteRow = r.status === 'Rejected' && r.admin_note ? ` <div style="color:#9ba3b2;font-size:12px;margin-top:2px">Note: ${r.admin_note}</div>` : '';
           return `
@@ -89,6 +94,7 @@ window.renderScheduleRequestsModule = function(container) {
           });
           if (!r.success) throw new Error(r.error || 'Failed');
           window.renderScheduleRequestsModule(container)(filterStatus);
+          window.refreshScheduleRequestsBadge?.();
         } catch (e) { alert('Error: ' + e.message); }
       };
 
@@ -97,6 +103,23 @@ window.renderScheduleRequestsModule = function(container) {
       );
       container.querySelectorAll('.schedule-request-reject').forEach(b =>
         b.addEventListener('click', () => doAction(b.dataset.id, 'Rejected'))
+      );
+
+      // Revert — undoes an approved request's attendance/schedule_slots
+      // changes and puts the occurrence back to its original state.
+      container.querySelectorAll('.schedule-request-revert').forEach(b =>
+        b.addEventListener('click', async () => {
+          if (!confirm('Revert this request? The original session will be restored to its state before approval.')) return;
+          try {
+            const r = await window.api(`/api/admin/schedule-requests/${b.dataset.id}/revert`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+            });
+            if (!r.success) throw new Error(r.error || 'Failed');
+            window.renderScheduleRequestsModule(container)(filterStatus);
+            window.refreshScheduleRequestsBadge?.();
+          } catch (e) { alert('Error: ' + e.message); }
+        })
       );
 
     } catch (err) {
