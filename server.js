@@ -574,6 +574,36 @@ app.get('/api/student/schedule-slots-today', requireExamUser, async (req, res, n
   }
 });
 
+// Student: ad-hoc/replacement slots from today onward (not just today) — used
+// so the app can show a future-dated replacement as the student's next class,
+// and the "Upcoming Classes" list can include it instead of just dropping the
+// old occurrence with nothing replacing it.
+app.get('/api/student/schedule-slots-upcoming', requireExamUser, async (req, res, next) => {
+  const { login_booking_id } = req.session.examUser;
+  try {
+    const [[anchor]] = await dbPool.query(
+      'SELECT customer_name, mobile_no FROM bookings WHERE id = ? LIMIT 1',
+      [login_booking_id]
+    );
+    if (!anchor) return res.json({ success: true, slots: [] });
+
+    const [rows] = await dbPool.query(
+      `SELECT ss.id, ss.booking_id, DATE_FORMAT(ss.date, '%Y-%m-%d') AS date, ss.time,
+              ss.car_name, ss.instructor_name, ss.present, ss.source, ss.replaced_from_time
+       FROM schedule_slots ss
+       JOIN bookings b ON b.id = ss.booking_id
+       WHERE b.customer_name = ? AND b.mobile_no = ? AND b.school_id = ? AND ss.date >= CURDATE()
+       ORDER BY ss.date ASC, ss.time ASC
+       LIMIT 60`,
+      [anchor.customer_name, anchor.mobile_no, req.schoolId]
+    );
+    res.json({ success: true, slots: rows });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, slots: [] });
+    next(err);
+  }
+});
+
 // ── Driver Leave Requests ──────────────────────────────────────────────────────
 
 app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
