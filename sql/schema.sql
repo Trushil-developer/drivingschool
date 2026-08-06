@@ -2464,9 +2464,21 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES
     ('wifi_ssid', '', 'School WiFi SSID', 'SSID of the school WiFi network; instructors must be connected to this network to clock in/out');
 
--- Seed min_version for force-update gate (empty = no minimum enforced)
+-- Seed min_version_android / min_version_ios for force-update gate (empty = no
+-- minimum enforced). Split per-platform: a single shared min_version key used
+-- to gate both platforms caused Apple's reviewer to get stuck behind a
+-- force-update screen on the very first iOS submission, since Android's
+-- threshold had already been raised ahead of iOS's build.
 INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES
-    ('min_version', '', 'Minimum App Version', 'Minimum Android/iOS app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13');
+    ('min_version_android', '', 'Minimum App Version (Android)', 'Minimum Android app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13'),
+    ('min_version_ios', '', 'Minimum App Version (iOS)', 'Minimum iOS app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13');
+
+-- Migrate legacy shared min_version value to Android (the platform that was
+-- actually live) and leave iOS unset.
+UPDATE app_settings a, (SELECT value FROM app_settings WHERE `key` = 'min_version') legacy
+    SET a.value = legacy.value
+    WHERE a.`key` = 'min_version_android' AND a.value = '' AND legacy.value <> '';
+DELETE FROM app_settings WHERE `key` = 'min_version';
 
 -- =====================================
 -- SCHEDULE CHANGE REQUESTS TABLE (student-initiated cancel/replacement)

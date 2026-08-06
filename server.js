@@ -2246,13 +2246,30 @@ const ensureAppSettingsTable = async () => {
     { key: 'maintenance_message',   value: 'We are currently performing maintenance. Please check back soon.', label: 'Maintenance Message', description: 'Text shown to users during maintenance' },
     { key: 'feature_leave_request', value: 'true',  label: 'Leave Request',     description: 'Drivers can submit leave requests from the app' },
     { key: 'wifi_ssid',             value: '',      label: 'School WiFi SSID',  description: 'Instructors must be on this WiFi to clock in/out. Leave empty to disable WiFi check.' },
-    { key: 'min_version',           value: '',      label: 'Minimum App Version', description: 'Minimum Android/iOS app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13' },
+    { key: 'min_version_android',   value: '',      label: 'Minimum App Version (Android)', description: 'Minimum Android app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13' },
+    { key: 'min_version_ios',       value: '',      label: 'Minimum App Version (iOS)', description: 'Minimum iOS app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13' },
   ];
   for (const d of defaults) {
     await dbPool.query(
       'INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES (?, ?, ?, ?)',
       [d.key, d.value, d.label, d.description]
     );
+  }
+
+  // One-time migration: a single shared `min_version` key used to gate both
+  // platforms, which is what caused Apple's reviewer to get stuck behind a
+  // force-update screen on the very first iOS submission — Android's threshold
+  // had already been raised ahead of iOS's build. Carry the value over to
+  // Android (the platform that was actually live) and leave iOS unset.
+  const [[legacy]] = await dbPool.query("SELECT value FROM app_settings WHERE `key` = 'min_version'");
+  if (legacy) {
+    if (legacy.value) {
+      await dbPool.query(
+        "UPDATE app_settings SET value = ? WHERE `key` = 'min_version_android' AND value = ''",
+        [legacy.value]
+      );
+    }
+    await dbPool.query("DELETE FROM app_settings WHERE `key` = 'min_version'");
   }
 };
 

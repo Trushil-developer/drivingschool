@@ -94,23 +94,34 @@ window.renderAppSettingsModule = async function (tableWrap) {
                         <div class="as-item-icon">📦</div>
                         <div class="as-item-info">
                             <div class="as-item-title">Minimum Required Version</div>
-                            <div class="as-item-desc">Users on a version older than this will see a forced-update screen and cannot use the app until they update. Leave empty to allow all versions. Format: <strong>1.0.13</strong></div>
+                            <div class="as-item-desc">Users on a version older than the threshold below will see a forced-update screen and cannot use the app until they update. Leave a platform empty to allow all versions on it. Android and iOS are versioned independently — don't assume they match. Format: <strong>1.0.13</strong></div>
                         </div>
                     </div>
                     <div style="display:flex;gap:10px;width:100%;align-items:center;padding-left:52px">
+                        <span style="width:64px;font-size:13px;font-weight:600;color:#555">Android</span>
                         <input
                             type="text"
-                            id="minVersionInput"
+                            id="minVersionAndroidInput"
                             placeholder="e.g. 1.0.13 (empty = no minimum)"
-                            value="${val('min_version')}"
+                            value="${val('min_version_android')}"
                             ${serverError ? 'disabled' : ''}
                             style="flex:1;border:1.5px solid var(--border,#e2e8f0);border-radius:8px;padding:9px 12px;font-size:14px;outline:none;font-family:inherit"
                         >
-                        <button class="as-msg-save-btn" id="saveMinVersionBtn" ${serverError ? 'disabled' : ''}>Save</button>
-                        <span class="as-msg-saved" id="minVersionSaved" style="display:none">Saved ✓</span>
+                        <button class="as-msg-save-btn" id="saveMinVersionAndroidBtn" ${serverError ? 'disabled' : ''}>Save</button>
+                        <span class="as-msg-saved" id="minVersionAndroidSaved" style="display:none">Saved ✓</span>
                     </div>
-                    <div style="padding-left:52px;font-size:12px;color:#888">
-                        Current latest build: <strong>1.0.13</strong> (versionCode 14)
+                    <div style="display:flex;gap:10px;width:100%;align-items:center;padding-left:52px">
+                        <span style="width:64px;font-size:13px;font-weight:600;color:#555">iOS</span>
+                        <input
+                            type="text"
+                            id="minVersionIosInput"
+                            placeholder="e.g. 1.0.13 (empty = no minimum)"
+                            value="${val('min_version_ios')}"
+                            ${serverError ? 'disabled' : ''}
+                            style="flex:1;border:1.5px solid var(--border,#e2e8f0);border-radius:8px;padding:9px 12px;font-size:14px;outline:none;font-family:inherit"
+                        >
+                        <button class="as-msg-save-btn" id="saveMinVersionIosBtn" ${serverError ? 'disabled' : ''}>Save</button>
+                        <span class="as-msg-saved" id="minVersionIosSaved" style="display:none">Saved ✓</span>
                     </div>
                 </div>
             </div>
@@ -165,22 +176,27 @@ window.renderAppSettingsModule = async function (tableWrap) {
         await updateSetting('feature_leave_request', this.checked);
     });
 
-    // ── Wire: Minimum required version ─────────────────────────────────────────
-    document.getElementById('saveMinVersionBtn').addEventListener('click', async function () {
-        const raw = document.getElementById('minVersionInput').value.trim();
-        // Basic format validation
-        if (raw && !/^\d+\.\d+\.\d+$/.test(raw)) {
-            alert('Invalid format. Use X.Y.Z (e.g. 1.0.13)');
-            return;
-        }
-        this.disabled = true;
-        this.textContent = 'Saving…';
-        await updateSetting('min_version', raw);
-        this.textContent = 'Save';
-        this.disabled = false;
-        const saved = document.getElementById('minVersionSaved');
-        saved.style.display = 'inline';
-        setTimeout(() => { saved.style.display = 'none'; }, 2500);
-    });
+    // ── Wire: Minimum required version (per platform) ───────────────────────────
+    function wireMinVersionInput(platform, settingKey) {
+        const btn = document.getElementById(`saveMinVersion${platform}Btn`);
+        btn.addEventListener('click', async function () {
+            const raw = document.getElementById(`minVersion${platform}Input`).value.trim();
+            // Basic format validation
+            if (raw && !/^\d+\.\d+\.\d+$/.test(raw)) {
+                alert('Invalid format. Use X.Y.Z (e.g. 1.0.13)');
+                return;
+            }
+            this.disabled = true;
+            this.textContent = 'Saving…';
+            await updateSetting(settingKey, raw);
+            this.textContent = 'Save';
+            this.disabled = false;
+            const saved = document.getElementById(`minVersion${platform}Saved`);
+            saved.style.display = 'inline';
+            setTimeout(() => { saved.style.display = 'none'; }, 2500);
+        });
+    }
+    wireMinVersionInput('Android', 'min_version_android');
+    wireMinVersionInput('Ios', 'min_version_ios');
 
 };
