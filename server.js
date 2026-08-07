@@ -147,38 +147,60 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '2mb' }));
 // fixed. This renders the same template with the real content already in
 // place, and still ships the same client-side JS so in-app navigation and
 // the SEO-update script keep working exactly as before.
+async function renderCmsPage(slug, canonicalUrl) {
+  const [rows] = await dbPool.query(
+    `SELECT slug, title, content FROM cms_pages WHERE slug = ? AND status = 1 AND school_id = 1 LIMIT 1`,
+    [slug]
+  );
+  if (!rows.length) return null;
+
+  const page = rows[0];
+  const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const escAttr = (s) => escHtml(s).replace(/"/g, '&quot;');
+
+  const pageTitle = `${page.title} | Dwarkesh Motor Driving School`;
+  const description = page.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+
+  let html = fs.readFileSync(path.join(__dirname, 'public', 'cms.html'), 'utf8');
+  html = html
+    .replace(/(<title id="seoTitle">)([\s\S]*?)(<\/title>)/, `$1${escHtml(pageTitle)}$3`)
+    .replace(/(<meta name="description" id="seoDescription"[\s\S]*?content=")([^"]*)(")/, `$1${escAttr(description)}$3`)
+    .replace(/(<link rel="canonical" id="canonicalUrl" href=")([^"]*)(")/, `$1${canonicalUrl}$3`)
+    .replace(/(<meta property="og:title" id="ogTitle" content=")([^"]*)(")/, `$1${escAttr(pageTitle)}$3`)
+    .replace(/(<meta property="og:description" id="ogDescription"[\s\S]*?content=")([^"]*)(")/, `$1${escAttr(description)}$3`)
+    .replace(/(<meta property="og:url" id="ogUrl" content=")([^"]*)(")/, `$1${canonicalUrl}$3`)
+    .replace(/(<meta name="twitter:title" id="twitterTitle" content=")([^"]*)(")/, `$1${escAttr(pageTitle)}$3`)
+    .replace(/(<meta name="twitter:description" id="twitterDescription"[\s\S]*?content=")([^"]*)(")/, `$1${escAttr(description)}$3`)
+    .replace(/(<h1 id="cmsTitle">)([\s\S]*?)(<\/h1>)/, `$1${escHtml(page.title)}$3`)
+    .replace(/(<div id="cmsContent" class="cms-content">)([\s\S]*?)(<\/div>)/, `$1${page.content}$3`);
+
+  return html;
+}
+
+// Clean canonical URL for the privacy policy - Google Play's listing wants a
+// stable, direct link rather than a query-string CMS route. Old links to
+// /cms.html?slug=privacy-policy (already saved in Play Console, and in
+// already-shipped app builds) keep working via a redirect below.
+app.get('/privacy-policy', async (req, res, next) => {
+  try {
+    const html = await renderCmsPage('privacy-policy', 'https://www.dwarkeshdrivingschool.com/privacy-policy');
+    if (!html) return next();
+    res.set('Cache-Control', 'no-cache');
+    res.send(html);
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.get('/cms.html', async (req, res, next) => {
   const slug = req.query.slug;
   if (!slug) return next(); // no slug: fall through to the static "Invalid page" shell
+  if (slug === 'privacy-policy') return res.redirect(301, '/privacy-policy');
 
   try {
-    const [rows] = await dbPool.query(
-      `SELECT slug, title, content FROM cms_pages WHERE slug = ? AND status = 1 AND school_id = 1 LIMIT 1`,
-      [slug]
-    );
-    if (!rows.length) return next(); // unknown slug: fall through to static "not found" handling
-
-    const page = rows[0];
-    const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const escAttr = (s) => escHtml(s).replace(/"/g, '&quot;');
-
-    const pageTitle = `${page.title} | Dwarkesh Motor Driving School`;
-    const description = page.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
     const canonicalUrl = `https://www.dwarkeshdrivingschool.com/cms.html?slug=${encodeURIComponent(slug)}`;
-
-    let html = fs.readFileSync(path.join(__dirname, 'public', 'cms.html'), 'utf8');
-    html = html
-      .replace(/(<title id="seoTitle">)([\s\S]*?)(<\/title>)/, `$1${escHtml(pageTitle)}$3`)
-      .replace(/(<meta name="description" id="seoDescription"[\s\S]*?content=")([^"]*)(")/, `$1${escAttr(description)}$3`)
-      .replace(/(<link rel="canonical" id="canonicalUrl" href=")([^"]*)(")/, `$1${canonicalUrl}$3`)
-      .replace(/(<meta property="og:title" id="ogTitle" content=")([^"]*)(")/, `$1${escAttr(pageTitle)}$3`)
-      .replace(/(<meta property="og:description" id="ogDescription"[\s\S]*?content=")([^"]*)(")/, `$1${escAttr(description)}$3`)
-      .replace(/(<meta property="og:url" id="ogUrl" content=")([^"]*)(")/, `$1${canonicalUrl}$3`)
-      .replace(/(<meta name="twitter:title" id="twitterTitle" content=")([^"]*)(")/, `$1${escAttr(pageTitle)}$3`)
-      .replace(/(<meta name="twitter:description" id="twitterDescription"[\s\S]*?content=")([^"]*)(")/, `$1${escAttr(description)}$3`)
-      .replace(/(<h1 id="cmsTitle">)([\s\S]*?)(<\/h1>)/, `$1${escHtml(page.title)}$3`)
-      .replace(/(<div id="cmsContent" class="cms-content">)([\s\S]*?)(<\/div>)/, `$1${page.content}$3`);
-
+    const html = await renderCmsPage(slug, canonicalUrl);
+    if (!html) return next(); // unknown slug: fall through to static "not found" handling
     res.set('Cache-Control', 'no-cache');
     res.send(html);
   } catch (err) {
