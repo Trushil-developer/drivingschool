@@ -6,8 +6,14 @@
     const contentEl = document.getElementById("cmsContent");
 
     if (!slug) {
-        titleEl.textContent = "Page Not Found";
-        contentEl.innerHTML = "<p>Invalid page.</p>";
+        // Clean routes like /privacy-policy carry no ?slug= query string - the
+        // server already rendered the real content into the page directly, so
+        // there's nothing for this script to do. Only /cms.html with no slug
+        // at all is genuinely an invalid request.
+        if (window.location.pathname === "/cms.html") {
+            titleEl.textContent = "Page Not Found";
+            contentEl.innerHTML = "<p>Invalid page.</p>";
+        }
         return;
     }
 
