@@ -136,6 +136,56 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json({ limit: '2mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '2mb' }));
+
+// Server-render CMS pages (privacy policy, terms, FAQs) instead of relying on
+// the static public/cms.html shell + client-side fetch/cms.js. That shell's
+// initial HTML just says "Loading content..." until JS runs - crawlers that
+// don't execute JavaScript (including Google Play's privacy-policy checker)
+// never see the actual policy text, the app name, or the developer name in
+// it, which is why the privacy policy URL kept getting rejected as "does not
+// link to a valid privacy policy page" even after the content itself was
+// fixed. This renders the same template with the real content already in
+// place, and still ships the same client-side JS so in-app navigation and
+// the SEO-update script keep working exactly as before.
+app.get('/cms.html', async (req, res, next) => {
+  const slug = req.query.slug;
+  if (!slug) return next(); // no slug: fall through to the static "Invalid page" shell
+
+  try {
+    const [rows] = await dbPool.query(
+      `SELECT slug, title, content FROM cms_pages WHERE slug = ? AND status = 1 AND school_id = 1 LIMIT 1`,
+      [slug]
+    );
+    if (!rows.length) return next(); // unknown slug: fall through to static "not found" handling
+
+    const page = rows[0];
+    const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const escAttr = (s) => escHtml(s).replace(/"/g, '&quot;');
+
+    const pageTitle = `${page.title} | Dwarkesh Motor Driving School`;
+    const description = page.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+    const canonicalUrl = `https://www.dwarkeshdrivingschool.com/cms.html?slug=${encodeURIComponent(slug)}`;
+
+    let html = fs.readFileSync(path.join(__dirname, 'public', 'cms.html'), 'utf8');
+    html = html
+      .replace(/(<title id="seoTitle">)([\s\S]*?)(<\/title>)/, `$1${escHtml(pageTitle)}$3`)
+      .replace(/(<meta name="description" id="seoDescription"[\s\S]*?content=")([^"]*)(")/, `$1${escAttr(description)}$3`)
+      .replace(/(<link rel="canonical" id="canonicalUrl" href=")([^"]*)(")/, `$1${canonicalUrl}$3`)
+      .replace(/(<meta property="og:title" id="ogTitle" content=")([^"]*)(")/, `$1${escAttr(pageTitle)}$3`)
+      .replace(/(<meta property="og:description" id="ogDescription"[\s\S]*?content=")([^"]*)(")/, `$1${escAttr(description)}$3`)
+      .replace(/(<meta property="og:url" id="ogUrl" content=")([^"]*)(")/, `$1${canonicalUrl}$3`)
+      .replace(/(<meta name="twitter:title" id="twitterTitle" content=")([^"]*)(")/, `$1${escAttr(pageTitle)}$3`)
+      .replace(/(<meta name="twitter:description" id="twitterDescription"[\s\S]*?content=")([^"]*)(")/, `$1${escAttr(description)}$3`)
+      .replace(/(<h1 id="cmsTitle">)([\s\S]*?)(<\/h1>)/, `$1${escHtml(page.title)}$3`)
+      .replace(/(<div id="cmsContent" class="cms-content">)([\s\S]*?)(<\/div>)/, `$1${page.content}$3`);
+
+    res.set('Cache-Control', 'no-cache');
+    res.send(html);
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Mobile auth bridge: iOS strips Cookie headers, so mobile sends token via X-Session-Token.
