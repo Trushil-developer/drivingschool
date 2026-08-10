@@ -376,6 +376,7 @@ async function checkSlotConflicts(schoolId, branch, car, startingFrom, slots, ex
 // ---------- AUTH ----------
 app.post('/api/login', async (req, res, next) => {
   const { username, password } = req.body;
+  if (!username || !password) return res.json({ success: false, error: 'Username and password required' });
   try {
     // ── Path 1: full admin account (admins table, bcrypt password) ──
     const [adminRows] = await dbPool.query('SELECT * FROM admins WHERE username = ? AND is_active = 1 LIMIT 1', [username]);

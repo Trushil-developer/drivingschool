@@ -2431,6 +2431,13 @@ CREATE TABLE IF NOT EXISTS session_ratings (
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='session_ratings' AND column_name='school_id');
 SET @sql := IF(@col_exists=0,'ALTER TABLE session_ratings ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- instructor_name was created under the database's utf8mb4_0900_ai_ci default
+-- (set at some point after instructors/bookings were created under
+-- utf8mb4_unicode_ci), so comparing it against instructors.instructor_name
+-- or bookings.instructor_name throws "Illegal mix of collations". Align it
+-- with the rest of the schema.
+ALTER TABLE session_ratings MODIFY instructor_name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- =====================================
 -- INSTRUCTOR ATTENDANCE TABLE
 -- =====================================
