@@ -49,8 +49,47 @@ window.renderTripLogsModule = async function (tableWrap) {
     const cars     = resCars?.success     ? resCars.cars         : [];
     const branches = resBranches?.success ? resBranches.branches : [];
 
-    // ── 2. Main layout ──────────────────────────────────────────────────────
+    // ── 2. Sub-tab bar (Trips / Car Reports) ─────────────────────────────────
     tableWrap.innerHTML = `
+        <div class="tl-sub-tab-bar" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;border-bottom:2px solid #e5e7eb;">
+            <button class="tl-sub-tab tl-sub-active" data-subtab="trips"
+                style="padding:8px 18px;border:none;background:none;cursor:pointer;font-weight:600;font-size:14px;border-bottom:2px solid #185fa5;margin-bottom:-2px;color:#185fa5">
+                Trips
+            </button>
+            <button class="tl-sub-tab" data-subtab="carReports"
+                style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:14px;color:#5a6478;margin-bottom:-2px;border-bottom:2px solid transparent">
+                Car Reports
+            </button>
+        </div>
+        <div id="tlTripsContainer"></div>
+        <div id="tlCarReportsContainer" style="display:none;"></div>
+    `;
+
+    const tripsContainer      = document.getElementById('tlTripsContainer');
+    const carReportsContainer = document.getElementById('tlCarReportsContainer');
+
+    tableWrap.querySelectorAll('.tl-sub-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            tableWrap.querySelectorAll('.tl-sub-tab').forEach(b => {
+                b.style.color = '#5a6478'; b.style.borderBottom = '2px solid transparent'; b.style.fontWeight = '400';
+            });
+            btn.style.color = '#185fa5'; btn.style.borderBottom = '2px solid #185fa5'; btn.style.fontWeight = '600';
+            if (btn.dataset.subtab === 'carReports') {
+                tripsContainer.style.display = 'none';
+                carReportsContainer.style.display = '';
+                if (!carReportsContainer.dataset.loaded) {
+                    carReportsContainer.dataset.loaded = '1';
+                    if (window.renderCarReportsModule) window.renderCarReportsModule(carReportsContainer);
+                }
+            } else {
+                carReportsContainer.style.display = 'none';
+                tripsContainer.style.display = '';
+            }
+        });
+    });
+
+    // ── 3. Main layout ──────────────────────────────────────────────────────
+    tripsContainer.innerHTML = `
         <div class="tl-wrap">
             <div class="tl-header">
                 <h2 class="tl-title">Trips</h2>

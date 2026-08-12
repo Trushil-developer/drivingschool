@@ -2948,6 +2948,62 @@ app.patch('/api/admin/trip-logs/:id/reject', requireAdmin, async (req, res, next
   }
 });
 
+// Admin: per-car, per-day report — session count and odometer range for that day.
+// There is no odometer reading captured when a trip *ends*, so the day's end
+// reading is approximated as the highest start_odometer among that car's
+// sessions that day (odometer values only increase, so this is always the most
+// recent reading taken). A day with only one session has no second reading to
+// compare against, so its distance is left null rather than shown as 0.
+app.get('/api/admin/car-reports', requireAdmin, async (req, res, next) => {
+  const schoolId = req.schoolId || req.session?.schoolId || 1;
+  const { date_from, date_to, car_name, branch } = req.query;
+  try {
+    await ensureTripsTable();
+    const conditions = ['dt.school_id = ?', 'dt.start_odometer IS NOT NULL', "dt.status IN ('completed','active')"];
+    const params = [schoolId];
+
+    if (date_from) { conditions.push('DATE(dt.started_at) >= ?'); params.push(date_from); }
+    if (date_to)   { conditions.push('DATE(dt.started_at) <= ?'); params.push(date_to); }
+    if (car_name)  { conditions.push("COALESCE(NULLIF(dt.car_name,''), bk.car_name) = ?"); params.push(car_name); }
+
+    const [rows] = await dbPool.query(`
+      SELECT
+        COALESCE(NULLIF(dt.car_name,''), bk.car_name) AS car_name,
+        DATE(dt.started_at) AS trip_date,
+        COUNT(*) AS sessions,
+        MIN(dt.start_odometer) AS start_odometer,
+        MAX(dt.start_odometer) AS end_odometer
+      FROM driver_trips dt
+      LEFT JOIN bookings bk ON bk.id = dt.booking_id
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY car_name, trip_date
+      ORDER BY trip_date DESC, car_name ASC
+    `, params);
+
+    const [cars] = await dbPool.query('SELECT car_name, branch FROM cars WHERE school_id = ?', [schoolId]);
+    const branchByCar = new Map(cars.map(c => [c.car_name, c.branch || '']));
+
+    let reports = rows
+      .filter(r => r.car_name)
+      .map(r => ({
+        car_name: r.car_name,
+        branch: branchByCar.get(r.car_name) || '',
+        date: ymd(r.trip_date),
+        sessions: Number(r.sessions),
+        start_odometer: r.start_odometer,
+        end_odometer: r.end_odometer,
+        distance: r.sessions > 1 ? Number(r.end_odometer) - Number(r.start_odometer) : null,
+      }));
+
+    if (branch) reports = reports.filter(r => r.branch === branch);
+
+    res.json({ success: true, reports });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, reports: [] });
+    next(err);
+  }
+});
+
 // ── Instructor Attendance (Clock In / Clock Out) ──────────────────────────────
 
 // Table creation is cheap and idempotent, safe to call per-request. The

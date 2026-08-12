@@ -1089,6 +1089,17 @@ body {
         font-size: 11px;
         padding: 3px 9px;
     }
+
+    /* Trip Logs: Trips / Car Reports sub-tab bar */
+    .tl-sub-tab-bar {
+        gap: 4px !important;
+        margin-bottom: 14px !important;
+    }
+
+    .tl-sub-tab {
+        padding: 8px 12px !important;
+        font-size: 13px !important;
+    }
 }
 
 /* ========================================
@@ -1115,7 +1126,8 @@ body {
         padding: 7px 8px;
     }
 
-    .ins-sub-tab {
+    .ins-sub-tab,
+    .tl-sub-tab {
         padding: 7px 9px !important;
         font-size: 12px !important;
     }
@@ -1329,7 +1341,9 @@ body {
 .tl-empty { text-align: center; padding: 48px 24px; color: var(--text-secondary, #9ca3af); font-size: 0.95rem; }
 
 @media (max-width: 600px) {
-    .tl-filters { flex-direction: column; }
+    .tl-wrap { padding: 14px; }
+    .tl-filters { flex-direction: column; align-items: stretch; }
+    .tl-filter-group { width: 100%; }
     .tl-filter-group input, .tl-filter-group select { min-width: unset; width: 100%; }
     .tl-apply-btn, .tl-clear-btn { width: 100%; }
     .tl-stat-cards { gap: 8px; }
