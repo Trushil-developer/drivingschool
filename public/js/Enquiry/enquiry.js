@@ -329,7 +329,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             const data = await res.json();
-            if (!data.success) throw new Error();
+            if (!data.success) throw new Error(data.message || data.error || "Submission failed");
 
             alert("✅ Enquiry submitted successfully");
 
@@ -345,8 +345,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             showStep(0);
 
-        } catch {
-            alert("❌ Submission failed. Please try again.");
+        } catch (err) {
+            alert(`❌ ${err.message || "Submission failed. Please try again."}`);
         }
     });
 });
