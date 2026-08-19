@@ -518,7 +518,7 @@ router.get("/car-workload", requireAdmin, async (req, res) => {
   try {
     const { branch } = req.query;
 
-    let whereClause = "WHERE b.school_id = ? AND b.attendance_status = 'Active' AND b.car_name IS NOT NULL AND b.car_name != ''";
+    let whereClause = "WHERE c.school_id = ?";
     let params = [req.schoolId];
 
     if (branch) {
@@ -527,13 +527,13 @@ router.get("/car-workload", requireAdmin, async (req, res) => {
     }
 
     const [rows] = await dbPool.query(`
-      SELECT b.car_name AS car, COUNT(*) AS activeStudents
-      FROM bookings b
-      JOIN cars c ON c.car_name = b.car_name
+      SELECT c.car_name AS car,
+        COUNT(CASE WHEN b.attendance_status = 'Active' THEN 1 END) AS activeStudents
+      FROM cars c
+      LEFT JOIN bookings b ON b.car_name = c.car_name AND b.school_id = c.school_id
       ${whereClause}
-      GROUP BY b.car_name
+      GROUP BY c.car_name
       ORDER BY activeStudents DESC
-      LIMIT 10
     `, params);
 
     res.json({ success: true, data: rows });

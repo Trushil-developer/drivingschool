@@ -2476,16 +2476,23 @@ const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')
 // the student absent, and the slot's grace window has already elapsed. These
 // don't exist in driver_trips — they're computed on the fly from bookings vs.
 // attendance vs. driver_trips so no-shows are visible on the Trip Logs page.
-async function computeMissingSlots(schoolId, dateFrom, dateTo, instructorId) {
+async function computeMissingSlots(schoolId, dateFrom, dateTo, instructorId, branch, carName) {
+  const conditions = [
+    'b.school_id = ?', "b.attendance_status IN ('Active','Pending')",
+    'b.starting_from IS NOT NULL', "b.allotted_time IS NOT NULL", "b.allotted_time != ''",
+  ];
+  const params = [schoolId];
+  if (branch)  { conditions.push('TRIM(b.branch) = ?'); params.push(branch); }
+  if (carName) { conditions.push('b.car_name = ?'); params.push(carName); }
+
   const [bookings] = await dbPool.query(
-    `SELECT b.id, b.customer_name, b.instructor_name, TRIM(b.branch) AS branch,
+    `SELECT b.id, b.customer_name, b.instructor_name, TRIM(b.branch) AS branch, b.car_name,
             b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4,
             b.starting_from, b.training_days, b.present_days, i.id AS instructor_id
      FROM bookings b
      LEFT JOIN instructors i ON i.instructor_name = b.instructor_name AND i.school_id = b.school_id
-     WHERE b.school_id = ? AND b.attendance_status IN ('Active','Pending')
-       AND b.starting_from IS NOT NULL AND b.allotted_time IS NOT NULL AND b.allotted_time != ''`,
-    [schoolId]
+     WHERE ${conditions.join(' AND ')}`,
+    params
   );
   if (!bookings.length) return [];
 
@@ -2568,6 +2575,7 @@ async function computeMissingSlots(schoolId, dateFrom, dateTo, instructorId) {
           booking_id: b.id,
           student_name: b.customer_name,
           branch: b.branch,
+          car_name: b.car_name,
           started_at: `${dateStr}T${hhmm}:00+05:30`,
           ended_at: null,
           duration_mins: null,
@@ -2585,16 +2593,18 @@ async function computeMissingSlots(schoolId, dateFrom, dateTo, instructorId) {
 // manager review — mirrors how completed trips need approval before they
 // count as present, except these already default to 'approved' for anything
 // marked directly by staff (see the approval_status migration above).
-async function computeInstructorMarkedAbsences(schoolId, dateFrom, dateTo, instructorId) {
+async function computeInstructorMarkedAbsences(schoolId, dateFrom, dateTo, instructorId, branch, carName) {
   const conditions = [
     'b.school_id = ?', 'a.present = 0', "a.marked_by_type = 'instructor'",
     'a.date BETWEEN ? AND ?',
   ];
   const params = [schoolId, dateFrom, dateTo];
   if (instructorId) { conditions.push('i.id = ?'); params.push(instructorId); }
+  if (branch)  { conditions.push('TRIM(i.branch) = ?'); params.push(branch); }
+  if (carName) { conditions.push('b.car_name = ?'); params.push(carName); }
 
   const [rows] = await dbPool.query(
-    `SELECT a.id, a.booking_id, b.customer_name AS student_name, b.instructor_name,
+    `SELECT a.id, a.booking_id, b.customer_name AS student_name, b.instructor_name, b.car_name,
             i.id AS instructor_id, TRIM(i.branch) AS branch,
             DATE_FORMAT(a.date, '%Y-%m-%d') AS date, a.time, a.approval_status
      FROM attendance a
@@ -2615,6 +2625,7 @@ async function computeInstructorMarkedAbsences(schoolId, dateFrom, dateTo, instr
       booking_id: r.booking_id,
       student_name: r.student_name,
       branch: r.branch,
+      car_name: r.car_name,
       started_at: `${r.date}T${hhmm}:00+05:30`,
       ended_at: null,
       duration_mins: null,
@@ -2670,12 +2681,12 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
 
     let missingRows = [];
     if (!status || status === 'missing') {
-      missingRows = await computeMissingSlots(schoolId, rangeFrom, rangeTo, instructor_id);
+      missingRows = await computeMissingSlots(schoolId, rangeFrom, rangeTo, instructor_id, branch, car_name);
     }
 
     let absentRows = [];
     if (!status || status === 'absent') {
-      absentRows = await computeInstructorMarkedAbsences(schoolId, rangeFrom, rangeTo, instructor_id);
+      absentRows = await computeInstructorMarkedAbsences(schoolId, rangeFrom, rangeTo, instructor_id, branch, car_name);
     }
 
     const trips = [...rows, ...missingRows, ...absentRows]
