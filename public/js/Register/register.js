@@ -806,6 +806,11 @@ function attachPersonalSubmit() {
                 throw new Error(data.error || "Submission failed");
             }
 
+            const creds = document.getElementById("modalAppCreds");
+            if (creds) {
+                creds.textContent = `Username: Booking ID ${data.booking_id} · Password: your registered mobile number (${body.mobile_no || ""})`;
+            }
+
             const modal = document.getElementById("successModal");
             modal.style.display = "flex";
 

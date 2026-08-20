@@ -10,6 +10,10 @@ AWS.config.update({
 
 const ses = new AWS.SES({ apiVersion: "2010-12-01" });
 
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
 function maskEmail(email) {
   const [user, domain] = email.split("@");
   if (user.length <= 2) return `**@${domain}`;
@@ -104,6 +108,114 @@ export async function sendOtpEmail(email, otp, expiresAt = null) {
             <p style="margin:0;">
                 If you did not request this verification, please ignore this email.
             </p>
+
+            <p style="margin:10px 0 0 0;">
+                Need help? Contact us:
+                <br>
+                📧 <a href="mailto:info@dwarkeshdrivingschool.com"
+                    style="color:#1a73e8; text-decoration:none;">
+                    info@dwarkeshdrivingschool.com
+                </a>
+                &nbsp;|&nbsp;
+                📞 +91 9924116122
+            </p>
+
+            <p style="margin:10px 0 0 0; color:#999;">
+                © ${new Date().getFullYear()} Dwarkesh Motor Driving School
+            </p>
+
+            </td>
+            </tr>
+
+            </table>
+
+            <!-- TRUST FOOTER -->
+            <p style="margin-top:14px; font-size:12px; color:#999;">
+            This email was sent securely from dwarkeshdrivingschool.com
+            </p>
+
+            </td>
+            </tr>
+            </table>
+
+            </body>
+            </html>
+        `
+        }
+      }
+    }
+  };
+
+  return ses.sendEmail(params).promise();
+}
+
+export async function sendWelcomeCredentialsEmail(email, { bookingId, customerName }) {
+  const params = {
+    Source: "Dwarkesh Motor Driving School <info@dwarkeshdrivingschool.com>",
+    Destination: {
+      ToAddresses: [email]
+    },
+    Message: {
+      Subject: {
+        Data: "Welcome to Dwarkesh Motor Driving School – Your App Login"
+      },
+      Body: {
+        Html: {
+          Charset: "UTF-8",
+          Data: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+
+            <body style="margin:0; padding:0; background:#f4f6f8; font-family:Arial, sans-serif;">
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8; padding:20px;">
+            <tr>
+            <td align="center">
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; background:#ffffff; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.08); overflow:hidden;">
+
+            <!-- HEADER -->
+            <tr>
+            <td style="background:#1a73e8; padding:16px 20px; text-align:center;">
+            <h1 style="margin:0; font-size:20px; color:#ffffff;">
+                Dwarkesh Motor Driving School
+            </h1>
+            </td>
+            </tr>
+
+            <!-- BODY -->
+            <tr>
+            <td style="padding:24px 24px 10px 24px; color:#333;">
+            <p style="margin-top:0;">Hi ${customerName ? escapeHtml(customerName) : "there"},</p>
+
+            <p>
+                Thanks for registering with us! You can now track your lessons, course progress,
+                fees and more on the <b>Book My Drive</b> app.
+            </p>
+
+            <!-- CREDENTIALS BOX -->
+            <div style="background:#f1f5ff; border:1px dashed #1a73e8; border-radius:8px; padding:16px 20px; margin:20px 0;">
+                <p style="margin:0 0 8px 0; font-size:14px; color:#555;">Your app login</p>
+                <p style="margin:0; font-size:15px;">Username: your Booking ID – <b>${escapeHtml(bookingId)}</b></p>
+                <p style="margin:6px 0 0 0; font-size:15px;">Password: your registered mobile number (the one you gave us at registration)</p>
+            </div>
+
+            <p>Download the app to get started:</p>
+            <p style="margin:0 0 16px 0;">
+                📱 <a href="https://play.google.com/store/apps/details?id=com.bookmydrive.app" style="color:#1a73e8; text-decoration:none;">Android – Google Play</a>
+                <br>
+                📱 <a href="https://apps.apple.com/gb/app/book-my-drive/id6795655402" style="color:#1a73e8; text-decoration:none;">iPhone – App Store</a>
+            </p>
+            </td>
+            </tr>
+
+            <!-- FOOTER -->
+            <tr>
+            <td style="padding:16px 24px; font-size:12px; color:#777; border-top:1px solid #eee;">
 
             <p style="margin:10px 0 0 0;">
                 Need help? Contact us:

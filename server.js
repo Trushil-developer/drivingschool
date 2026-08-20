@@ -32,6 +32,7 @@ import packagesRoutes from './routes/packagesRoutes.js';
 import expensesRoutes from './routes/expensesRoutes.js';
 import reviewsRoute from './routes/reviewsRoute.js';
 import emailRoutes from './routes/emailRoutes.js';
+import { sendWelcomeCredentialsEmail } from './public/service/sesEmail.service.js';
 
 dotenv.config();
 
@@ -982,6 +983,13 @@ INSERT INTO bookings (
     ];
 
     const [result] = await dbPool.query(sql, values);
+
+    if (data.email && data.mobile_no) {
+      sendWelcomeCredentialsEmail(data.email, {
+        bookingId: result.insertId,
+        customerName: data.customer_name,
+      }).catch(err => console.error('WELCOME EMAIL ERROR:', err));
+    }
 
     res.json({ success: true, booking_id: result.insertId, attendance_status: attendanceStatus });
 
