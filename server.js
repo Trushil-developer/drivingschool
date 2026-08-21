@@ -33,6 +33,7 @@ import expensesRoutes from './routes/expensesRoutes.js';
 import reviewsRoute from './routes/reviewsRoute.js';
 import emailRoutes from './routes/emailRoutes.js';
 import { sendWelcomeCredentialsEmail } from './public/service/sesEmail.service.js';
+import { sendPushToPerson } from './public/service/pushNotification.service.js';
 
 dotenv.config();
 
@@ -239,6 +240,46 @@ app.use(
     },
   })
 );
+
+// App usage tracking: the app's login session lasts up to 30 days (rolling), so a
+// login EVENT drastically undercounts real usage — someone who logs in once and
+// opens the app daily for a month would only ever show one login. Instead, record
+// a heartbeat on every request made under an app-authenticated session (identified
+// by `login_booking_id`, which only /api/student-login sets — web OTP sessions
+// don't have it), upserted once per booking per calendar day.
+const ensureAppActivityTable = () => dbPool.query(`
+  CREATE TABLE IF NOT EXISTS app_activity (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    booking_id INT NOT NULL,
+    email VARCHAR(255) NULL,
+    school_id INT NOT NULL DEFAULT 1,
+    activity_date DATE NOT NULL,
+    request_count INT NOT NULL DEFAULT 1,
+    first_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_booking_day (booking_id, activity_date),
+    INDEX (activity_date)
+  )
+`);
+
+async function trackAppActivity(bookingId, schoolId, email) {
+  await ensureAppActivityTable();
+  await dbPool.query(
+    `INSERT INTO app_activity (booking_id, email, school_id, activity_date, request_count, first_seen_at, last_seen_at)
+     VALUES (?, ?, ?, CURDATE(), 1, NOW(), NOW())
+     ON DUPLICATE KEY UPDATE request_count = request_count + 1, last_seen_at = NOW()`,
+    [bookingId, email || null, schoolId]
+  );
+}
+
+app.use((req, res, next) => {
+  const examUser = req.session?.examUser;
+  if (examUser?.login_booking_id) {
+    trackAppActivity(examUser.login_booking_id, examUser.school_id || 1, examUser.email)
+      .catch(err => console.error('APP ACTIVITY TRACKING ERROR:', err));
+  }
+  next();
+});
 
 // ---------- Helpers ----------
 export function computeAttendanceStatus(booking) {
@@ -838,6 +879,22 @@ app.post('/api/dev/student-login', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Tracks every successful mobile-app login (booking-ID + mobile-number scheme is
+// app-only — web students authenticate via email OTP instead) so staff can see
+// actual app adoption/usage, separate from unrelated web OTP verification flows.
+const ensureAppLoginsTable = () => dbPool.query(`
+  CREATE TABLE IF NOT EXISTS app_logins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    booking_id INT NOT NULL,
+    exam_user_id INT NULL,
+    email VARCHAR(255) NULL,
+    logged_in_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    school_id INT NOT NULL DEFAULT 1,
+    INDEX (booking_id),
+    INDEX (logged_in_at)
+  )
+`);
+
 // ---------- STUDENT/CUSTOMER LOGIN: booking row ID + mobile number as password ----------
 app.post('/api/student-login', async (req, res, next) => {
   const { student_id, password } = req.body;
@@ -862,6 +919,17 @@ app.post('/api/student-login', async (req, res, next) => {
       [booking.email, booking.customer_name || null, booking.mobile_no || null, schoolId]
     );
     const [[userRow]] = await dbPool.query('SELECT id, email, full_name, school_id FROM exam_users WHERE email = ? LIMIT 1', [booking.email]);
+
+    try {
+      await ensureAppLoginsTable();
+      await dbPool.query(
+        `INSERT INTO app_logins (booking_id, exam_user_id, email, school_id) VALUES (?, ?, ?, ?)`,
+        [Number(student_id), userRow.id, booking.email, schoolId]
+      );
+    } catch (trackErr) {
+      console.error('APP LOGIN TRACKING ERROR:', trackErr);
+    }
+
     req.session.examUser = { id: userRow.id, email: userRow.email, full_name: userRow.full_name || null, school_id: userRow.school_id || 1, login_booking_id: Number(student_id) };
     await new Promise((resolve, reject) => req.session.save((err) => (err ? reject(err) : resolve(undefined))));
     const signed = 's:' + cookieSign(req.session.id, process.env.SESSION_SECRET);
@@ -873,6 +941,125 @@ app.post('/api/student-login', async (req, res, next) => {
     });
   } catch (err) {
     console.error('STUDENT LOGIN ERROR:', err);
+    next(err);
+  }
+});
+
+const ensureDevicePushTokensTable = () => dbPool.query(`
+  CREATE TABLE IF NOT EXISTS device_push_tokens (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    person_id INT NOT NULL,
+    person_type VARCHAR(20) NOT NULL,
+    platform VARCHAR(10) NOT NULL,
+    token VARCHAR(255) NOT NULL,
+    school_id INT NOT NULL DEFAULT 1,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_token (token)
+  )
+`);
+
+// Register/update a device's push token. Accepts either an instructor session
+// (driver-login: adminLoggedIn + no adminRole, i.e. not admin/manager) or a
+// student session (student-login: examUser.login_booking_id). Deliberately
+// excludes admin/manager sessions — their `adminId` is a different table's ID
+// space than instructors', so storing it under person_type='instructor' would
+// misdirect instructor-targeted pushes to an unrelated admin's device.
+app.post('/api/device-token', async (req, res, next) => {
+  const { token, platform } = req.body;
+  if (!token || !['ios', 'android'].includes(platform)) {
+    return res.json({ success: false, error: 'Valid token and platform required' });
+  }
+  try {
+    let personType, personId, schoolId;
+    if (req.session?.adminLoggedIn && !req.session.adminRole) {
+      personType = 'instructor';
+      personId = req.session.adminId;
+      schoolId = req.session.school_id || 1;
+    } else if (req.session?.examUser?.login_booking_id) {
+      personType = 'student';
+      personId = req.session.examUser.login_booking_id;
+      schoolId = req.session.examUser.school_id || 1;
+    } else {
+      return res.json({ success: true }); // admin/manager or no session — nothing to register
+    }
+
+    await ensureDevicePushTokensTable();
+    await dbPool.query(
+      `INSERT INTO device_push_tokens (person_id, person_type, platform, token, school_id)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE person_id = VALUES(person_id), person_type = VALUES(person_type), platform = VALUES(platform), school_id = VALUES(school_id), updated_at = NOW()`,
+      [personId, personType, platform, token, schoolId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DEVICE TOKEN REGISTER ERROR:', err);
+    next(err);
+  }
+});
+
+// Admin: app adoption/usage. Based on app_activity (a heartbeat recorded on every
+// request made under an app-authenticated session), not login events — a login
+// only happens once per ~30-day session, so it would badly undercount students
+// who open the app regularly on an existing session.
+app.get('/api/admin/app-usage', requireAdmin, async (req, res, next) => {
+  const schoolId = req.schoolId || req.session?.schoolId || 1;
+  try {
+    await ensureAppActivityTable();
+
+    const [[eligibleRow]] = await dbPool.query(
+      `SELECT COUNT(*) AS c FROM bookings WHERE school_id = ? AND attendance_status = 'Active' AND email IS NOT NULL AND email != ''`,
+      [schoolId]
+    );
+    const [[everOpenedRow]] = await dbPool.query(
+      `SELECT COUNT(DISTINCT booking_id) AS c FROM app_activity WHERE school_id = ?`,
+      [schoolId]
+    );
+    const [[todayRow]] = await dbPool.query(
+      `SELECT COUNT(DISTINCT booking_id) AS c FROM app_activity WHERE school_id = ? AND activity_date = CURDATE()`,
+      [schoolId]
+    );
+    const [[last7Row]] = await dbPool.query(
+      `SELECT COUNT(DISTINCT booking_id) AS c FROM app_activity WHERE school_id = ? AND activity_date >= CURDATE() - INTERVAL 6 DAY`,
+      [schoolId]
+    );
+    const [[last30Row]] = await dbPool.query(
+      `SELECT COUNT(DISTINCT booking_id) AS c FROM app_activity WHERE school_id = ? AND activity_date >= CURDATE() - INTERVAL 29 DAY`,
+      [schoolId]
+    );
+
+    const [students] = await dbPool.query(
+      `SELECT aa.booking_id, b.customer_name, aa.email,
+              MIN(aa.first_seen_at) AS first_seen_at,
+              MAX(aa.last_seen_at) AS last_seen_at,
+              COUNT(*) AS days_active
+       FROM app_activity aa
+       LEFT JOIN bookings b ON b.id = aa.booking_id
+       WHERE aa.school_id = ?
+       GROUP BY aa.booking_id, b.customer_name, aa.email
+       ORDER BY last_seen_at DESC
+       LIMIT 500`,
+      [schoolId]
+    );
+
+    res.json({
+      success: true,
+      summary: {
+        eligibleActiveStudents: eligibleRow.c,
+        everOpenedApp: everOpenedRow.c,
+        activeToday: todayRow.c,
+        activeLast7Days: last7Row.c,
+        activeLast30Days: last30Row.c,
+      },
+      students,
+    });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') {
+      return res.json({
+        success: true,
+        summary: { eligibleActiveStudents: 0, everOpenedApp: 0, activeToday: 0, activeLast7Days: 0, activeLast30Days: 0 },
+        students: [],
+      });
+    }
     next(err);
   }
 });
@@ -989,6 +1176,21 @@ INSERT INTO bookings (
         bookingId: result.insertId,
         customerName: data.customer_name,
       }).catch(err => console.error('WELCOME EMAIL ERROR:', err));
+    }
+
+    if (data.instructor_name) {
+      (async () => {
+        const [[instructor]] = await dbPool.query(
+          `SELECT id FROM instructors WHERE instructor_name = ? AND school_id = ? LIMIT 1`,
+          [data.instructor_name, req.schoolId || 1]
+        );
+        if (!instructor) return;
+        await sendPushToPerson('instructor', instructor.id, {
+          title: 'New Student Assigned',
+          body: `${data.customer_name || 'A new student'} — ${data.branch || ''}, starting ${data.starting_from || 'soon'}.`,
+          data: { screen: 'Classes', bookingId: result.insertId },
+        });
+      })().catch(err => console.error('NEW BOOKING PUSH ERROR:', err));
     }
 
     res.json({ success: true, booking_id: result.insertId, attendance_status: attendanceStatus });
@@ -1907,6 +2109,113 @@ cron.schedule('1 0 * * *', async () => {
   timezone: "Asia/Kolkata"
 });
 
+// Instructor clock-in reminder — skips anyone who already has an attendance
+// row for today (don't nag someone who's already clocked in).
+cron.schedule('0 6 * * *', async () => {
+  try {
+    const [instructors] = await dbPool.query(
+      `SELECT id FROM instructors WHERE is_active = 1 AND LOWER(role) = 'instructor'`
+    );
+    for (const inst of instructors) {
+      const [[already]] = await dbPool.query(
+        `SELECT id FROM instructor_attendance WHERE instructor_id = ? AND person_type = 'instructor' AND date = CURDATE()`,
+        [inst.id]
+      );
+      if (already) continue;
+      await sendPushToPerson('instructor', inst.id, {
+        title: 'Clock In Reminder',
+        body: "Good morning! Don't forget to clock in for today.",
+        data: { screen: 'Timesheet' },
+      }).catch(err => console.error('[CRON] Clock-in reminder failed for instructor', inst.id, err.message));
+    }
+  } catch (err) {
+    console.error('[CRON] Clock-in reminder job failed:', err.message);
+  }
+}, { timezone: "Asia/Kolkata" });
+
+// Instructor clock-out reminder — only those clocked in today but not yet out.
+cron.schedule('0 21 * * *', async () => {
+  try {
+    const [rows] = await dbPool.query(
+      `SELECT DISTINCT instructor_id FROM instructor_attendance
+       WHERE person_type = 'instructor' AND date = CURDATE() AND clock_out IS NULL`
+    );
+    for (const row of rows) {
+      await sendPushToPerson('instructor', row.instructor_id, {
+        title: 'Clock Out Reminder',
+        body: "Don't forget to clock out before you finish for the day.",
+        data: { screen: 'Timesheet' },
+      }).catch(err => console.error('[CRON] Clock-out reminder failed for instructor', row.instructor_id, err.message));
+    }
+  } catch (err) {
+    console.error('[CRON] Clock-out reminder job failed:', err.message);
+  }
+}, { timezone: "Asia/Kolkata" });
+
+// Trip-start reminder — fires once per slot, right around its scheduled start,
+// for the assigned instructor.
+cron.schedule('*/5 * * * *', async () => {
+  try {
+    const [schools] = await dbPool.query(`SELECT DISTINCT school_id FROM bookings`);
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+
+    for (const { school_id: schoolId } of schools) {
+      const occurrences = await getTodaysActiveSlotOccurrences(schoolId);
+      for (const occ of occurrences) {
+        const minsUntil = occ.slotMinutes - nowMins;
+        if (minsUntil < -5 || minsUntil > TRIP_START_EARLY_GRACE_MIN) continue; // not due yet / already past
+
+        const refKey = `tripstart|${occ.bookingId}|${occ.date}|${occ.time}`;
+        if (!(await claimNotificationOnce(refKey))) continue;
+
+        const [[instructor]] = await dbPool.query(
+          `SELECT id FROM instructors WHERE instructor_name = ? AND school_id = ? LIMIT 1`,
+          [occ.instructorName, schoolId]
+        );
+        if (!instructor) continue;
+
+        await sendPushToPerson('instructor', instructor.id, {
+          title: 'Lesson Starting',
+          body: `Your lesson with ${occ.studentName || 'your student'} starts now — tap to start the trip.`,
+          data: { screen: 'TripStart', bookingId: occ.bookingId },
+        }).catch(err => console.error('[CRON] Trip-start reminder failed for booking', occ.bookingId, err.message));
+      }
+    }
+  } catch (err) {
+    console.error('[CRON] Trip-start reminder job failed:', err.message);
+  }
+}, { timezone: "Asia/Kolkata" });
+
+// Customer pre-lesson reminder — ~2 hours before their scheduled slot, asking
+// if they're still coming / want to reschedule / cancel.
+cron.schedule('*/10 * * * *', async () => {
+  try {
+    const [schools] = await dbPool.query(`SELECT DISTINCT school_id FROM bookings`);
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+
+    for (const { school_id: schoolId } of schools) {
+      const occurrences = await getTodaysActiveSlotOccurrences(schoolId);
+      for (const occ of occurrences) {
+        const minsUntil = occ.slotMinutes - nowMins;
+        if (minsUntil < 110 || minsUntil > 130) continue;
+
+        const refKey = `precall|${occ.bookingId}|${occ.date}|${occ.time}`;
+        if (!(await claimNotificationOnce(refKey))) continue;
+
+        await sendPushToPerson('student', occ.bookingId, {
+          title: 'Lesson Today',
+          body: `Your driving lesson is at ${occ.time} today. Still coming?`,
+          data: { screen: 'ScheduleRequest', bookingId: occ.bookingId },
+        }).catch(err => console.error('[CRON] Pre-lesson reminder failed for booking', occ.bookingId, err.message));
+      }
+    }
+  } catch (err) {
+    console.error('[CRON] Pre-lesson reminder job failed:', err.message);
+  }
+}, { timezone: "Asia/Kolkata" });
+
 // =====================
 // PUBLIC: LIST CERTIFICATE IMAGES WITH BOOKING INFO
 // =====================
@@ -2478,6 +2787,87 @@ app.get('/api/driver-status/:instructor_id', async (req, res, next) => {
 });
 
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const ensureNotificationLogTable = () => dbPool.query(`
+  CREATE TABLE IF NOT EXISTS notification_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ref_key VARCHAR(150) NOT NULL,
+    sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_ref (ref_key)
+  )
+`);
+
+// True only the first time `refKey` is claimed — dedupes the per-slot cron
+// reminders (trip-start, pre-lesson) so overlapping cron ticks or a server
+// restart never send the same reminder twice.
+async function claimNotificationOnce(refKey) {
+  await ensureNotificationLogTable();
+  try {
+    await dbPool.query(`INSERT INTO notification_log (ref_key) VALUES (?)`, [refKey]);
+    return true;
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return false;
+    throw err;
+  }
+}
+
+// Enumerates today's scheduled lesson slots across all active bookings for a
+// school — reuses the same "is this booking still active today" window math
+// as computeMissingSlots below (starting_from/training_days/present_days),
+// but restricted to today and without the retrospective attendance/trip
+// matching, since callers here care about slots that haven't happened yet.
+async function getTodaysActiveSlotOccurrences(schoolId) {
+  const [bookings] = await dbPool.query(
+    `SELECT b.id, b.customer_name, b.instructor_name, TRIM(b.branch) AS branch, b.email,
+            b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4,
+            b.starting_from, b.training_days, b.present_days
+     FROM bookings b
+     WHERE b.school_id = ? AND b.attendance_status IN ('Active','Pending')
+       AND b.starting_from IS NOT NULL AND b.allotted_time IS NOT NULL AND b.allotted_time != ''`,
+    [schoolId]
+  );
+  if (!bookings.length) return [];
+
+  const now = new Date();
+  const todayStr = ymd(now);
+  const today = new Date(todayStr);
+
+  const occurrences = [];
+  bookings.forEach(b => {
+    const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4].filter(Boolean);
+    if (!slots.length) return;
+
+    const start = new Date(b.starting_from);
+    const totalSessions = Number(b.training_days) || 15;
+    const doneSessions = Number(b.present_days) || 0;
+    const remaining = totalSessions - doneSessions;
+    const end = new Date(start);
+    if (remaining < totalSessions / 2) {
+      end.setTime(now.getTime());
+      end.setDate(end.getDate() + remaining + 3);
+    } else {
+      end.setDate(start.getDate() + 29);
+    }
+    if (today < new Date(ymd(start)) || today > new Date(ymd(end))) return;
+
+    slots.forEach(slotTime => {
+      const hhmm = slotTime.slice(0, 5);
+      const [h, m] = hhmm.split(':').map(Number);
+      occurrences.push({
+        bookingId: b.id,
+        studentName: b.customer_name,
+        instructorName: b.instructor_name,
+        branch: b.branch,
+        email: b.email,
+        date: todayStr,
+        time: hhmm,
+        slotMinutes: h * 60 + m,
+      });
+    });
+  });
+
+  return occurrences;
+}
 
 // Synthesize "missing" trip-log rows: scheduled lesson slots (from each booking's
 // allotted_time columns) where the instructor neither started a trip nor marked

@@ -398,6 +398,18 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 hideLoading();
             }
         },
+        appUsage: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderAppUsageModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">App Usage module not loaded</div>';
+                    return;
+                }
+                await window.renderAppUsageModule(tableWrap);
+            } finally {
+                hideLoading();
+            }
+        },
         appSettings: async () => {
             showLoading();
             try {

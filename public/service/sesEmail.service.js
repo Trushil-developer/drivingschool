@@ -149,20 +149,8 @@ export async function sendOtpEmail(email, otp, expiresAt = null) {
   return ses.sendEmail(params).promise();
 }
 
-export async function sendWelcomeCredentialsEmail(email, { bookingId, customerName }) {
-  const params = {
-    Source: "Dwarkesh Motor Driving School <info@dwarkeshdrivingschool.com>",
-    Destination: {
-      ToAddresses: [email]
-    },
-    Message: {
-      Subject: {
-        Data: "Welcome to Dwarkesh Motor Driving School – Your App Login"
-      },
-      Body: {
-        Html: {
-          Charset: "UTF-8",
-          Data: `
+function buildCredentialsEmailHtml({ introHtml, bookingId }) {
+  return `
             <!DOCTYPE html>
             <html>
             <head>
@@ -190,12 +178,7 @@ export async function sendWelcomeCredentialsEmail(email, { bookingId, customerNa
             <!-- BODY -->
             <tr>
             <td style="padding:24px 24px 10px 24px; color:#333;">
-            <p style="margin-top:0;">Hi ${customerName ? escapeHtml(customerName) : "there"},</p>
-
-            <p>
-                Thanks for registering with us! You can now track your lessons, course progress,
-                fees and more on the <b>Book My Drive</b> app.
-            </p>
+            ${introHtml}
 
             <!-- CREDENTIALS BOX -->
             <div style="background:#f1f5ff; border:1px dashed #1a73e8; border-radius:8px; padding:16px 20px; margin:20px 0;">
@@ -248,11 +231,57 @@ export async function sendWelcomeCredentialsEmail(email, { bookingId, customerNa
 
             </body>
             </html>
-        `
+        `;
+}
+
+function sendCredentialsEmail(email, subject, introHtml, bookingId) {
+  const params = {
+    Source: "Dwarkesh Motor Driving School <info@dwarkeshdrivingschool.com>",
+    Destination: {
+      ToAddresses: [email]
+    },
+    Message: {
+      Subject: { Data: subject },
+      Body: {
+        Html: {
+          Charset: "UTF-8",
+          Data: buildCredentialsEmailHtml({ introHtml, bookingId })
         }
       }
     }
   };
 
   return ses.sendEmail(params).promise();
+}
+
+export async function sendWelcomeCredentialsEmail(email, { bookingId, customerName }) {
+  const introHtml = `
+            <p style="margin-top:0;">Hi ${customerName ? escapeHtml(customerName) : "there"},</p>
+            <p>
+                Thanks for registering with us! You can now track your lessons, course progress,
+                fees and more on the <b>Book My Drive</b> app.
+            </p>`;
+
+  return sendCredentialsEmail(
+    email,
+    "Welcome to Dwarkesh Motor Driving School – Your App Login",
+    introHtml,
+    bookingId
+  );
+}
+
+export async function sendAppLaunchAnnouncementEmail(email, { bookingId, customerName }) {
+  const introHtml = `
+            <p style="margin-top:0;">Hi ${customerName ? escapeHtml(customerName) : "there"},</p>
+            <p>
+                We've launched a new app — <b>Book My Drive</b>! You can now track everything about
+                your course — upcoming lessons, progress, fees and more — right from your phone.
+            </p>`;
+
+  return sendCredentialsEmail(
+    email,
+    "We've Launched Our App – Track Your Course on Book My Drive",
+    introHtml,
+    bookingId
+  );
 }

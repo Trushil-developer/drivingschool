@@ -147,6 +147,7 @@ window.CommonReady = (async () => {
         courses: 'admin.html?tab=courses',
         packages: 'admin.html?tab=packages',
         exams: 'admin.html?tab=exams',
+        appUsage: 'admin.html?tab=appUsage',
         cms: 'admin.html?tab=cms',
         expenses: 'admin.html?tab=expenses',
         tripLogs: 'admin.html?tab=tripLogs',
