@@ -1,4 +1,5 @@
-import admin from "firebase-admin";
+import { cert, initializeApp } from "firebase-admin/app";
+import { getMessaging } from "firebase-admin/messaging";
 import fs from "fs";
 import dotenv from "dotenv";
 import { dbPool } from "../../server.js";
@@ -16,8 +17,8 @@ function getFirebaseApp() {
     );
   }
   const serviceAccount = JSON.parse(fs.readFileSync(keyPath, "utf8"));
-  app = admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
+  app = initializeApp({
+    credential: cert(serviceAccount),
   });
   return app;
 }
@@ -32,7 +33,7 @@ export async function sendPushToPerson(personType, personId, { title, body, data
   );
   if (!tokens.length) return { sent: 0, pruned: 0 };
 
-  const fcm = admin.messaging(getFirebaseApp());
+  const fcm = getMessaging(getFirebaseApp());
 
   const response = await fcm.sendEachForMulticast({
     tokens: tokens.map(t => t.token),
