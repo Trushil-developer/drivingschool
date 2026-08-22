@@ -125,8 +125,9 @@ window.renderCarReportsModule = async function (tableWrap) {
 
         content.innerHTML = `
             <p class="tl-subtitle" style="margin: 0 0 10px;">
-                "End Meter" is the highest odometer reading seen that day, and "Distance" is only
-                shown on days with 2+ sessions — a single session has no later reading to compare against.
+                "End Meter" is the reading the instructor entered when completing a lesson. Where no
+                lesson has been completed with a reading yet that day, it falls back to the day's start
+                reading and is marked <em>est.</em> — "Distance" is only shown once a real end reading exists.
             </p>
             <div class="tl-table-wrap">
                 <table class="tl-table">
@@ -151,7 +152,7 @@ window.renderCarReportsModule = async function (tableWrap) {
                                 <td class="tl-branch">${r.branch || '—'}</td>
                                 <td>${r.sessions}</td>
                                 <td class="tl-odometer">${r.start_odometer ?? '—'}</td>
-                                <td class="tl-odometer">${r.end_odometer ?? '—'}</td>
+                                <td class="tl-odometer">${r.end_odometer != null ? `${r.end_odometer}${r.end_odometer_confirmed ? '' : ' <span style="color:#9ca3af;font-size:0.8em;">(est.)</span>'}` : '—'}</td>
                                 <td>${r.distance !== null ? `${r.distance.toLocaleString('en-IN')} km` : '—'}</td>
                             </tr>
                         `).join('')}

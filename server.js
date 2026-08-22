@@ -3089,8 +3089,8 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
     if (date_to)   { conditions.push('DATE(dt.started_at) <= ?'); params.push(date_to); }
     if (instructor_id) { conditions.push('dt.instructor_id = ?'); params.push(instructor_id); }
     if (status && ['active','paused','completed'].includes(status)) { conditions.push('dt.status = ?'); params.push(status); }
-    if (branch)   { conditions.push('i.branch = ?'); params.push(branch); }
-    if (car_name) { conditions.push('bk.car_name = ?'); params.push(car_name); }
+    if (branch)   { conditions.push('TRIM(i.branch) = ?'); params.push(branch); }
+    if (car_name) { conditions.push("COALESCE(NULLIF(dt.car_name,''), bk.car_name) = ?"); params.push(car_name); }
 
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
     const skipRealTrips = status === 'missing' || status === 'absent';
@@ -3435,6 +3435,7 @@ app.get('/api/admin/car-reports', requireAdmin, async (req, res, next) => {
         sessions: Number(r.sessions),
         start_odometer: r.start_odometer,
         end_odometer: r.end_odometer,
+        end_odometer_confirmed: Number(r.end_readings) > 0,
         distance: (r.sessions > 1 || Number(r.end_readings) > 0) ? Number(r.end_odometer) - Number(r.start_odometer) : null,
       }));
 
