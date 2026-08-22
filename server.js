@@ -879,22 +879,6 @@ app.post('/api/dev/student-login', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Tracks every successful mobile-app login (booking-ID + mobile-number scheme is
-// app-only — web students authenticate via email OTP instead) so staff can see
-// actual app adoption/usage, separate from unrelated web OTP verification flows.
-const ensureAppLoginsTable = () => dbPool.query(`
-  CREATE TABLE IF NOT EXISTS app_logins (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    booking_id INT NOT NULL,
-    exam_user_id INT NULL,
-    email VARCHAR(255) NULL,
-    logged_in_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    school_id INT NOT NULL DEFAULT 1,
-    INDEX (booking_id),
-    INDEX (logged_in_at)
-  )
-`);
-
 // ---------- STUDENT/CUSTOMER LOGIN: booking row ID + mobile number as password ----------
 app.post('/api/student-login', async (req, res, next) => {
   const { student_id, password } = req.body;
@@ -919,16 +903,6 @@ app.post('/api/student-login', async (req, res, next) => {
       [booking.email, booking.customer_name || null, booking.mobile_no || null, schoolId]
     );
     const [[userRow]] = await dbPool.query('SELECT id, email, full_name, school_id FROM exam_users WHERE email = ? LIMIT 1', [booking.email]);
-
-    try {
-      await ensureAppLoginsTable();
-      await dbPool.query(
-        `INSERT INTO app_logins (booking_id, exam_user_id, email, school_id) VALUES (?, ?, ?, ?)`,
-        [Number(student_id), userRow.id, booking.email, schoolId]
-      );
-    } catch (trackErr) {
-      console.error('APP LOGIN TRACKING ERROR:', trackErr);
-    }
 
     req.session.examUser = { id: userRow.id, email: userRow.email, full_name: userRow.full_name || null, school_id: userRow.school_id || 1, login_booking_id: Number(student_id) };
     await new Promise((resolve, reject) => req.session.save((err) => (err ? reject(err) : resolve(undefined))));
@@ -997,10 +971,8 @@ app.post('/api/device-token', async (req, res, next) => {
   }
 });
 
-// Admin: app adoption/usage. Based on app_activity (a heartbeat recorded on every
-// request made under an app-authenticated session), not login events — a login
-// only happens once per ~30-day session, so it would badly undercount students
-// who open the app regularly on an existing session.
+// Admin: app adoption/usage (see the app_activity heartbeat above for why
+// this isn't based on login events).
 app.get('/api/admin/app-usage', requireAdmin, async (req, res, next) => {
   const schoolId = req.schoolId || req.session?.schoolId || 1;
   try {
