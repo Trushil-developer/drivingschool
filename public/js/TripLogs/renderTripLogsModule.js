@@ -237,6 +237,7 @@ window.renderTripLogsModule = async function (tableWrap) {
                             <th>Car</th>
                             <th>Student</th>
                             <th>Start Meter</th>
+                            <th>End Meter</th>
                             <th>Start Time</th>
                             <th>End Time</th>
                             <th>Duration</th>
@@ -253,6 +254,7 @@ window.renderTripLogsModule = async function (tableWrap) {
                                 <td class="tl-car">${t.car_name || '—'}</td>
                                 <td class="tl-student">${t.student_name || '—'}</td>
                                 <td class="tl-odometer">${(t.start_odometer ?? '—')}</td>
+                                <td class="tl-odometer">${(t.end_odometer ?? '—')}</td>
                                 <td class="tl-time">${fmtDT(t.started_at)}</td>
                                 <td class="tl-time">${t.ended_at ? fmtDT(t.ended_at) : '—'}</td>
                                 <td class="tl-dur">${actualDur(t)}</td>

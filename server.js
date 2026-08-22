@@ -889,20 +889,25 @@ app.post('/api/student-login', async (req, res, next) => {
       'SELECT id, customer_name, email, mobile_no, school_id FROM bookings WHERE id = ? LIMIT 1',
       [student_id]
     );
-    if (!booking || !booking.email) return res.json({ success: false, error: 'Invalid credentials' });
+    if (!booking) return res.json({ success: false, error: 'Invalid credentials' });
 
     const mobileClean = (booking.mobile_no || '').replace(/\D/g, '');
     const passClean = (password || '').replace(/\D/g, '');
     if (!mobileClean || passClean !== mobileClean) return res.json({ success: false, error: 'Invalid credentials' });
+
+    // Bookings without a usable email must still be able to use the app — fall back to a
+    // synthetic placeholder (same pattern used for driver/admin logins) so exam_users'
+    // NOT NULL UNIQUE email column still has a stable per-booking key.
+    const loginEmail = booking.email || `booking${booking.id}@student.local`;
 
     const schoolId = booking.school_id || 1;
     await dbPool.query(
       `INSERT INTO exam_users (email, full_name, mobile_no, school_id, first_verified_at, last_seen_at)
        VALUES (?, ?, ?, ?, NOW(), NOW())
        ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), mobile_no = COALESCE(mobile_no, VALUES(mobile_no)), school_id = VALUES(school_id), last_seen_at = NOW()`,
-      [booking.email, booking.customer_name || null, booking.mobile_no || null, schoolId]
+      [loginEmail, booking.customer_name || null, booking.mobile_no || null, schoolId]
     );
-    const [[userRow]] = await dbPool.query('SELECT id, email, full_name, school_id FROM exam_users WHERE email = ? LIMIT 1', [booking.email]);
+    const [[userRow]] = await dbPool.query('SELECT id, email, full_name, school_id FROM exam_users WHERE email = ? LIMIT 1', [loginEmail]);
 
     req.session.examUser = { id: userRow.id, email: userRow.email, full_name: userRow.full_name || null, school_id: userRow.school_id || 1, login_booking_id: Number(student_id) };
     await new Promise((resolve, reject) => req.session.save((err) => (err ? reject(err) : resolve(undefined))));
@@ -2299,6 +2304,7 @@ const ensureTripsTable = () => dbPool.query(`
     paused_at DATETIME NULL,
     paused_secs INT NOT NULL DEFAULT 0,
     start_odometer INT NULL,
+    end_odometer INT NULL,
     approval_status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
     approved_by_id INT NULL,
     approved_by_type VARCHAR(20) NULL,
@@ -2325,6 +2331,27 @@ const ensureTripsTable = () => dbPool.query(`
     await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN start_odometer INT NULL`);
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.start_odometer:', e.message); }
 })();
+
+// Migration: add end_odometer column to driver_trips (car meter reading entered by
+// the instructor when completing each lesson)
+(async () => {
+  try {
+    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN end_odometer INT NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.end_odometer:', e.message); }
+})();
+
+// The odometer only ever counts up for a given car, regardless of which instructor
+// or trip recorded it — so every new reading (start or end) must be >= the highest
+// reading ever recorded for that car. Returns 0 if the car has no prior readings.
+async function maxPastOdometer(carName, schoolId, excludeTripId) {
+  if (!carName) return 0;
+  const [[row]] = await dbPool.query(
+    `SELECT GREATEST(COALESCE(MAX(start_odometer), 0), COALESCE(MAX(end_odometer), 0)) AS maxOdo
+     FROM driver_trips WHERE car_name=? AND school_id=? AND id<>?`,
+    [carName, schoolId, excludeTripId || 0]
+  );
+  return row?.maxOdo || 0;
+}
 
 // Migration: add school_id to driver_trips (multi-tenant scoping — trip start/insert
 // writes this column, so a fresh install must have it even before this table pre-dates
@@ -2443,6 +2470,12 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
       }
     }
 
+    const carName = slot ? (slot.car_name || bk?.car_name || '') : (bk?.car_name ?? '');
+    const pastOdo = await maxPastOdometer(carName, req.schoolId, 0);
+    if (startOdometer < pastOdo) {
+      return res.json({ success: false, error: `Odometer reading cannot be less than the last recorded reading for this car (${pastOdo} km).` });
+    }
+
     // Auto-end any existing active/paused trip
     await dbPool.query(
       `UPDATE driver_trips SET status='completed', ended_at=NOW() WHERE instructor_id=? AND status IN ('active','paused')`,
@@ -2452,7 +2485,7 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
     const [result] = await dbPool.query(
       `INSERT INTO driver_trips (instructor_id, instructor_name, booking_id, student_name, car_name, started_at, duration_mins, status, start_odometer, school_id, schedule_slot_id)
        VALUES (?, ?, ?, ?, ?, NOW(), ?, 'active', ?, ?, ?)`,
-      [instructorId, inst?.instructor_name ?? '', booking_id, slot ? slot.customer_name : (bk?.customer_name ?? ''), slot ? (slot.car_name || bk?.car_name || '') : (bk?.car_name ?? ''), duration_mins, startOdometer, req.schoolId, schedule_slot_id || null]
+      [instructorId, inst?.instructor_name ?? '', booking_id, slot ? slot.customer_name : (bk?.customer_name ?? ''), carName, duration_mins, startOdometer, req.schoolId, schedule_slot_id || null]
     );
     const [[trip]] = await dbPool.query('SELECT * FROM driver_trips WHERE id=?', [result.insertId]);
     const remainingSecs = trip.duration_mins * 60;
@@ -2494,10 +2527,39 @@ app.post('/api/driver/trip/resume', requireAdmin, async (req, res, next) => {
 });
 
 // Driver: end (complete) a trip — once completed it can no longer be started, paused, or resumed
+//
+// end_odometer is optional for now: older app builds (pre-odometer-on-end) don't send
+// it at all, and the server/app deploy independently (app store review lag means an
+// old build can still be live after this server change ships), so a missing reading
+// must not block completing a trip. Only validate/store it when a client actually
+// sends one. This can be made required again once all installed clients send it.
 app.post('/api/driver/trip/end', requireAdmin, async (req, res, next) => {
   const instructorId = req.session.adminId;
-  const { trip_id } = req.body;
+  const { trip_id, end_odometer } = req.body;
+  const odometerProvided = end_odometer !== undefined && end_odometer !== null && end_odometer !== '';
+  let endOdometer = null;
+  if (odometerProvided) {
+    endOdometer = Number(end_odometer);
+    if (!Number.isFinite(endOdometer) || endOdometer < 0) {
+      return res.json({ success: false, error: 'Please enter the current car meter (odometer) reading.' });
+    }
+  }
   try {
+    const [[trip]] = await dbPool.query(
+      `SELECT car_name, start_odometer FROM driver_trips WHERE id=? AND instructor_id=? AND status IN ('active','paused') LIMIT 1`,
+      [trip_id, instructorId]
+    );
+    if (!trip) return res.json({ success: false, error: 'Trip not found.' });
+    if (odometerProvided) {
+      if (trip.start_odometer != null && endOdometer < trip.start_odometer) {
+        return res.json({ success: false, error: `End reading cannot be less than the start reading for this lesson (${trip.start_odometer} km).` });
+      }
+      const pastOdo = await maxPastOdometer(trip.car_name, req.schoolId, trip_id);
+      if (endOdometer < pastOdo) {
+        return res.json({ success: false, error: `Odometer reading cannot be less than the last recorded reading for this car (${pastOdo} km).` });
+      }
+    }
+
     // If completing directly from a paused state, fold the open pause segment in first
     await dbPool.query(
       `UPDATE driver_trips
@@ -2508,10 +2570,10 @@ app.post('/api/driver/trip/end', requireAdmin, async (req, res, next) => {
     );
     await dbPool.query(
       `UPDATE driver_trips
-       SET status='completed', ended_at=NOW(),
+       SET status='completed', ended_at=NOW(), end_odometer=?,
            duration_mins = LEAST(120, GREATEST(1, TIMESTAMPDIFF(MINUTE, started_at, NOW()) - FLOOR(paused_secs / 60)))
        WHERE id=? AND instructor_id=? AND status IN ('active','paused')`,
-      [trip_id, instructorId]
+      [endOdometer, trip_id, instructorId]
     );
     res.json({ success: true });
   } catch (err) { next(err); }
@@ -3034,7 +3096,7 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
     const skipRealTrips = status === 'missing' || status === 'absent';
     const rows = skipRealTrips ? [] : (await dbPool.query(`
       SELECT dt.id, dt.instructor_id, dt.instructor_name, dt.booking_id, dt.student_name,
-             dt.started_at, dt.ended_at, dt.duration_mins, dt.status, dt.start_odometer,
+             dt.started_at, dt.ended_at, dt.duration_mins, dt.status, dt.start_odometer, dt.end_odometer,
              dt.approval_status, dt.approved_by_id, dt.approved_at,
              i.branch, COALESCE(NULLIF(dt.car_name,''), bk.car_name) AS car_name
       FROM driver_trips dt
@@ -3330,11 +3392,10 @@ app.patch('/api/admin/trip-logs/:id/reject', requireAdmin, async (req, res, next
 });
 
 // Admin: per-car, per-day report — session count and odometer range for that day.
-// There is no odometer reading captured when a trip *ends*, so the day's end
-// reading is approximated as the highest start_odometer among that car's
-// sessions that day (odometer values only increase, so this is always the most
-// recent reading taken). A day with only one session has no second reading to
-// compare against, so its distance is left null rather than shown as 0.
+// end_odometer is only populated once a trip has been completed with an end
+// reading (older rows and still-active trips may not have one yet), so the day's
+// end reading falls back to that session's own start_odometer when missing —
+// distance is only shown once at least one real end reading exists that day.
 app.get('/api/admin/car-reports', requireAdmin, async (req, res, next) => {
   const schoolId = req.schoolId || req.session?.schoolId || 1;
   const { date_from, date_to, car_name, branch } = req.query;
@@ -3353,7 +3414,8 @@ app.get('/api/admin/car-reports', requireAdmin, async (req, res, next) => {
         DATE(dt.started_at) AS trip_date,
         COUNT(*) AS sessions,
         MIN(dt.start_odometer) AS start_odometer,
-        MAX(dt.start_odometer) AS end_odometer
+        MAX(COALESCE(dt.end_odometer, dt.start_odometer)) AS end_odometer,
+        SUM(dt.end_odometer IS NOT NULL) AS end_readings
       FROM driver_trips dt
       LEFT JOIN bookings bk ON bk.id = dt.booking_id
       WHERE ${conditions.join(' AND ')}
@@ -3373,7 +3435,7 @@ app.get('/api/admin/car-reports', requireAdmin, async (req, res, next) => {
         sessions: Number(r.sessions),
         start_odometer: r.start_odometer,
         end_odometer: r.end_odometer,
-        distance: r.sessions > 1 ? Number(r.end_odometer) - Number(r.start_odometer) : null,
+        distance: (r.sessions > 1 || Number(r.end_readings) > 0) ? Number(r.end_odometer) - Number(r.start_odometer) : null,
       }));
 
     if (branch) reports = reports.filter(r => r.branch === branch);
