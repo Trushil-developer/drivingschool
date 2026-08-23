@@ -17,6 +17,10 @@ window.renderInstructorsModule = function(tableWrap, tabRenderers, currentTab) {
                 style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:14px;color:#5a6478;margin-bottom:-2px;border-bottom:2px solid transparent">
                 Leave Requests
                 <span id="leavesPendingBadge" style="display:none;background:#c47f00;color:#fff;border-radius:999px;font-size:11px;padding:1px 7px;margin-left:6px;font-weight:700"></span>
+            </button>
+            <button class="ins-sub-tab" data-subtab="rewards"
+                style="padding:8px 18px;border:none;background:none;cursor:pointer;font-size:14px;color:#5a6478;margin-bottom:-2px;border-bottom:2px solid transparent">
+                Rewards
             </button>`;
 
         const existingBar = tableWrap.parentElement.querySelector('.ins-sub-tab-bar');
@@ -44,12 +48,15 @@ window.renderInstructorsModule = function(tableWrap, tabRenderers, currentTab) {
         const employeesContainer  = document.createElement('div');
         const leavesContainer     = document.createElement('div');
         const attendanceContainer = document.createElement('div');
+        const rewardsContainer    = document.createElement('div');
         tableWrap.innerHTML = '';
         tableWrap.appendChild(attendanceContainer);
         tableWrap.appendChild(employeesContainer);
         tableWrap.appendChild(leavesContainer);
+        tableWrap.appendChild(rewardsContainer);
         employeesContainer.style.display = 'none';
         leavesContainer.style.display    = 'none';
+        rewardsContainer.style.display   = 'none';
 
         // Load leave pending count badge
         window.api('/api/admin/leave-requests?status=Pending').then(r => {
@@ -73,17 +80,27 @@ window.renderInstructorsModule = function(tableWrap, tabRenderers, currentTab) {
                 if (btn.dataset.subtab === 'employees') {
                     attendanceContainer.style.display = 'none';
                     leavesContainer.style.display     = 'none';
+                    rewardsContainer.style.display    = 'none';
                     employeesContainer.style.display  = '';
                     actionsBar.style.display          = '';
                 } else if (btn.dataset.subtab === 'leaves') {
                     attendanceContainer.style.display = 'none';
                     employeesContainer.style.display  = 'none';
+                    rewardsContainer.style.display    = 'none';
                     actionsBar.style.display          = 'none';
                     leavesContainer.style.display     = '';
                     if (window.renderLeaveRequestsTab) window.renderLeaveRequestsTab(leavesContainer)();
+                } else if (btn.dataset.subtab === 'rewards') {
+                    attendanceContainer.style.display = 'none';
+                    employeesContainer.style.display  = 'none';
+                    leavesContainer.style.display     = 'none';
+                    actionsBar.style.display          = 'none';
+                    rewardsContainer.style.display    = '';
+                    if (window.renderRewardsTab) window.renderRewardsTab(rewardsContainer)();
                 } else {
                     employeesContainer.style.display  = 'none';
                     leavesContainer.style.display     = 'none';
+                    rewardsContainer.style.display    = 'none';
                     actionsBar.style.display          = 'none';
                     attendanceContainer.style.display = '';
                     if (window.renderAttendanceTab) window.renderAttendanceTab(attendanceContainer)();

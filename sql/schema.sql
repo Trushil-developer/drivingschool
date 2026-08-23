@@ -2367,6 +2367,36 @@ SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_
 SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN schedule_slot_id INT NULL','SELECT "exists"');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- reward_points_awarded: flags a trip whose reward points have already been
+-- granted, so approval logic never double-awards it.
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema=DATABASE() AND table_name='driver_trips' AND column_name='reward_points_awarded');
+SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN reward_points_awarded TINYINT(1) NOT NULL DEFAULT 0','SELECT "exists"');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- INSTRUCTOR REWARDS LEDGER
+-- =====================================
+-- Append-only history of every point an instructor earns (approved qualifying
+-- trip) or an admin withdraws/cashes out. Balance = SUM(points); never a
+-- mutable counter, so full history is always reconstructable.
+CREATE TABLE IF NOT EXISTS instructor_rewards_ledger (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    instructor_id   INT NOT NULL,
+    school_id       INT NOT NULL DEFAULT 1,
+    trip_id         INT NULL,
+    type            ENUM('trip_earned','admin_withdraw') NOT NULL,
+    points          INT NOT NULL,
+    rupee_value     DECIMAL(10,2) NULL,
+    note            VARCHAR(255) NULL,
+    created_by_id   INT NULL,
+    created_by_type VARCHAR(20) NULL,
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='instructor_rewards_ledger' AND index_name='idx_rewards_instructor');
+SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_rewards_instructor ON instructor_rewards_ledger (instructor_id);','SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- APP SETTINGS (Remote Config / Feature Flags)
 -- =====================================

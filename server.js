@@ -32,6 +32,7 @@ import packagesRoutes from './routes/packagesRoutes.js';
 import expensesRoutes from './routes/expensesRoutes.js';
 import reviewsRoute from './routes/reviewsRoute.js';
 import emailRoutes from './routes/emailRoutes.js';
+import rewardsRoutes from './routes/rewardsRoutes.js';
 import { sendWelcomeCredentialsEmail } from './public/service/sesEmail.service.js';
 import { sendPushToPerson } from './public/service/pushNotification.service.js';
 
@@ -982,6 +983,7 @@ app.get('/api/admin/app-usage', requireAdmin, async (req, res, next) => {
   const schoolId = req.schoolId || req.session?.schoolId || 1;
   try {
     await ensureAppActivityTable();
+    await ensureDevicePushTokensTable();
 
     const [[eligibleRow]] = await dbPool.query(
       `SELECT COUNT(*) AS c FROM bookings WHERE school_id = ? AND attendance_status = 'Active' AND email IS NOT NULL AND email != ''`,
@@ -1008,11 +1010,17 @@ app.get('/api/admin/app-usage', requireAdmin, async (req, res, next) => {
       `SELECT aa.booking_id, b.customer_name, aa.email,
               MIN(aa.first_seen_at) AS first_seen_at,
               MAX(aa.last_seen_at) AS last_seen_at,
-              COUNT(*) AS days_active
+              COUNT(*) AS days_active,
+              dpt.platform
        FROM app_activity aa
        LEFT JOIN bookings b ON b.id = aa.booking_id
+       LEFT JOIN device_push_tokens dpt ON dpt.id = (
+         SELECT id FROM device_push_tokens
+         WHERE person_type = 'student' AND person_id = aa.booking_id
+         ORDER BY updated_at DESC LIMIT 1
+       )
        WHERE aa.school_id = ?
-       GROUP BY aa.booking_id, b.customer_name, aa.email
+       GROUP BY aa.booking_id, b.customer_name, aa.email, dpt.platform
        ORDER BY last_seen_at DESC
        LIMIT 500`,
       [schoolId]
@@ -2088,7 +2096,7 @@ cron.schedule('1 0 * * *', async () => {
 
 // Instructor clock-in reminder — skips anyone who already has an attendance
 // row for today (don't nag someone who's already clocked in).
-cron.schedule('0 6 * * *', async () => {
+cron.schedule('0 6 * * 1-6', async () => {
   try {
     const [instructors] = await dbPool.query(
       `SELECT id FROM instructors WHERE is_active = 1 AND LOWER(role) = 'instructor'`
@@ -2111,7 +2119,7 @@ cron.schedule('0 6 * * *', async () => {
 }, { timezone: "Asia/Kolkata" });
 
 // Instructor clock-out reminder — only those clocked in today but not yet out.
-cron.schedule('0 21 * * *', async () => {
+cron.schedule('0 21 * * 1-6', async () => {
   try {
     const [rows] = await dbPool.query(
       `SELECT DISTINCT instructor_id FROM instructor_attendance
@@ -2131,7 +2139,7 @@ cron.schedule('0 21 * * *', async () => {
 
 // Trip-start reminder — fires once per slot, right around its scheduled start,
 // for the assigned instructor.
-cron.schedule('*/5 * * * *', async () => {
+cron.schedule('*/5 * * * 1-6', async () => {
   try {
     const [schools] = await dbPool.query(`SELECT DISTINCT school_id FROM bookings`);
     const now = new Date();
@@ -2166,7 +2174,7 @@ cron.schedule('*/5 * * * *', async () => {
 
 // Customer pre-lesson reminder — ~2 hours before their scheduled slot, asking
 // if they're still coming / want to reschedule / cancel.
-cron.schedule('*/10 * * * *', async () => {
+cron.schedule('*/10 * * * 1-6', async () => {
   try {
     const [schools] = await dbPool.query(`SELECT DISTINCT school_id FROM bookings`);
     const now = new Date();
@@ -2287,6 +2295,7 @@ app.use('/api/packages', packagesRoutes);
 app.use('/api/expenses', expensesRoutes);
 app.use('/api/reviews', reviewsRoute);
 app.use('/api/email', emailRoutes);
+app.use('/api/rewards', rewardsRoutes);
 
 // ── Driver Trips ──────────────────────────────────────────────────────────────
 
@@ -2397,16 +2406,60 @@ async function maxPastOdometer(carName, schoolId, excludeTripId) {
   } catch (e) { console.error('[Migration] driver_trips.approval_status rejected:', e.message); }
 })();
 
-// Driver: start a trip
-// A trip may only be started within this many minutes before/after the
-// booking's scheduled slot time (IST — process.env.TZ forces server time to
-// Asia/Kolkata, see top of file).
+// Migration: flag on driver_trips so a trip's reward points are only ever
+// granted once, even if the approval logic somehow runs twice for it.
+(async () => {
+  try {
+    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN reward_points_awarded TINYINT(1) NOT NULL DEFAULT 0`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.reward_points_awarded:', e.message); }
+})();
+
+// ── Instructor Rewards ──────────────────────────────────────────────────────
+// An instructor earns points for a trip once it's approved by a manager/admin,
+// provided the trip ran long enough and covered enough distance to count as a
+// real lesson. Points are only ever recorded as ledger entries (never a mutable
+// counter), so an instructor's balance = SUM(points) and the full earn/withdraw
+// history is always available.
+const REWARD_POINTS_PER_TRIP = 10;
+const REWARD_MIN_DURATION_MINS = 25;
+const REWARD_MIN_DISTANCE_KM = 5;
+export const REWARD_RUPEES_PER_POINT = 0.1; // 10 points = ₹1
+
+export const ensureRewardsLedgerTable = () => dbPool.query(`
+  CREATE TABLE IF NOT EXISTS instructor_rewards_ledger (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    instructor_id INT NOT NULL,
+    school_id INT NOT NULL DEFAULT 1,
+    trip_id INT NULL,
+    type ENUM('trip_earned','admin_withdraw') NOT NULL,
+    points INT NOT NULL,
+    rupee_value DECIMAL(10,2) NULL,
+    note VARCHAR(255) NULL,
+    created_by_id INT NULL,
+    created_by_type VARCHAR(20) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_rewards_instructor (instructor_id)
+  )
+`);
+
 const TRIP_START_EARLY_GRACE_MIN = 15;
 const TRIP_START_LATE_GRACE_MIN = 30;
 
+app.get('/api/driver/cars', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  try {
+    const [[inst]] = await dbPool.query('SELECT branch FROM instructors WHERE id=? AND school_id=? LIMIT 1', [instructorId, req.schoolId]);
+    const [cars] = await dbPool.query(
+      'SELECT car_name FROM cars WHERE school_id=? AND branch=? ORDER BY car_name',
+      [req.schoolId, inst?.branch ?? '']
+    );
+    res.json({ success: true, cars: cars.map(c => c.car_name).filter(Boolean) });
+  } catch (err) { next(err); }
+});
+
 app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
   const instructorId = req.session.adminId;
-  const { booking_id, duration_mins = 30, start_odometer, schedule_slot_id } = req.body;
+  const { booking_id, duration_mins = 30, start_odometer, schedule_slot_id, car_name: carNameOverride } = req.body;
   if (!booking_id) return res.json({ success: false, error: 'booking_id required' });
   const startOdometer = Number(start_odometer);
   if (!Number.isFinite(startOdometer) || startOdometer < 0) {
@@ -2470,7 +2523,11 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
       }
     }
 
-    const carName = slot ? (slot.car_name || bk?.car_name || '') : (bk?.car_name ?? '');
+    // A car_name override (from the driver correcting a wrong car on the confirm
+    // screen) applies only to this trip — it's stored on driver_trips, not written
+    // back to the booking/schedule_slot, so future lessons keep their usual car.
+    const carName = (carNameOverride && String(carNameOverride).trim())
+      || (slot ? (slot.car_name || bk?.car_name || '') : (bk?.car_name ?? ''));
     const pastOdo = await maxPastOdometer(carName, req.schoolId, 0);
     if (startOdometer < pastOdo) {
       return res.json({ success: false, error: `Odometer reading cannot be less than the last recorded reading for this car (${pastOdo} km).` });
@@ -2526,13 +2583,6 @@ app.post('/api/driver/trip/resume', requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Driver: end (complete) a trip — once completed it can no longer be started, paused, or resumed
-//
-// end_odometer is optional for now: older app builds (pre-odometer-on-end) don't send
-// it at all, and the server/app deploy independently (app store review lag means an
-// old build can still be live after this server change ships), so a missing reading
-// must not block completing a trip. Only validate/store it when a client actually
-// sends one. This can be made required again once all installed clients send it.
 app.post('/api/driver/trip/end', requireAdmin, async (req, res, next) => {
   const instructorId = req.session.adminId;
   const { trip_id, end_odometer } = req.body;
@@ -2594,6 +2644,21 @@ app.get('/api/driver/trip/active', requireAdmin, async (req, res, next) => {
     if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, trip: null });
     next(err);
   }
+});
+
+// Driver: own rewards points balance + full earn/withdraw history
+app.get('/api/driver/rewards', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  try {
+    await ensureRewardsLedgerTable();
+    const [history] = await dbPool.query(
+      `SELECT id, trip_id, type, points, rupee_value, note, created_at
+       FROM instructor_rewards_ledger WHERE instructor_id=? ORDER BY created_at DESC`,
+      [instructorId]
+    );
+    const balance = history.reduce((sum, row) => sum + row.points, 0);
+    res.json({ success: true, balance, rupee_value: Number((balance * REWARD_RUPEES_PER_POINT).toFixed(2)), history });
+  } catch (err) { next(err); }
 });
 
 // Admin: all drivers' current status
@@ -3212,7 +3277,8 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
   let conn;
   try {
     const [[trip]] = await dbPool.query(
-      `SELECT dt.id, dt.booking_id, dt.started_at, dt.status, dt.approval_status, dt.schedule_slot_id
+      `SELECT dt.id, dt.instructor_id, dt.booking_id, dt.started_at, dt.status, dt.approval_status,
+              dt.schedule_slot_id, dt.duration_mins, dt.start_odometer, dt.end_odometer, dt.reward_points_awarded
        FROM driver_trips dt
        JOIN instructors i ON i.id = dt.instructor_id
        WHERE dt.id = ? AND i.school_id = ? LIMIT 1`,
@@ -3288,6 +3354,24 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
       `UPDATE driver_trips SET approval_status='approved', approved_by_id=?, approved_by_type=?, approved_at=NOW() WHERE id=?`,
       [markedById, markedByType, trip.id]
     );
+
+    // Award reward points once, only for trips that actually cover a real
+    // lesson (long enough + far enough) — see the constants defined near
+    // ensureRewardsLedgerTable above.
+    const distanceKm = (trip.start_odometer != null && trip.end_odometer != null)
+      ? trip.end_odometer - trip.start_odometer
+      : null;
+    if (!trip.reward_points_awarded
+      && Number(trip.duration_mins) >= REWARD_MIN_DURATION_MINS
+      && distanceKm != null && distanceKm > REWARD_MIN_DISTANCE_KM) {
+      await ensureRewardsLedgerTable();
+      await conn.query(
+        `INSERT INTO instructor_rewards_ledger (instructor_id, school_id, trip_id, type, points, created_by_id, created_by_type)
+         VALUES (?, ?, ?, 'trip_earned', ?, ?, ?)`,
+        [trip.instructor_id, schoolId, trip.id, REWARD_POINTS_PER_TRIP, markedById, markedByType]
+      );
+      await conn.query(`UPDATE driver_trips SET reward_points_awarded=1 WHERE id=?`, [trip.id]);
+    }
 
     await conn.commit();
     res.json({ success: true, present_days: totalPresent, attendance_status: newStatus });

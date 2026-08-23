@@ -79,6 +79,7 @@ window.renderAppUsageModule = async function (tableWrap) {
                         <th>Student</th>
                         <th>Booking ID</th>
                         <th>Email</th>
+                        <th>Platform</th>
                         <th>First Opened</th>
                         <th>Last Active</th>
                         <th>Days Active</th>
@@ -91,6 +92,7 @@ window.renderAppUsageModule = async function (tableWrap) {
                             <td class="tl-name">${st.customer_name || '—'}</td>
                             <td>${st.booking_id}</td>
                             <td>${st.email || '—'}</td>
+                            <td>${st.platform === 'ios' ? 'iOS' : st.platform === 'android' ? 'Android' : '—'}</td>
                             <td class="tl-time">${fmtDT(st.first_seen_at)}</td>
                             <td class="tl-time">${fmtDT(st.last_seen_at)}</td>
                             <td>${st.days_active}</td>
