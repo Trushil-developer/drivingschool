@@ -112,12 +112,19 @@ function renderRewardsDetail(instructorId, data, container) {
   window.Modal.setContent(formHTML);
 
   setTimeout(() => {
-    document.getElementById('rw_withdraw_btn').onclick = async () => {
+    const btn = document.getElementById('rw_withdraw_btn');
+    btn.onclick = async () => {
       const points = Number(document.getElementById('rw_points').value);
       const note = document.getElementById('rw_note').value.trim();
       if (!Number.isInteger(points) || points <= 0) return alert('Enter a valid whole number of points');
       if (!note) return alert('Please enter a note for this withdrawal');
+      if (!confirm(`Withdraw ${points} points from ${instructor.instructor_name}?\n\nNote: ${note}`)) return;
 
+      // Guard against a double-click firing two withdraw requests before the
+      // first response lands — disable immediately rather than after the await.
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = 'Withdrawing...';
       try {
         const res = await window.api(`/api/rewards/${instructorId}/withdraw`, {
           method: 'POST',
@@ -129,6 +136,8 @@ function renderRewardsDetail(instructorId, data, container) {
         if (window.renderRewardsTab) window.renderRewardsTab(container)();
       } catch (err) {
         alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Withdraw';
       }
     };
   }, 50);

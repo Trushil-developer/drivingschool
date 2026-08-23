@@ -2442,6 +2442,17 @@ export const ensureRewardsLedgerTable = () => dbPool.query(`
   )
 `);
 
+// Single source of truth for an instructor's points balance — always derived
+// from the ledger, never a stored counter, so this is the only place the
+// SUM(points) formula should live (previously duplicated in JS in two places).
+export async function getInstructorRewardsBalance(instructorId, connection = dbPool) {
+  const [[row]] = await connection.query(
+    `SELECT COALESCE(SUM(points), 0) AS balance FROM instructor_rewards_ledger WHERE instructor_id=?`,
+    [instructorId]
+  );
+  return Number(row.balance);
+}
+
 const TRIP_START_EARLY_GRACE_MIN = 15;
 const TRIP_START_LATE_GRACE_MIN = 30;
 
@@ -2526,8 +2537,20 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
     // A car_name override (from the driver correcting a wrong car on the confirm
     // screen) applies only to this trip — it's stored on driver_trips, not written
     // back to the booking/schedule_slot, so future lessons keep their usual car.
-    const carName = (carNameOverride && String(carNameOverride).trim())
-      || (slot ? (slot.car_name || bk?.car_name || '') : (bk?.car_name ?? ''));
+    // Validated against this school's actual car list so a typo/stale client
+    // value can't silently create odometer history for a car that doesn't exist.
+    let carName;
+    const trimmedOverride = carNameOverride ? String(carNameOverride).trim() : '';
+    if (trimmedOverride) {
+      const [[validCar]] = await dbPool.query(
+        'SELECT car_name FROM cars WHERE school_id=? AND car_name=? LIMIT 1',
+        [req.schoolId, trimmedOverride]
+      );
+      if (!validCar) return res.json({ success: false, error: 'Selected car was not found. Please pick a car from the list.' });
+      carName = trimmedOverride;
+    } else {
+      carName = slot ? (slot.car_name || bk?.car_name || '') : (bk?.car_name ?? '');
+    }
     const pastOdo = await maxPastOdometer(carName, req.schoolId, 0);
     if (startOdometer < pastOdo) {
       return res.json({ success: false, error: `Odometer reading cannot be less than the last recorded reading for this car (${pastOdo} km).` });
@@ -2656,7 +2679,7 @@ app.get('/api/driver/rewards', requireAdmin, async (req, res, next) => {
        FROM instructor_rewards_ledger WHERE instructor_id=? ORDER BY created_at DESC`,
       [instructorId]
     );
-    const balance = history.reduce((sum, row) => sum + row.points, 0);
+    const balance = await getInstructorRewardsBalance(instructorId);
     res.json({ success: true, balance, rupee_value: Number((balance * REWARD_RUPEES_PER_POINT).toFixed(2)), history });
   } catch (err) { next(err); }
 });
@@ -3365,12 +3388,22 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
       && Number(trip.duration_mins) >= REWARD_MIN_DURATION_MINS
       && distanceKm != null && distanceKm > REWARD_MIN_DISTANCE_KM) {
       await ensureRewardsLedgerTable();
-      await conn.query(
-        `INSERT INTO instructor_rewards_ledger (instructor_id, school_id, trip_id, type, points, created_by_id, created_by_type)
-         VALUES (?, ?, ?, 'trip_earned', ?, ?, ?)`,
-        [trip.instructor_id, schoolId, trip.id, REWARD_POINTS_PER_TRIP, markedById, markedByType]
+      // Flip the flag with the qualifying condition in the WHERE clause — this
+      // acquires the row lock and the CAS in one statement, so if two approve
+      // requests for the same trip race each other, only the first one's
+      // UPDATE actually affects a row; the second sees affectedRows=0 and
+      // skips the INSERT, preventing a double award.
+      const [flagResult] = await conn.query(
+        `UPDATE driver_trips SET reward_points_awarded=1 WHERE id=? AND reward_points_awarded=0`,
+        [trip.id]
       );
-      await conn.query(`UPDATE driver_trips SET reward_points_awarded=1 WHERE id=?`, [trip.id]);
+      if (flagResult.affectedRows === 1) {
+        await conn.query(
+          `INSERT INTO instructor_rewards_ledger (instructor_id, school_id, trip_id, type, points, created_by_id, created_by_type)
+           VALUES (?, ?, ?, 'trip_earned', ?, ?, ?)`,
+          [trip.instructor_id, schoolId, trip.id, REWARD_POINTS_PER_TRIP, markedById, markedByType]
+        );
+      }
     }
 
     await conn.commit();

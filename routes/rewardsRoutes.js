@@ -1,5 +1,5 @@
 import express from 'express';
-import { dbPool, requireAdmin, ensureRewardsLedgerTable, REWARD_RUPEES_PER_POINT } from '../server.js';
+import { dbPool, requireAdmin, ensureRewardsLedgerTable, getInstructorRewardsBalance, REWARD_RUPEES_PER_POINT } from '../server.js';
 
 const router = express.Router();
 
@@ -49,7 +49,7 @@ router.get('/:instructorId', requireAdmin, async (req, res) => {
        FROM instructor_rewards_ledger WHERE instructor_id=? ORDER BY created_at DESC`,
       [instructorId]
     );
-    const balance = history.reduce((sum, row) => sum + row.points, 0);
+    const balance = await getInstructorRewardsBalance(instructorId);
     res.json({
       success: true,
       instructor,
@@ -81,6 +81,7 @@ router.post('/:instructorId/withdraw', requireAdmin, async (req, res) => {
     return res.json({ success: false, error: 'A note is required for a withdrawal.' });
   }
 
+  let conn;
   try {
     await ensureRewardsLedgerTable();
     const [[instructor]] = await dbPool.query(
@@ -89,26 +90,38 @@ router.post('/:instructorId/withdraw', requireAdmin, async (req, res) => {
     );
     if (!instructor) return res.status(404).json({ success: false, error: 'Instructor not found' });
 
-    const [[balanceRow]] = await dbPool.query(
-      `SELECT COALESCE(SUM(points), 0) AS balance FROM instructor_rewards_ledger WHERE instructor_id=?`,
+    conn = await dbPool.getConnection();
+    await conn.beginTransaction();
+
+    // FOR UPDATE locks every ledger row this SUM reads, so a second concurrent
+    // withdrawal for the same instructor blocks here until this transaction
+    // commits/rolls back, then re-reads the balance including this withdrawal —
+    // preventing two simultaneous withdrawals from both passing the balance check.
+    const [[balanceRow]] = await conn.query(
+      `SELECT COALESCE(SUM(points), 0) AS balance FROM instructor_rewards_ledger WHERE instructor_id=? FOR UPDATE`,
       [instructorId]
     );
     const balance = Number(balanceRow.balance);
     if (points > balance) {
+      await conn.rollback();
       return res.json({ success: false, error: `Cannot withdraw more than the current balance (${balance} points).` });
     }
 
     const rupeeValue = Number((points * REWARD_RUPEES_PER_POINT).toFixed(2));
-    await dbPool.query(
+    await conn.query(
       `INSERT INTO instructor_rewards_ledger (instructor_id, school_id, type, points, rupee_value, note, created_by_id, created_by_type)
        VALUES (?, ?, 'admin_withdraw', ?, ?, ?, ?, ?)`,
       [instructorId, req.schoolId, -points, rupeeValue, note, req.session.adminId, req.session.adminRole || 'admin']
     );
 
+    await conn.commit();
     res.json({ success: true, balance: balance - points });
   } catch (err) {
+    if (conn) await conn.rollback().catch(() => {});
     console.error('REWARDS WITHDRAW ERROR:', err);
     res.status(500).json({ success: false, error: 'Internal error' });
+  } finally {
+    if (conn) conn.release();
   }
 });
 
