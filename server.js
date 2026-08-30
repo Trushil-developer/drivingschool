@@ -2818,6 +2818,30 @@ app.get('/api/app-config', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Public — mobile app fetches this on startup (and on language switch) to pick
+// up translation fixes/updates without needing a new app store release. The
+// app already ships every language's strings bundled locally, so any failure
+// here (object missing, S3 error, bad JSON) is meant to be silently absorbed
+// by the app falling back to its bundled copy — this endpoint returning a
+// non-200 is an expected, harmless outcome, not something to alert on.
+const TRANSLATION_LANGS = ['en', 'gu', 'hi'];
+app.get('/api/translations/:lang', async (req, res) => {
+  const { lang } = req.params;
+  if (!TRANSLATION_LANGS.includes(lang)) {
+    return res.status(404).json({ success: false, error: 'Unknown language' });
+  }
+  try {
+    const obj = await s3.getObject({ Bucket: process.env.S3_BUCKET, Key: `translations/${lang}.json` }).promise();
+    const data = JSON.parse(obj.Body.toString('utf-8'));
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({ success: true, lang, namespaces: data });
+  } catch (err) {
+    if (err.code === 'NoSuchKey') return res.status(404).json({ success: false, error: 'Not uploaded yet' });
+    console.error('[translations] fetch failed:', err.message);
+    res.status(500).json({ success: false, error: 'Internal error' });
+  }
+});
+
 // Admin — list all settings
 app.get('/api/admin/app-settings', requireAdmin, async (req, res, next) => {
   try {
