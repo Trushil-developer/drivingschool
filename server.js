@@ -2416,13 +2416,16 @@ async function maxPastOdometer(carName, schoolId, excludeTripId) {
 
 // ── Instructor Rewards ──────────────────────────────────────────────────────
 // An instructor earns points for a trip once it's approved by a manager/admin,
-// provided the trip ran long enough and covered enough distance to count as a
-// real lesson. Points are only ever recorded as ledger entries (never a mutable
-// counter), so an instructor's balance = SUM(points) and the full earn/withdraw
-// history is always available.
+// provided the trip ran long enough and covered a plausible lesson distance —
+// too short/close doesn't count as a real lesson, and too long/far (e.g. an
+// odometer entry error, or a trip that isn't really a lesson) is excluded too.
+// Points are only ever recorded as ledger entries (never a mutable counter),
+// so an instructor's balance = SUM(points) and the full earn/withdraw history
+// is always available.
 const REWARD_POINTS_PER_TRIP = 10;
 const REWARD_MIN_DURATION_MINS = 25;
 const REWARD_MIN_DISTANCE_KM = 5;
+const REWARD_MAX_DISTANCE_KM = 18;
 export const REWARD_RUPEES_PER_POINT = 0.1; // 10 points = ₹1
 
 export const ensureRewardsLedgerTable = () => dbPool.query(`
@@ -3379,14 +3382,14 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
     );
 
     // Award reward points once, only for trips that actually cover a real
-    // lesson (long enough + far enough) — see the constants defined near
-    // ensureRewardsLedgerTable above.
+    // lesson (long enough + a plausible lesson distance) — see the constants
+    // defined near ensureRewardsLedgerTable above.
     const distanceKm = (trip.start_odometer != null && trip.end_odometer != null)
       ? trip.end_odometer - trip.start_odometer
       : null;
     if (!trip.reward_points_awarded
       && Number(trip.duration_mins) >= REWARD_MIN_DURATION_MINS
-      && distanceKm != null && distanceKm > REWARD_MIN_DISTANCE_KM) {
+      && distanceKm != null && distanceKm > REWARD_MIN_DISTANCE_KM && distanceKm < REWARD_MAX_DISTANCE_KM) {
       await ensureRewardsLedgerTable();
       // Flip the flag with the qualifying condition in the WHERE clause — this
       // acquires the row lock and the CAS in one statement, so if two approve
