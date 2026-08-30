@@ -317,7 +317,16 @@ export async function recomputeAndStoreAttendanceStatus(bookingId) {
   const booking = await fetchBookingMinimal(bookingId);
   if (!booking) return;
   const newStatus = computeAttendanceStatus(booking);
-  await dbPool.query(`UPDATE bookings SET attendance_status = ? WHERE id = ?`, [newStatus, bookingId]);
+  // Clear any past expiry reason once a booking leaves the Expired state (e.g.
+  // extended or resumed) — a fresh expiry later should prompt for a fresh reason.
+  if (newStatus === 'Expired') {
+    await dbPool.query(`UPDATE bookings SET attendance_status = ? WHERE id = ?`, [newStatus, bookingId]);
+  } else {
+    await dbPool.query(
+      `UPDATE bookings SET attendance_status = ?, expiry_reason = NULL, expiry_reason_at = NULL WHERE id = ?`,
+      [newStatus, bookingId]
+    );
+  }
 }
 
 export function toMySQLDate(value) {
@@ -1263,6 +1272,27 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
 });
 
 
+// Expired bookings still missing a reason — polled by the admin panel to
+// nag whoever's logged in until every expiry is explained. Must stay above
+// the /:id route below, otherwise Express matches "expired-pending-reason"
+// as an :id value instead.
+app.get('/api/bookings/expired-pending-reason', requireAdmin, async (req, res, next) => {
+  try {
+    const [rows] = await dbPool.query(
+      `SELECT id, branch, customer_name, instructor_name
+       FROM bookings
+       WHERE school_id = ? AND attendance_status = 'Expired'
+         AND (expiry_reason IS NULL OR expiry_reason = '')
+       ORDER BY id DESC`,
+      [req.schoolId]
+    );
+    res.json({ success: true, bookings: rows });
+  } catch (err) {
+    console.error('EXPIRED PENDING REASON FETCH ERROR:', err);
+    next(err);
+  }
+});
+
 app.get('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`SELECT * FROM bookings WHERE id = ? AND school_id = ?`, [req.params.id, req.schoolId]);
@@ -1436,6 +1466,24 @@ app.delete('/api/bookings/:id', requireAdmin, async (req, res, next) => {
     res.json({ success: true });
   } catch (err) {
     console.error('BOOKING DELETE ERROR:', err);
+    next(err);
+  }
+});
+
+app.post('/api/bookings/:id/expiry-reason', requireAdmin, async (req, res, next) => {
+  const { reason } = req.body;
+  if (!reason || !reason.trim()) {
+    return res.json({ success: false, error: 'Reason is required' });
+  }
+  try {
+    await dbPool.query(
+      `UPDATE bookings SET expiry_reason = ?, expiry_reason_at = NOW()
+       WHERE id = ? AND school_id = ? AND attendance_status = 'Expired'`,
+      [reason.trim(), req.params.id, req.schoolId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('EXPIRY REASON SUBMIT ERROR:', err);
     next(err);
   }
 });

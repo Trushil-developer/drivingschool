@@ -15,10 +15,19 @@ export default async function updateBookingsStatus() {
       const newStatus = computeAttendanceStatus(booking);
 
       try {
-        await dbPool.query(
-          `UPDATE bookings SET attendance_status = ? WHERE id = ?`,
-          [newStatus, booking.id]
-        );
+        if (newStatus === 'Expired') {
+          await dbPool.query(
+            `UPDATE bookings SET attendance_status = ? WHERE id = ?`,
+            [newStatus, booking.id]
+          );
+        } else {
+          // Clear any past expiry reason once a booking leaves the Expired
+          // state — a fresh expiry later should prompt for a fresh reason.
+          await dbPool.query(
+            `UPDATE bookings SET attendance_status = ?, expiry_reason = NULL, expiry_reason_at = NULL WHERE id = ?`,
+            [newStatus, booking.id]
+          );
+        }
       } catch (err) {
         console.error(`Error updating booking ID ${booking.id}:`, err);
       }

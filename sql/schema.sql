@@ -646,8 +646,24 @@ SET @sql := IF(@col_exists=0,
     'SELECT "exists";');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- expiry_reason
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='expiry_reason');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN expiry_reason TEXT NULL;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- expiry_reason_at
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='expiry_reason_at');
+SET @sql := IF(@col_exists=0,
+    'ALTER TABLE bookings ADD COLUMN expiry_reason_at DATETIME NULL;',
+    'SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- extended_days
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
     WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='extended_days');
 SET @sql := IF(@col_exists=0,
     'ALTER TABLE bookings ADD COLUMN extended_days INT DEFAULT 0;',

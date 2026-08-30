@@ -1,5 +1,6 @@
 import { downloadCertificate, uploadCertificate } from "./globals/certificates.js";
 import { loadFilterBranches, filterData, attachFilterListeners } from "./globals/filters.js";
+import { initExpiryReasonNag } from "./globals/expiryReasonNag.js";
 import { renderDashboardModule } from "./Dashboard/renderDashboardModule.js";
 import { renderExamsModule } from "./Exams/renderExamsModule.js";
 
@@ -632,6 +633,8 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
 
     });
     await switchTab(currentTab);
+
+    initExpiryReasonNag();
 })();
 
 window.addEventListener("DOMContentLoaded", () => {
