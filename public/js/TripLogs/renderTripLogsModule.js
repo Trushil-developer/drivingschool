@@ -228,7 +228,26 @@ window.renderTripLogsModule = async function (tableWrap) {
 
         // ── Table ─────────────────────────────────────────────────────────
         if (trips.length === 0) {
-            content.innerHTML = '<div class="tl-empty">No trip logs found for the selected filters.</div>';
+            // Filters combine with AND — e.g. a Car filter plus a leftover Status
+            // filter from an earlier search can legitimately match nothing. Spell
+            // out what's actually applied so that isn't mistaken for a bug.
+            const activeFilters = [];
+            if (inst)   activeFilters.push(`Instructor: ${document.getElementById('tlInstructor').selectedOptions[0].textContent}`);
+            if (car)    activeFilters.push(`Car: ${car}`);
+            if (branch) activeFilters.push(`Branch: ${branch}`);
+            if (stat)   activeFilters.push(`Status: ${document.getElementById('tlStatus').selectedOptions[0].textContent}`);
+            const filterSummary = activeFilters.length
+                ? `<div class="tl-empty-filters">Active filters: ${activeFilters.join(' · ')}</div>`
+                : '';
+            content.innerHTML = `
+                <div class="tl-empty">
+                    No trip logs found for the selected filters.
+                    ${filterSummary}
+                    ${activeFilters.length ? '<button id="tlEmptyClear" class="tl-clear-btn">Clear filters</button>' : ''}
+                </div>
+            `;
+            const emptyClearBtn = document.getElementById('tlEmptyClear');
+            if (emptyClearBtn) emptyClearBtn.addEventListener('click', () => document.getElementById('tlClear').click());
             return;
         }
 

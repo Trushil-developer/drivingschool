@@ -1339,6 +1339,8 @@ body {
 .tl-reject-btn:disabled { background: #fca5a5; cursor: default; }
 
 .tl-empty { text-align: center; padding: 48px 24px; color: var(--text-secondary, #9ca3af); font-size: 0.95rem; }
+.tl-empty-filters { margin-top: 10px; font-size: 0.82rem; color: var(--text-tertiary, #b0b6c0); }
+.tl-empty .tl-clear-btn { margin-top: 16px; }
 
 @media (max-width: 600px) {
     .tl-wrap { padding: 14px; }
