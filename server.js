@@ -2678,6 +2678,12 @@ app.post('/api/driver/trip/end', requireAdmin, async (req, res, next) => {
       if (trip.start_odometer != null && endOdometer < trip.start_odometer) {
         return res.json({ success: false, error: `End reading cannot be less than the start reading for this lesson (${trip.start_odometer} km).` });
       }
+      // A single lesson covering more than 50km is almost always a mistyped
+      // meter reading rather than a real trip distance — catch it here instead
+      // of letting it silently distort odometer history and car reports.
+      if (trip.start_odometer != null && endOdometer - trip.start_odometer > 50) {
+        return res.json({ success: false, error: `This trip shows ${endOdometer - trip.start_odometer} km, which is more than 50 km — please check and enter the correct meter reading.` });
+      }
       const pastOdo = await maxPastOdometer(trip.car_name, req.schoolId, trip_id);
       if (endOdometer < pastOdo) {
         return res.json({ success: false, error: `Odometer reading cannot be less than the last recorded reading for this car (${pastOdo} km).` });
