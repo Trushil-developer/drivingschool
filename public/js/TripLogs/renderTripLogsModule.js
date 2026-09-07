@@ -171,7 +171,13 @@ window.renderTripLogsModule = async function (tableWrap) {
         if (stat)   params.set('status', stat);
 
         const res = await window.api(`/api/admin/trip-logs?${params}`);
-        const trips = res?.success ? res.trips : [];
+        if (!res?.success) {
+            // A failed request used to fall through as "0 trips" — indistinguishable
+            // from a filter combination that legitimately matches nothing. Surface it.
+            content.innerHTML = `<div class="tl-empty tl-empty-error">Couldn't load trip logs: ${res?.error || 'unknown error'}. Try again.</div>`;
+            return;
+        }
+        const trips = res.trips;
 
         // ── Summary cards ─────────────────────────────────────────────────
         const completed = trips.filter(t => t.status === 'completed');
