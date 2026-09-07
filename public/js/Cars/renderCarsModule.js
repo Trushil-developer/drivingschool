@@ -64,6 +64,7 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
                                         data-price_15_days="${c.price_15_days ?? 0}"
                                         data-price_21_days="${c.price_21_days ?? 0}"
                                     >Edit</button>
+                                    <button class="btn meter" data-id="${c.id}" data-name="${c.car_name || ''}">Meter</button>
                                     <button class="btn delete" data-id="${c.id}">Delete</button>
                                 </td>
                             </tr>
@@ -110,6 +111,15 @@ window.renderCarsModule = function (tableWrap, tabRenderers, currentTab) {
 
                     const openModal = window.openCarEditModal(id, carData, tabRenderers, currentTab);
                     openModal();
+                });
+            });
+
+            // -----------------------------
+            // Reset Meter button
+            // -----------------------------
+            tableWrap.querySelectorAll('.btn.meter').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    window.openCarMeterModal(btn.dataset.id, btn.dataset.name, tabRenderers, currentTab)();
                 });
             });
 

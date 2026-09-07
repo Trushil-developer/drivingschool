@@ -134,6 +134,88 @@ window.openCarAddModal = function (tabRenderers, currentTab) {
 
 
 // ========================
+// RESET CAR METER MODAL
+// ========================
+window.openCarMeterModal = function (id, carName, tabRenderers, currentTab) {
+    return async function () {
+        try {
+            if (!window.Modal) throw new Error("Modal not initialized");
+            if (!window.Modal.el) window.Modal.init();
+
+            const nfmt = n => Number(n || 0).toLocaleString('en-IN');
+
+            window.Modal.setContent(`<h2>Car Meter — ${carName || ''}</h2>
+                <div class="modal-content-form"><p>Loading…</p></div>`);
+            window.Modal.show();
+
+            const res = await window.api(`/api/cars/${id}/meter`);
+            if (!res.success) throw new Error(res.error || "Failed to load meter");
+
+            const resets = res.resets || [];
+            const resetsHTML = resets.length
+                ? `<ul style="margin:6px 0 0; padding-left:18px;">${resets.map(r => {
+                        const when = new Date(r.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+                        return `<li>${nfmt(r.reading)} km &middot; ${when}${r.note ? ` &middot; ${r.note}` : ''}</li>`;
+                    }).join('')}</ul>`
+                : `<p style="color:#6b7280; margin:6px 0 0;">No resets recorded yet.</p>`;
+
+            window.Modal.setContent(`
+                <h2>Car Meter — ${carName || ''}</h2>
+                <div class="modal-content-form car-modal">
+                    <p><strong>Current meter:</strong> ${nfmt(res.current_meter)} km<br>
+                       <span style="color:#6b7280; font-size:13px;">
+                       The next start / end reading an instructor enters for this car
+                       must be at least this value.</span></p>
+
+                    <label>New meter reading (km)</label>
+                    <input id="meter_reading" type="number" min="0" step="1" value="${res.current_meter || 0}">
+
+                    <label>Reason (optional)</label>
+                    <input id="meter_note" type="text" maxlength="255"
+                        placeholder="e.g. wrong reading entered, odometer replaced">
+
+                    <p style="color:#b45309; font-size:13px; margin:8px 0 0;">
+                        This sets a new baseline for the car. Trip readings recorded before
+                        now are ignored for the minimum-reading check from here on.
+                    </p>
+
+                    <button id="saveMeter" class="btn primary">Reset Meter</button>
+
+                    <h3 style="margin:18px 0 0;">Recent resets</h3>
+                    ${resetsHTML}
+                </div>
+            `);
+
+            document.getElementById("saveMeter").onclick = async () => {
+                const reading = parseInt(document.getElementById("meter_reading").value, 10);
+                const note = document.getElementById("meter_note").value.trim();
+                if (!Number.isInteger(reading) || reading < 0) {
+                    return alert("Enter a valid meter reading (a whole number, 0 or more).");
+                }
+                if (!confirm(`Set ${carName || 'this car'}'s meter baseline to ${reading.toLocaleString('en-IN')} km?`)) return;
+                try {
+                    const r = await window.api(`/api/cars/${id}/meter/reset`, {
+                        method: "POST",
+                        body: JSON.stringify({ reading, note }),
+                        headers: { "Content-Type": "application/json" }
+                    });
+                    if (!r.success) throw new Error(r.error || "Failed to reset meter");
+                    alert(`Meter reset. New baseline: ${Number(r.current_meter).toLocaleString('en-IN')} km`);
+                    window.Modal.hide();
+                    tabRenderers?.[currentTab]?.();
+                } catch (err) {
+                    alert("Error: " + err.message);
+                }
+            };
+        } catch (err) {
+            console.error(err);
+            alert("Error opening meter modal: " + err.message);
+        }
+    };
+};
+
+
+// ========================
 // EDIT CAR MODAL
 // ========================
 window.openCarEditModal = function (id, data, tabRenderers, currentTab) {

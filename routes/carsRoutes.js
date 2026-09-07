@@ -1,6 +1,6 @@
 import express from 'express';
 import { dbPool } from '../server.js';
-import { requireAdmin, toMySQLDate } from '../server.js';
+import { requireAdmin, toMySQLDate, maxPastOdometer, ensureMeterResetsTable } from '../server.js';
 
 const router = express.Router();
 
@@ -141,6 +141,70 @@ router.patch('/:id/active', requireAdmin, async (req, res, next) => {
     res.json({ success: true });
   } catch (err) {
     console.error('TOGGLE CAR ACTIVE ERROR:', err);
+    next(err);
+  }
+});
+
+// ---------- CAR METER: current reading + reset history ----------
+// "Current meter" is the floor the next instructor reading must meet or beat
+// for this car (see maxPastOdometer in server.js).
+router.get('/:id/meter', requireAdmin, async (req, res, next) => {
+  try {
+    const [[car]] = await dbPool.query(
+      'SELECT car_name FROM cars WHERE id=? AND school_id=? LIMIT 1',
+      [req.params.id, req.schoolId]
+    );
+    if (!car || !car.car_name) return res.json({ success: false, error: 'Car not found' });
+
+    await ensureMeterResetsTable();
+    const current = await maxPastOdometer(car.car_name, req.schoolId, 0);
+    const [resets] = await dbPool.query(
+      `SELECT reading, note, created_at, created_by_type
+       FROM car_meter_resets
+       WHERE car_name=? AND school_id=?
+       ORDER BY created_at DESC, id DESC
+       LIMIT 10`,
+      [car.car_name, req.schoolId]
+    );
+    res.json({ success: true, car_name: car.car_name, current_meter: current, resets });
+  } catch (err) {
+    console.error('CAR METER FETCH ERROR:', err);
+    next(err);
+  }
+});
+
+// ---------- CAR METER: reset the baseline for one car ----------
+// Records a reset row; from now on the car's odometer floor is this reading
+// (or any higher reading recorded after this moment). Readings entered before
+// now are ignored for the floor check — this is how a wrong high reading gets
+// unstuck, or a replaced odometer cluster gets a fresh start.
+router.post('/:id/meter/reset', requireAdmin, async (req, res, next) => {
+  const reading = Number(req.body?.reading);
+  const note = (req.body?.note ?? '').toString().trim().slice(0, 255) || null;
+
+  if (!Number.isInteger(reading) || reading < 0) {
+    return res.json({ success: false, error: 'Enter a valid meter reading (a whole number, 0 or more).' });
+  }
+
+  try {
+    const [[car]] = await dbPool.query(
+      'SELECT car_name FROM cars WHERE id=? AND school_id=? LIMIT 1',
+      [req.params.id, req.schoolId]
+    );
+    if (!car || !car.car_name) return res.json({ success: false, error: 'Car not found' });
+
+    await ensureMeterResetsTable();
+    await dbPool.query(
+      `INSERT INTO car_meter_resets
+       (school_id, car_name, reading, note, created_by_id, created_by_type)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [req.schoolId, car.car_name, reading, note, req.session.adminId, req.session.adminRole || 'admin']
+    );
+
+    const current = await maxPastOdometer(car.car_name, req.schoolId, 0);
+    res.json({ success: true, current_meter: current });
+  } catch (err) {
+    console.error('CAR METER RESET ERROR:', err);
     next(err);
   }
 });

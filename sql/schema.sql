@@ -2390,6 +2390,29 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN reward_points_
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
+-- CAR METER RESETS
+-- =====================================
+-- Audit log of admin "reset meter" actions for a car. A car's odometer floor is
+-- normally the highest start/end reading ever recorded in driver_trips; a reset
+-- row sets a new baseline (e.g. a wrong reading was entered, or the odometer
+-- cluster was physically replaced). After a reset, only that reset's reading and
+-- trip readings recorded AFTER it count towards the floor.
+CREATE TABLE IF NOT EXISTS car_meter_resets (
+    id              INT AUTO_INCREMENT PRIMARY KEY,
+    school_id       INT NOT NULL DEFAULT 1,
+    car_name        VARCHAR(100) NOT NULL,
+    reading         INT NOT NULL,
+    note            VARCHAR(255) NULL,
+    created_by_id   INT NULL,
+    created_by_type VARCHAR(20) NULL,
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='car_meter_resets' AND index_name='idx_car_meter_resets_car');
+SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_car_meter_resets_car ON car_meter_resets (school_id, car_name, created_at);','SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
 -- INSTRUCTOR REWARDS LEDGER
 -- =====================================
 -- Append-only history of every point an instructor earns (approved qualifying

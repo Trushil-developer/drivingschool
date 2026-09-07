@@ -2372,6 +2372,21 @@ const ensureTripsTable = () => dbPool.query(`
   )
 `);
 
+// Audit log of admin "reset meter" actions for a car — see maxPastOdometer().
+export const ensureMeterResetsTable = () => dbPool.query(`
+  CREATE TABLE IF NOT EXISTS car_meter_resets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id INT NOT NULL DEFAULT 1,
+    car_name VARCHAR(100) NOT NULL,
+    reading INT NOT NULL,
+    note VARCHAR(255) NULL,
+    created_by_id INT NULL,
+    created_by_type VARCHAR(20) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_car_meter_resets_car (school_id, car_name, created_at)
+  )
+`);
+
 // Migration: add car_name to driver_trips (denormalized from booking at trip-start time)
 (async () => {
   try {
@@ -2400,14 +2415,26 @@ const ensureTripsTable = () => dbPool.query(`
 // The odometer only ever counts up for a given car, regardless of which instructor
 // or trip recorded it — so every new reading (start or end) must be >= the highest
 // reading ever recorded for that car. Returns 0 if the car has no prior readings.
-async function maxPastOdometer(carName, schoolId, excludeTripId) {
+//
+// An admin can "reset" a car's meter (car_meter_resets) after a wrong reading was
+// entered or the odometer cluster was replaced. Once a reset exists, the floor is
+// the latest reset's own reading, or the highest reading recorded AFTER that reset,
+// whichever is greater — trip readings from before the reset are ignored.
+export async function maxPastOdometer(carName, schoolId, excludeTripId) {
   if (!carName) return 0;
-  const [[row]] = await dbPool.query(
-    `SELECT GREATEST(COALESCE(MAX(start_odometer), 0), COALESCE(MAX(end_odometer), 0)) AS maxOdo
-     FROM driver_trips WHERE car_name=? AND school_id=? AND id<>?`,
-    [carName, schoolId, excludeTripId || 0]
+  await ensureMeterResetsTable();
+  const [[reset]] = await dbPool.query(
+    `SELECT reading, created_at FROM car_meter_resets
+     WHERE car_name=? AND school_id=? ORDER BY created_at DESC, id DESC LIMIT 1`,
+    [carName, schoolId]
   );
-  return row?.maxOdo || 0;
+  const params = [carName, schoolId, excludeTripId || 0];
+  let sql =
+    `SELECT GREATEST(COALESCE(MAX(start_odometer), 0), COALESCE(MAX(end_odometer), 0)) AS maxOdo
+     FROM driver_trips WHERE car_name=? AND school_id=? AND id<>?`;
+  if (reset) { sql += ' AND started_at >= ?'; params.push(reset.created_at); }
+  const [[row]] = await dbPool.query(sql, params);
+  return Math.max(Number(row?.maxOdo || 0), reset ? Number(reset.reading) : 0);
 }
 
 // Migration: add school_id to driver_trips (multi-tenant scoping — trip start/insert
