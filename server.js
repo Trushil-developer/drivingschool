@@ -3255,7 +3255,11 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
     if (instructor_id) { conditions.push('dt.instructor_id = ?'); params.push(instructor_id); }
     if (status && ['active','paused','completed'].includes(status)) { conditions.push('dt.status = ?'); params.push(status); }
     if (branch)   { conditions.push('TRIM(i.branch) = ?'); params.push(branch); }
-    if (car_name) { conditions.push("COALESCE(NULLIF(dt.car_name,''), bk.car_name) = ?"); params.push(car_name); }
+    // driver_trips.car_name and bookings.car_name were created with different
+    // default collations (utf8mb4_0900_ai_ci vs utf8mb4_unicode_ci) — COALESCE-ing
+    // across them produces an expression MySQL refuses to compare against a bound
+    // parameter ("Illegal mix of collations") unless pinned explicitly here.
+    if (car_name) { conditions.push("COALESCE(NULLIF(dt.car_name,''), bk.car_name) COLLATE utf8mb4_unicode_ci = ?"); params.push(car_name); }
 
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
     const skipRealTrips = status === 'missing' || status === 'absent';
@@ -3600,7 +3604,8 @@ app.get('/api/admin/car-reports', requireAdmin, async (req, res, next) => {
 
     if (date_from) { conditions.push('DATE(dt.started_at) >= ?'); params.push(date_from); }
     if (date_to)   { conditions.push('DATE(dt.started_at) <= ?'); params.push(date_to); }
-    if (car_name)  { conditions.push("COALESCE(NULLIF(dt.car_name,''), bk.car_name) = ?"); params.push(car_name); }
+    // Same cross-collation COALESCE as the Trip Logs car filter above.
+    if (car_name)  { conditions.push("COALESCE(NULLIF(dt.car_name,''), bk.car_name) COLLATE utf8mb4_unicode_ci = ?"); params.push(car_name); }
 
     const [rows] = await dbPool.query(`
       SELECT
