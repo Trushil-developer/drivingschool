@@ -1,6 +1,7 @@
 import express from "express";
 import { dbPool } from "../server.js";
 import { requireAdmin } from "../server.js";
+import { computeMissingSlots } from "../server.js";
 
 const router = express.Router();
 
@@ -254,48 +255,8 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     const targetDate = date ? new Date(date) : new Date();
     targetDate.setHours(0, 0, 0, 0);
     const targetDateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth()+1).padStart(2,'0')}-${String(targetDate.getDate()).padStart(2,'0')}`;
-    const selectedTime = targetDate.getTime();
 
-    // 1. Get active/pending bookings for this school to determine expected students today
-    const bookingParams = [req.schoolId];
-    let bookingWhere = `school_id = ? AND attendance_status IN ('Active','Pending') AND starting_from IS NOT NULL AND allotted_time IS NOT NULL AND allotted_time != ''`;
-    if (branch) {
-      bookingWhere += ` AND TRIM(LOWER(branch)) = ?`;
-      bookingParams.push(branch.toLowerCase());
-    }
-
-    const [rawBookings] = await dbPool.query(
-      `SELECT branch, car_name, allotted_time, allotted_time2, allotted_time3, allotted_time4,
-              starting_from, training_days, present_days
-       FROM bookings WHERE ${bookingWhere}`,
-      bookingParams
-    );
-
-    const bookings = rawBookings.filter(b => {
-      const start = new Date(b.starting_from);
-      const end   = new Date(start);
-      const totalSessions = Number(b.training_days) || 15;
-      const doneSessions  = Number(b.present_days)  || 0;
-      const remaining     = totalSessions - doneSessions;
-      if (remaining < totalSessions / 2) {
-        end.setTime(selectedTime);
-        end.setDate(end.getDate() + remaining + 3);
-      } else {
-        end.setDate(start.getDate() + 29);
-      }
-      return selectedTime >= start.getTime() && selectedTime <= end.getTime();
-    });
-
-    // Count expected slots per branch today (match schedule grid — each allotted_time = 1 slot)
-    const expectedByBranch = {};
-    bookings.forEach(b => {
-      const branchName = (b.branch || '').trim();
-      const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
-        .filter(t => t != null && t !== '').length;
-      expectedByBranch[branchName] = (expectedByBranch[branchName] || 0) + Math.max(1, slots);
-    });
-
-    // 5. Present + Absent counts per branch from attendance records
+    // Present + Absent counts per branch from real attendance records.
     const attParams = [req.schoolId, targetDateStr];
     if (branch) attParams.push(branch.toLowerCase());
     const branchFilter = branch ? 'AND TRIM(LOWER(b.branch)) = ?' : '';
@@ -319,49 +280,28 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     const absentByBranch = {};
     absentRows.forEach(r => { absentByBranch[r.branch] = Number(r.cnt); });
 
-    // Add ad-hoc slots to expected (they also show in schedule)
-    const adHocExpParams = [req.schoolId, targetDateStr];
-    if (branch) adHocExpParams.push(branch.toLowerCase());
-    const [adHocExpRows] = await dbPool.query(`
-      SELECT TRIM(b.branch) AS branch, COUNT(ss.id) AS cnt
-      FROM schedule_slots ss JOIN bookings b ON ss.booking_id = b.id
-      WHERE b.school_id = ? AND DATE(ss.date) = ? ${branch ? 'AND TRIM(LOWER(b.branch)) = ?' : ''}
-      GROUP BY TRIM(b.branch)
-    `, adHocExpParams);
-    adHocExpRows.forEach(r => {
-      const br = r.branch;
-      expectedByBranch[br] = (expectedByBranch[br] || 0) + Number(r.cnt);
-    });
-
-    // Add completed bookings that have attendance today (schedule shows these too)
-    const completedParams = [req.schoolId, targetDateStr];
-    if (branch) completedParams.push(branch.toLowerCase());
-    const [completedBookings] = await dbPool.query(`
-      SELECT DISTINCT b.id, TRIM(b.branch) AS branch,
-             b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4
-      FROM attendance a JOIN bookings b ON a.booking_id = b.id
-      WHERE b.school_id = ? AND DATE(a.date) = ? AND b.attendance_status = 'Completed' AND a.present >= 1
-      ${branch ? 'AND TRIM(LOWER(b.branch)) = ?' : ''}
-    `, completedParams);
-    completedBookings.forEach(b => {
-      const br = (b.branch || '').trim();
-      const slots = [b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4]
-        .filter(t => t != null && t !== '').length;
-      expectedByBranch[br] = (expectedByBranch[br] || 0) + Math.max(1, slots);
+    // Missing = same definition Trip Logs uses: a slot only counts once its
+    // scheduled time (plus grace period) has actually passed with no trip and
+    // no attendance recorded — not every slot scheduled for today upfront.
+    const missingEntries = await computeMissingSlots(req.schoolId, targetDateStr, targetDateStr, undefined, undefined, undefined);
+    const missingByBranch = {};
+    missingEntries.forEach(m => {
+      const br = (m.branch || '').trim();
+      if (branch && br.toLowerCase() !== branch.toLowerCase()) return;
+      missingByBranch[br] = (missingByBranch[br] || 0) + 1;
     });
 
     let totalPresent = 0, totalAbsent = 0, totalMissing = 0;
     const allBranches = new Set([
-      ...Object.keys(expectedByBranch),
       ...Object.keys(presentByBranch),
-      ...Object.keys(absentByBranch)
+      ...Object.keys(absentByBranch),
+      ...Object.keys(missingByBranch)
     ]);
     const branchStats = [...allBranches].sort().map(branchName => {
-      const present  = presentByBranch[branchName]  || 0;
-      const absent   = absentByBranch[branchName]   || 0;
-      const expected = expectedByBranch[branchName] || 0;
-      const missing  = Math.max(0, expected - present - absent);
-      const total    = present + absent + missing;
+      const present = presentByBranch[branchName] || 0;
+      const absent  = absentByBranch[branchName]  || 0;
+      const missing = missingByBranch[branchName] || 0;
+      const total   = present + absent + missing;
       totalPresent += present;
       totalAbsent  += absent;
       totalMissing += missing;

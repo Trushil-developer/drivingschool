@@ -3071,7 +3071,7 @@ async function getTodaysActiveSlotOccurrences(schoolId) {
 // the student absent, and the slot's grace window has already elapsed. These
 // don't exist in driver_trips — they're computed on the fly from bookings vs.
 // attendance vs. driver_trips so no-shows are visible on the Trip Logs page.
-async function computeMissingSlots(schoolId, dateFrom, dateTo, instructorId, branch, carName) {
+export async function computeMissingSlots(schoolId, dateFrom, dateTo, instructorId, branch, carName) {
   const conditions = [
     'b.school_id = ?', "b.attendance_status IN ('Active','Pending')",
     'b.starting_from IS NOT NULL', "b.allotted_time IS NOT NULL", "b.allotted_time != ''",
