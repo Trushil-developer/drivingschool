@@ -202,8 +202,8 @@ window.renderTripLogsModule = async function (tableWrap) {
         summary.innerHTML = `
             <div class="tl-stat-cards">
                 <div class="tl-stat">
-                    <span class="tl-stat-val">${trips.length - missing.length - absent.length - rejected.length}</span>
-                    <span class="tl-stat-label">Total Trips</span>
+                    <span class="tl-stat-val">${res.presentTotal ?? 0}</span>
+                    <span class="tl-stat-label">Students Present</span>
                 </div>
                 <div class="tl-stat">
                     <span class="tl-stat-val">${countedCompleted}</span>

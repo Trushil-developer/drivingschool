@@ -3293,7 +3293,27 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
     const trips = [...rows, ...missingRows, ...absentRows]
       .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))
       .slice(0, 500);
-    res.json({ success: true, trips });
+
+    // "Total Trips" is meant to answer "how many students actually showed up",
+    // not "how many sessions the driver app logged" — some lessons get marked
+    // present straight from the Schedule grid without ever going through the
+    // app's trip-start/trip-end flow, so they'd never appear in `trips` above.
+    // Count real attendance instead, under the same filters.
+    const presentConditions = ['b.school_id = ?', 'a.present = 1', 'a.date BETWEEN ? AND ?'];
+    const presentParams = [schoolId, rangeFrom, rangeTo];
+    if (instructor_id) { presentConditions.push('i.id = ?'); presentParams.push(instructor_id); }
+    if (branch)   { presentConditions.push('TRIM(i.branch) = ?'); presentParams.push(branch); }
+    if (car_name) { presentConditions.push('b.car_name COLLATE utf8mb4_unicode_ci = ?'); presentParams.push(car_name); }
+    const [[{ presentTotal }]] = await dbPool.query(
+      `SELECT COUNT(*) AS presentTotal
+       FROM attendance a
+       JOIN bookings b ON a.booking_id = b.id
+       LEFT JOIN instructors i ON i.instructor_name = b.instructor_name AND i.school_id = b.school_id
+       WHERE ${presentConditions.join(' AND ')}`,
+      presentParams
+    );
+
+    res.json({ success: true, trips, presentTotal: Number(presentTotal) });
   } catch (err) {
     if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, trips: [] });
     next(err);
