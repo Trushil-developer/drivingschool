@@ -3142,6 +3142,8 @@ async function computeMissingSlots(schoolId, dateFrom, dateTo, instructorId, bra
     if (winFrom > winTo) return;
 
     for (let d = new Date(winFrom); d <= winTo; d.setDate(d.getDate() + 1)) {
+      if (d.getDay() === 0) continue; // Sunday — the school is closed, so no slot was ever due
+
       const dateStr = ymd(d);
       const isToday = dateStr === todayStr;
       const attForDay = attMap.get(`${b.id}|${dateStr}`) || [];

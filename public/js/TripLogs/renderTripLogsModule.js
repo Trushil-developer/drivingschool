@@ -179,7 +179,13 @@ window.renderTripLogsModule = async function (tableWrap) {
         const missing   = trips.filter(t => t.status === 'missing');
         const absent    = trips.filter(t => t.status === 'absent');
         const pendingAbsent = absent.filter(t => t.approval_status !== 'approved');
+        // A rejected trip means the admin overturned it — the student was marked
+        // absent for that lesson, so it shouldn't count toward totals even though
+        // its driver_trips row is still status 'completed'.
+        const rejected = completed.filter(t => t.approval_status === 'rejected');
+        const countedCompleted = completed.length - rejected.length;
         const totalMins = completed.reduce((s, t) => {
+            if (t.approval_status === 'rejected') return s;
             const start = t.started_at ? new Date(t.started_at) : null;
             const end   = t.ended_at   ? new Date(t.ended_at)   : null;
             if (!start || !end) return s;
@@ -190,11 +196,11 @@ window.renderTripLogsModule = async function (tableWrap) {
         summary.innerHTML = `
             <div class="tl-stat-cards">
                 <div class="tl-stat">
-                    <span class="tl-stat-val">${trips.length - missing.length - absent.length}</span>
+                    <span class="tl-stat-val">${trips.length - missing.length - absent.length - rejected.length}</span>
                     <span class="tl-stat-label">Total Trips</span>
                 </div>
                 <div class="tl-stat">
-                    <span class="tl-stat-val">${completed.length}</span>
+                    <span class="tl-stat-val">${countedCompleted}</span>
                     <span class="tl-stat-label">Completed</span>
                 </div>
                 <div class="tl-stat tl-stat--active">
