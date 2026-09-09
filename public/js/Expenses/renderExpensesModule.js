@@ -436,6 +436,8 @@ window.renderExpensesModule = async function (tableWrap) {
     let expFilterBranch = '';
     let expFilterCategory = '';
     let expFilterMonth = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }).slice(0, 7);
+    let expFilterFrom = '';
+    let expFilterTo = '';
     let expCategoriesCache = null;
     let expBranchesCache = null;
     let expModesCache = null;
@@ -458,10 +460,17 @@ window.renderExpensesModule = async function (tableWrap) {
             expCarsCache = resCars?.success ? resCars.cars : [];
         }
 
+        const rangeActive = !!(expFilterFrom || expFilterTo);
+
         const params = new URLSearchParams({ page, limit: 50 });
         if (expFilterBranch) params.set('branch', expFilterBranch);
         if (expFilterCategory) params.set('category', expFilterCategory);
-        if (expFilterMonth) params.set('month', expFilterMonth);
+        if (rangeActive) {
+            if (expFilterFrom) params.set('from', expFilterFrom);
+            if (expFilterTo) params.set('to', expFilterTo);
+        } else if (expFilterMonth) {
+            params.set('month', expFilterMonth);
+        }
 
         const resExpenses = await window.api(`/api/expenses?${params}`);
         const expenses = resExpenses?.success ? resExpenses.expenses : [];
@@ -486,7 +495,7 @@ window.renderExpensesModule = async function (tableWrap) {
                         <div class="value blue">${total}</div>
                     </div>
                     <div class="exp-summary-card">
-                        <div class="label">Monthly Amount</div>
+                        <div class="label">${rangeActive ? 'Range Amount' : 'Monthly Amount'}</div>
                         <div class="value green">${fmtAmt(monthTotal)}</div>
                     </div>
                 </div>
@@ -502,7 +511,14 @@ window.renderExpensesModule = async function (tableWrap) {
                                 <option value="">All Categories</option>
                                 ${expCategoriesCache.map(c => `<option value="${c.name}" ${expFilterCategory === c.name ? 'selected' : ''}>${c.name}</option>`).join('')}
                             </select>
-                            <input type="month" id="filterMonth" title="Filter by month" value="${expFilterMonth}" />
+                            <input type="month" id="filterMonth" title="Filter by month" value="${expFilterMonth}" ${rangeActive ? 'disabled' : ''} />
+                            <span class="exp-range-group">
+                                <label>From</label>
+                                <input type="date" id="filterFrom" title="Range start date" value="${expFilterFrom}" />
+                                <label>To</label>
+                                <input type="date" id="filterTo" title="Range end date" value="${expFilterTo}" />
+                                ${rangeActive ? '<button id="clearRange" class="btn-exp-cancel" type="button">Clear range</button>' : ''}
+                            </span>
                         </div>
                     </div>
                     <div id="expTableWrap"></div>
@@ -523,6 +539,20 @@ window.renderExpensesModule = async function (tableWrap) {
         });
         document.getElementById('filterMonth').addEventListener('change', e => {
             expFilterMonth = e.target.value;
+            renderHistoryTab(1);
+        });
+        document.getElementById('filterFrom').addEventListener('change', e => {
+            expFilterFrom = e.target.value;
+            renderHistoryTab(1);
+        });
+        document.getElementById('filterTo').addEventListener('change', e => {
+            expFilterTo = e.target.value;
+            renderHistoryTab(1);
+        });
+        const clearRangeBtn = document.getElementById('clearRange');
+        if (clearRangeBtn) clearRangeBtn.addEventListener('click', () => {
+            expFilterFrom = '';
+            expFilterTo = '';
             renderHistoryTab(1);
         });
 

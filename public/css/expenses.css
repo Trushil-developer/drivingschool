@@ -353,6 +353,30 @@
     border-color: #93C5FD;
 }
 
+.exp-range-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border: 1px dashed #D1D5DB;
+    border-radius: 7px;
+    background: #F9FAFB;
+}
+
+.exp-range-group label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.exp-range-group button {
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
 /* Table */
 .expenses-table {
     width: 100%;

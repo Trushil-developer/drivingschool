@@ -145,13 +145,22 @@ router.get("/", requireAdmin, async (req, res, next) => {
         const branch = (req.query.branch || '').trim();
         const category = (req.query.category || '').trim();
         const month = (req.query.month || '').trim(); // format: YYYY-MM
+        const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+        const from = dateRe.test((req.query.from || '').trim()) ? req.query.from.trim() : ''; // format: YYYY-MM-DD
+        const to = dateRe.test((req.query.to || '').trim()) ? req.query.to.trim() : '';       // format: YYYY-MM-DD
 
         const conditions = ['e.school_id = ?'];
         const params = [schoolId];
 
         if (branch) { conditions.push('e.branch = ?'); params.push(branch); }
         if (category) { conditions.push('ec.name = ?'); params.push(category); }
-        if (month) { conditions.push('DATE_FORMAT(e.expense_date, \'%Y-%m\') = ?'); params.push(month); }
+        if (from || to) {
+            // Custom date range takes precedence over the month filter
+            if (from) { conditions.push('e.expense_date >= ?'); params.push(from); }
+            if (to) { conditions.push('e.expense_date <= ?'); params.push(to); }
+        } else if (month) {
+            conditions.push('DATE_FORMAT(e.expense_date, \'%Y-%m\') = ?'); params.push(month);
+        }
 
         const where = 'WHERE ' + conditions.join(' AND ');
         const selectCols = `
