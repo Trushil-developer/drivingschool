@@ -2534,13 +2534,29 @@ export async function getInstructorRewardsBalance(instructorId, connection = dbP
 const TRIP_START_EARLY_GRACE_MIN = 15;
 const TRIP_START_LATE_GRACE_MIN = 30;
 
+// The car list for a trip's confirm/override screen must come from the
+// booking's (customer's) branch, not the instructor's own branch — an
+// instructor from one branch commonly teaches a customer registered at a
+// different branch, and the car actually assigned to the lesson always
+// belongs to the customer's branch. Falls back to the instructor's own
+// branch only when no booking_id is given (defensive default, not the
+// normal call shape from the app).
 app.get('/api/driver/cars', requireAdmin, async (req, res, next) => {
   const instructorId = req.session.adminId;
+  const { booking_id } = req.query;
   try {
-    const [[inst]] = await dbPool.query('SELECT branch FROM instructors WHERE id=? AND school_id=? LIMIT 1', [instructorId, req.schoolId]);
+    let branch = null;
+    if (booking_id) {
+      const [[bk]] = await dbPool.query('SELECT branch FROM bookings WHERE id=? AND school_id=? LIMIT 1', [booking_id, req.schoolId]);
+      branch = bk?.branch ?? null;
+    }
+    if (!branch) {
+      const [[inst]] = await dbPool.query('SELECT branch FROM instructors WHERE id=? AND school_id=? LIMIT 1', [instructorId, req.schoolId]);
+      branch = inst?.branch ?? '';
+    }
     const [cars] = await dbPool.query(
       'SELECT car_name FROM cars WHERE school_id=? AND branch=? ORDER BY car_name',
-      [req.schoolId, inst?.branch ?? '']
+      [req.schoolId, branch]
     );
     res.json({ success: true, cars: cars.map(c => c.car_name).filter(Boolean) });
   } catch (err) { next(err); }
