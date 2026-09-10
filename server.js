@@ -3895,8 +3895,14 @@ app.post('/api/driver/schedule-slots', requireAdmin, async (req, res, next) => {
     return res.json({ success: false, error: 'booking_id, time and car_name are required' });
   }
   const cleanTime = String(time).trim();
-  if (!/^\d{1,2}:\d{2}(:\d{2})?$/.test(cleanTime)) {
+  const tm = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(cleanTime);
+  if (!tm) {
     return res.json({ success: false, error: 'Invalid time — expected HH:MM.' });
+  }
+  // Must land on a 30-min slot inside the school's working hours (06:00–21:30).
+  const slotMins = parseInt(tm[1], 10) * 60 + parseInt(tm[2], 10);
+  if (parseInt(tm[2], 10) % 30 !== 0 || slotMins < 6 * 60 || slotMins > 21 * 60 + 30) {
+    return res.json({ success: false, error: 'Pick a time on the half hour between 6:00 AM and 9:30 PM.' });
   }
   const conn = await dbPool.getConnection();
   try {
