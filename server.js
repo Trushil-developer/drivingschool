@@ -4524,6 +4524,87 @@ app.patch('/api/admin/schedule-requests/:id/revert', requireAdmin, async (req, r
   }
 });
 
+// ── "I've arrived" — student tells the instructor they're waiting ────────────
+// Shown on the customer home screen next to the next-class card. Only usable
+// from 30 minutes before the scheduled slot until 30 minutes after it, and
+// only once per slot occurrence (claimNotificationOnce).
+app.post('/api/student/notify-arrival', requireExamUser, async (req, res, next) => {
+  const { email, full_name, login_booking_id } = req.session.examUser;
+  const bookingId = Number(req.body?.booking_id) || login_booking_id;
+
+  try {
+    const [[booking]] = await dbPool.query(
+      `SELECT b.id, b.customer_name, b.instructor_name, b.attendance_status,
+              b.allotted_time, b.allotted_time2, b.allotted_time3, b.allotted_time4
+       FROM bookings b
+       WHERE b.id = ? AND b.school_id = ? AND (b.email = ? OR b.customer_name = ?)
+       LIMIT 1`,
+      [bookingId, req.schoolId, email, full_name || '']
+    );
+    if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
+    if (!['Active', 'Pending'].includes(booking.attendance_status)) {
+      return res.json({ success: false, error: 'No active course' });
+    }
+
+    const now = new Date();
+    const todayStr = toMySQLDate(now);
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+
+    // Today's scheduled times for this booking: its regular slots plus any
+    // admin-added / replacement slot sitting in schedule_slots for today.
+    const slotHhmm = [booking.allotted_time, booking.allotted_time2, booking.allotted_time3, booking.allotted_time4]
+      .filter(Boolean).map(t => String(t).slice(0, 5));
+    const [adhoc] = await dbPool.query(
+      `SELECT time FROM schedule_slots WHERE booking_id = ? AND date = ? AND school_id = ?`,
+      [booking.id, todayStr, req.schoolId]
+    );
+    adhoc.forEach(r => { if (r.time) slotHhmm.push(String(r.time).slice(0, 5)); });
+
+    // The slot closest to "now".
+    let nearest = null;
+    for (const hhmm of slotHhmm) {
+      const [h, m] = hhmm.split(':').map(Number);
+      const slotMins = h * 60 + m;
+      if (!nearest || Math.abs(slotMins - nowMins) < Math.abs(nearest.slotMins - nowMins)) {
+        nearest = { hhmm, slotMins };
+      }
+    }
+    if (!nearest) return res.json({ success: false, error: 'noClassToday' });
+
+    const minsUntil = nearest.slotMins - nowMins;
+    if (minsUntil > 30) return res.json({ success: false, error: 'tooEarly', mins_until: minsUntil });
+    if (minsUntil < -30) return res.json({ success: false, error: 'tooLate' });
+
+    // Class cancelled for today?
+    const [[cancelled]] = await dbPool.query(
+      `SELECT id FROM attendance WHERE booking_id = ? AND date = ? AND present = 0 LIMIT 1`,
+      [booking.id, todayStr]
+    );
+    if (cancelled) return res.json({ success: false, error: 'cancelled' });
+
+    const [[inst]] = await dbPool.query(
+      `SELECT id FROM instructors WHERE instructor_name = ? AND school_id = ? AND is_active = 1 LIMIT 1`,
+      [booking.instructor_name, req.schoolId]
+    );
+    if (!inst) return res.json({ success: false, error: 'instructorUnavailable' });
+
+    const refKey = `arrival|${booking.id}|${todayStr}|${nearest.hhmm}`;
+    if (!(await claimNotificationOnce(refKey))) {
+      return res.json({ success: true, already_notified: true });
+    }
+
+    const h = Math.floor(nearest.slotMins / 60), m = nearest.slotMins % 60;
+    const slotLabel = `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+    await sendPushToPerson('instructor', inst.id, {
+      title: 'Student has arrived',
+      body: `${booking.customer_name || 'Your student'} is waiting for the ${slotLabel} lesson.`,
+      data: { screen: 'TripStart', bookingId: booking.id },
+    }).catch(err => console.error('[notify-arrival] push failed for instructor', inst.id, err.message));
+
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
 // ── Find Your Driver (hired driver for the customer's own car) ────────────────
 // A logged-in customer asks the school for a driver to drive THEIR car for a
 // day or two within the city. The school sees the request in the admin panel,
