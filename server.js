@@ -3882,6 +3882,86 @@ app.get('/api/driver/schedule-slots', requireAdmin, async (req, res, next) => {
   }
 });
 
+// Driver: create an ad-hoc lesson for today (an unplanned/extra/cover session the
+// instructor is about to run). No approval step for the creation itself — the
+// resulting trip still lands in admin Trip Logs as 'pending', where the admin
+// finalises it to present/absent. The slot inserts with present=0 and
+// source='adhoc' (the column default), and is stamped with THIS instructor's name
+// so it shows up in GET /api/driver/schedule-slots for them.
+app.post('/api/driver/schedule-slots', requireAdmin, async (req, res, next) => {
+  const instructorId = req.session.adminId;
+  const { booking_id, time, car_name } = req.body;
+  if (!booking_id || !time || !car_name) {
+    return res.json({ success: false, error: 'booking_id, time and car_name are required' });
+  }
+  const cleanTime = String(time).trim();
+  if (!/^\d{1,2}:\d{2}(:\d{2})?$/.test(cleanTime)) {
+    return res.json({ success: false, error: 'Invalid time — expected HH:MM.' });
+  }
+  const conn = await dbPool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [[inst]] = await conn.query(
+      'SELECT instructor_name FROM instructors WHERE id=? AND school_id=? LIMIT 1',
+      [instructorId, req.schoolId]
+    );
+    if (!inst) { await conn.rollback(); conn.release(); return res.json({ success: false, error: 'Instructor not found' }); }
+
+    const [[bk]] = await conn.query(
+      'SELECT id FROM bookings WHERE id=? AND school_id=? LIMIT 1',
+      [booking_id, req.schoolId]
+    );
+    if (!bk) { await conn.rollback(); conn.release(); return res.status(404).json({ success: false, error: 'Booking not found' }); }
+
+    const trimmedCar = String(car_name).trim();
+    const [[validCar]] = await conn.query(
+      'SELECT car_name FROM cars WHERE school_id=? AND car_name=? LIMIT 1',
+      [req.schoolId, trimmedCar]
+    );
+    if (!validCar) { await conn.rollback(); conn.release(); return res.json({ success: false, error: 'Selected car was not found. Please pick a car from the list.' }); }
+
+    const date = ymd(new Date()); // today, IST (process.env.TZ = 'Asia/Kolkata')
+
+    const [result] = await conn.query(
+      `INSERT INTO schedule_slots (booking_id, date, time, car_name, instructor_name, present, school_id)
+       VALUES (?, ?, ?, ?, ?, 0, ?)`,
+      [booking_id, date, cleanTime, trimmedCar, inst.instructor_name, req.schoolId]
+    );
+
+    // Keep present_days / attendance_status consistent with the admin ad-hoc path
+    // (POST /api/schedule-slots). New slot has present=0, so this doesn't inflate
+    // the count — it just recomputes status the same way.
+    const [[attSum]] = await conn.query(
+      'SELECT COUNT(*) AS total FROM attendance WHERE booking_id = ? AND present = 1', [booking_id]
+    );
+    const [[adhocSum]] = await conn.query(
+      'SELECT COUNT(*) AS total FROM schedule_slots WHERE booking_id = ? AND present = 1', [booking_id]
+    );
+    await conn.query(
+      'UPDATE bookings SET present_days = ? WHERE id = ?',
+      [Number(attSum.total) + Number(adhocSum.total), booking_id]
+    );
+    const [[bookingRow]] = await conn.query(
+      'SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?',
+      [booking_id]
+    );
+    await conn.query(
+      'UPDATE bookings SET attendance_status = ? WHERE id = ?',
+      [computeAttendanceStatus(bookingRow), booking_id]
+    );
+
+    await conn.commit();
+    res.json({ success: true, slot_id: result.insertId });
+  } catch (err) {
+    await conn.rollback();
+    console.error('POST DRIVER SCHEDULE SLOT ERROR:', err);
+    next(err);
+  } finally {
+    conn.release();
+  }
+});
+
 // Admin: view instructor attendance
 app.get('/api/admin/instructor-attendance', requireAdmin, async (req, res, next) => {
   const { date_from, date_to, instructor_id } = req.query;
