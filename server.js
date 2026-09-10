@@ -2841,6 +2841,7 @@ const ensureAppSettingsTable = async () => {
     { key: 'maintenance_mode',      value: 'false', label: 'Maintenance Mode',  description: 'When ON, all app users see a maintenance screen. Admin panel stays accessible.' },
     { key: 'maintenance_message',   value: 'We are currently performing maintenance. Please check back soon.', label: 'Maintenance Message', description: 'Text shown to users during maintenance' },
     { key: 'feature_leave_request', value: 'true',  label: 'Leave Request',     description: 'Drivers can submit leave requests from the app' },
+    { key: 'feature_find_driver',   value: 'false', label: 'Find a Driver',     description: 'Customers can request a hired driver for their own car from the app. Off by default — turn on when ready to launch.' },
     { key: 'wifi_ssid',             value: '',      label: 'School WiFi SSID',  description: 'Instructors must be on this WiFi to clock in/out. Leave empty to disable WiFi check.' },
     { key: 'min_version_android',   value: '',      label: 'Minimum App Version (Android)', description: 'Minimum Android app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13' },
     { key: 'min_version_ios',       value: '',      label: 'Minimum App Version (iOS)', description: 'Minimum iOS app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13' },
@@ -2868,6 +2869,19 @@ const ensureAppSettingsTable = async () => {
     await dbPool.query("DELETE FROM app_settings WHERE `key` = 'min_version'");
   }
 };
+
+// Reads a boolean feature flag from app_settings. Missing row => `fallback`
+// (features default ON so a not-yet-seeded flag doesn't hide working UI).
+async function isAppFeatureEnabled(key, fallback = true) {
+  try {
+    await ensureAppSettingsTable();
+    const [[row]] = await dbPool.query('SELECT value FROM app_settings WHERE `key` = ?', [key]);
+    if (!row) return fallback;
+    return row.value === 'true';
+  } catch (_) {
+    return fallback;
+  }
+}
 
 // Public — mobile app fetches this on every startup (no auth required)
 app.get('/api/app-config', async (req, res, next) => {
@@ -4492,6 +4506,216 @@ app.patch('/api/admin/schedule-requests/:id/revert', requireAdmin, async (req, r
   } finally {
     conn.release();
   }
+});
+
+// ── Find Your Driver (hired driver for the customer's own car) ────────────────
+// A logged-in customer asks the school for a driver to drive THEIR car for a
+// day or two within the city. The school sees the request in the admin panel,
+// assigns an instructor and quotes a price. No pricing logic lives here — the
+// admin fills in quoted_price by hand after talking to the customer.
+
+const ensureDriverHireRequestsTable = () => dbPool.query(`
+  CREATE TABLE IF NOT EXISTS driver_hire_requests (
+    id                       INT AUTO_INCREMENT PRIMARY KEY,
+    student_email            VARCHAR(255) NOT NULL,
+    student_name             VARCHAR(255),
+    contact_phone            VARCHAR(30) NOT NULL,
+    service_date             DATE NOT NULL,
+    num_days                 TINYINT NOT NULL DEFAULT 1,
+    car_model                VARCHAR(100),
+    transmission             ENUM('Manual','Automatic') NULL,
+    pickup_address           TEXT NOT NULL,
+    area                     VARCHAR(120),
+    notes                    TEXT,
+    status                   ENUM('Requested','Assigned','In Progress','Completed','Cancelled') NOT NULL DEFAULT 'Requested',
+    assigned_instructor_id   INT NULL,
+    assigned_instructor_name VARCHAR(100) NULL,
+    quoted_price             DECIMAL(10,2) NULL,
+    admin_note               TEXT NULL,
+    created_at               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    school_id                INT NOT NULL DEFAULT 1,
+    updated_by_id            INT NULL,
+    updated_by_type          VARCHAR(20) NULL,
+    INDEX idx_driver_hire_school_status (school_id, status),
+    INDEX idx_driver_hire_student (student_email)
+  )
+`);
+
+const DRIVER_HIRE_STATUSES = ['Requested', 'Assigned', 'In Progress', 'Completed', 'Cancelled'];
+
+// Student: create a driver-hire request
+app.post('/api/student/driver-hire-requests', requireExamUser, async (req, res, next) => {
+  const { email, full_name } = req.session.examUser;
+  const { contact_phone, service_date, num_days, car_model, transmission, pickup_address, area, notes } = req.body;
+
+  const days = parseInt(num_days, 10);
+  if (!contact_phone?.trim() || !service_date || !pickup_address?.trim()) {
+    return res.status(400).json({ success: false, error: 'contact_phone, service_date and pickup_address are required' });
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(service_date) || service_date < toMySQLDate(new Date())) {
+    return res.status(400).json({ success: false, error: 'service_date must be today or later' });
+  }
+  if (!Number.isInteger(days) || days < 1 || days > 7) {
+    return res.status(400).json({ success: false, error: 'num_days must be between 1 and 7' });
+  }
+  const txn = transmission === 'Manual' || transmission === 'Automatic' ? transmission : null;
+
+  try {
+    if (!(await isAppFeatureEnabled('feature_find_driver', false))) {
+      return res.status(403).json({ success: false, error: 'This feature is currently unavailable' });
+    }
+    await ensureDriverHireRequestsTable();
+    const [result] = await dbPool.query(
+      `INSERT INTO driver_hire_requests
+         (student_email, student_name, contact_phone, service_date, num_days, car_model, transmission, pickup_address, area, notes, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [email, full_name || null, contact_phone.trim().slice(0, 30), service_date, days,
+       car_model?.trim().slice(0, 100) || null, txn, pickup_address.trim().slice(0, 2000),
+       area?.trim().slice(0, 120) || null, notes?.trim().slice(0, 2000) || null, req.schoolId]
+    );
+    res.json({ success: true, id: result.insertId });
+  } catch (err) { next(err); }
+});
+
+// Student: list own driver-hire requests
+app.get('/api/student/driver-hire-requests', requireExamUser, async (req, res, next) => {
+  const { email } = req.session.examUser;
+  try {
+    await ensureDriverHireRequestsTable();
+    const [rows] = await dbPool.query(
+      `SELECT id, contact_phone, DATE_FORMAT(service_date, '%Y-%m-%d') AS service_date, num_days,
+              car_model, transmission, pickup_address, area, notes, status,
+              assigned_instructor_name, quoted_price, admin_note, created_at
+       FROM driver_hire_requests
+       WHERE student_email = ? AND school_id = ?
+       ORDER BY created_at DESC LIMIT 50`,
+      [email, req.schoolId]
+    );
+    res.json({ success: true, requests: rows });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, requests: [] });
+    next(err);
+  }
+});
+
+// Student: cancel own request (only while still Requested or Assigned)
+app.patch('/api/student/driver-hire-requests/:id/cancel', requireExamUser, async (req, res, next) => {
+  const { email } = req.session.examUser;
+  try {
+    await ensureDriverHireRequestsTable();
+    const [result] = await dbPool.query(
+      `UPDATE driver_hire_requests SET status = 'Cancelled'
+       WHERE id = ? AND student_email = ? AND school_id = ? AND status IN ('Requested','Assigned')`,
+      [req.params.id, email, req.schoolId]
+    );
+    if (!result.affectedRows) return res.json({ success: false, error: 'Request not found or can no longer be cancelled' });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// Admin: list driver-hire requests
+app.get('/api/admin/driver-hire-requests', requireAdmin, async (req, res, next) => {
+  const { status } = req.query;
+  try {
+    await ensureDriverHireRequestsTable();
+    const conditions = ['school_id = ?'];
+    const params = [req.schoolId];
+    if (status) { conditions.push('status = ?'); params.push(status); }
+    const [rows] = await dbPool.query(
+      `SELECT id, student_email, student_name, contact_phone,
+              DATE_FORMAT(service_date, '%Y-%m-%d') AS service_date, num_days,
+              car_model, transmission, pickup_address, area, notes, status,
+              assigned_instructor_id, assigned_instructor_name, quoted_price, admin_note,
+              created_at, updated_at
+       FROM driver_hire_requests
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY created_at DESC LIMIT 200`,
+      params
+    );
+    res.json({ success: true, requests: rows });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, requests: [] });
+    next(err);
+  }
+});
+
+// Admin: count of requests still needing attention (for the sidebar badge)
+app.get('/api/admin/driver-hire-requests/pending-count', requireAdmin, async (req, res, next) => {
+  try {
+    await ensureDriverHireRequestsTable();
+    const [[row]] = await dbPool.query(
+      `SELECT COUNT(*) AS count FROM driver_hire_requests
+       WHERE school_id = ? AND status IN ('Requested','Assigned','In Progress')`,
+      [req.schoolId]
+    );
+    res.json({ success: true, count: row.count });
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') return res.json({ success: true, count: 0 });
+    next(err);
+  }
+});
+
+// Admin: assign a driver / quote a price / move the status along
+app.patch('/api/admin/driver-hire-requests/:id', requireAdmin, async (req, res, next) => {
+  const { id } = req.params;
+  const { status, assigned_instructor_id, quoted_price, admin_note } = req.body;
+  const adminId = req.session.adminId;
+  const adminType = req.session.adminRole || 'admin';
+
+  if (status !== undefined && !DRIVER_HIRE_STATUSES.includes(status)) {
+    return res.json({ success: false, error: 'Invalid status' });
+  }
+  let price = null;
+  if (quoted_price !== undefined && quoted_price !== null && quoted_price !== '') {
+    price = Number(quoted_price);
+    if (!Number.isFinite(price) || price < 0) return res.json({ success: false, error: 'Invalid quoted_price' });
+  }
+
+  try {
+    await ensureDriverHireRequestsTable();
+
+    const [[reqRow]] = await dbPool.query(
+      `SELECT id, status FROM driver_hire_requests WHERE id = ? AND school_id = ?`,
+      [id, req.schoolId]
+    );
+    if (!reqRow) return res.status(404).json({ success: false, error: 'Request not found' });
+
+    const sets = ['updated_by_id = ?', 'updated_by_type = ?'];
+    const params = [adminId, adminType];
+
+    let instructorName;
+    if (assigned_instructor_id !== undefined) {
+      if (assigned_instructor_id === null || assigned_instructor_id === '') {
+        sets.push('assigned_instructor_id = NULL', 'assigned_instructor_name = NULL');
+      } else {
+        const [[inst]] = await dbPool.query(
+          `SELECT instructor_name FROM instructors WHERE id = ? AND school_id = ?`,
+          [assigned_instructor_id, req.schoolId]
+        );
+        if (!inst) return res.json({ success: false, error: 'Instructor not found' });
+        instructorName = inst.instructor_name;
+        sets.push('assigned_instructor_id = ?', 'assigned_instructor_name = ?');
+        params.push(assigned_instructor_id, instructorName);
+      }
+    }
+
+    if (quoted_price !== undefined) { sets.push('quoted_price = ?'); params.push(price); }
+    if (admin_note !== undefined)   { sets.push('admin_note = ?');   params.push(admin_note?.trim().slice(0, 2000) || null); }
+
+    // Explicit status wins; otherwise assigning a driver to a fresh request
+    // auto-advances it to 'Assigned' so the admin doesn't have to do both.
+    let nextStatus = status;
+    if (!nextStatus && instructorName && reqRow.status === 'Requested') nextStatus = 'Assigned';
+    if (nextStatus) { sets.push('status = ?'); params.push(nextStatus); }
+
+    params.push(id, req.schoolId);
+    await dbPool.query(
+      `UPDATE driver_hire_requests SET ${sets.join(', ')} WHERE id = ? AND school_id = ?`,
+      params
+    );
+    res.json({ success: true });
+  } catch (err) { next(err); }
 });
 
 // ── Session Ratings ───────────────────────────────────────────────────────────

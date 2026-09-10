@@ -2313,6 +2313,44 @@ SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_
 SET @sql := IF(@col_exists=0,'ALTER TABLE leave_requests ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- =====================================
+-- DRIVER HIRE REQUESTS TABLE
+-- "Find Your Driver" — a logged-in customer asks the school for a driver to
+-- drive their OWN car for a day or two within the city. Admin assigns an
+-- instructor and quotes a price from the admin panel.
+-- =====================================
+CREATE TABLE IF NOT EXISTS driver_hire_requests (
+    id                       INT AUTO_INCREMENT PRIMARY KEY,
+    student_email            VARCHAR(255) NOT NULL,
+    student_name             VARCHAR(255),
+    contact_phone            VARCHAR(30) NOT NULL,
+    service_date             DATE NOT NULL,
+    num_days                 TINYINT NOT NULL DEFAULT 1,
+    car_model                VARCHAR(100),
+    transmission             ENUM('Manual','Automatic') NULL,
+    pickup_address           TEXT NOT NULL,
+    area                     VARCHAR(120),
+    notes                    TEXT,
+    status                   ENUM('Requested','Assigned','In Progress','Completed','Cancelled') NOT NULL DEFAULT 'Requested',
+    assigned_instructor_id   INT NULL,
+    assigned_instructor_name VARCHAR(100) NULL,
+    quoted_price             DECIMAL(10,2) NULL,
+    admin_note               TEXT NULL,
+    created_at               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    school_id                INT NOT NULL DEFAULT 1,
+    updated_by_id            INT NULL,
+    updated_by_type          VARCHAR(20) NULL
+);
+
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='driver_hire_requests' AND index_name='idx_driver_hire_school_status');
+SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_driver_hire_school_status ON driver_hire_requests (school_id, status);','SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='driver_hire_requests' AND index_name='idx_driver_hire_student');
+SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_driver_hire_student ON driver_hire_requests (student_email);','SELECT "exists";');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
 -- DRIVER TRIPS TABLE
 -- =====================================
 CREATE TABLE IF NOT EXISTS driver_trips (

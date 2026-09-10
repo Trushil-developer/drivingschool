@@ -74,6 +74,22 @@ window.renderAppSettingsModule = async function (tableWrap) {
                 </div>
             </div>
 
+            <!-- Customer App Features -->
+            <div class="as-section-label" style="margin-top:28px">CUSTOMER APP FEATURES</div>
+            <div class="as-card">
+                <div class="as-item" id="featureRow_find_driver">
+                    <div class="as-item-icon">🚗</div>
+                    <div class="as-item-info">
+                        <div class="as-item-title">Find a Driver</div>
+                        <div class="as-item-desc">Customers can request a hired driver for their own car from the app. When OFF, the tile is hidden from all customers and new requests are rejected.</div>
+                    </div>
+                    <label class="as-toggle ${isOn('feature_find_driver') ? 'as-toggle--on' : ''}">
+                        <input type="checkbox" id="toggle_feature_find_driver" ${isOn('feature_find_driver') ? 'checked' : ''} ${serverError ? 'disabled' : ''}>
+                        <span class="as-slider"></span>
+                    </label>
+                </div>
+            </div>
+
             <!-- Connectivity -->
             <div class="as-section-label" style="margin-top:28px">CONNECTIVITY</div>
             <div class="as-card">
@@ -174,6 +190,11 @@ window.renderAppSettingsModule = async function (tableWrap) {
     document.getElementById('toggle_feature_leave_request').addEventListener('change', async function () {
         this.closest('label').classList.toggle('as-toggle--on', this.checked);
         await updateSetting('feature_leave_request', this.checked);
+    });
+
+    document.getElementById('toggle_feature_find_driver').addEventListener('change', async function () {
+        this.closest('label').classList.toggle('as-toggle--on', this.checked);
+        await updateSetting('feature_find_driver', this.checked);
     });
 
     // ── Wire: Minimum required version (per platform) ───────────────────────────

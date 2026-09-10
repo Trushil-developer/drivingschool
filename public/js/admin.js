@@ -89,6 +89,26 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
     refreshScheduleRequestsBadge();
     setInterval(refreshScheduleRequestsBadge, 60000);
 
+    // Open/active driver-hire request count on its sidebar nav item — same
+    // lifecycle as the schedule-requests badge above.
+    async function refreshDriverHireBadge() {
+        try {
+            const r = await window.api('/api/admin/driver-hire-requests/pending-count');
+            const cnt = r?.count || 0;
+            const badge = document.getElementById('driverHirePendingBadge');
+            if (!badge) return;
+            if (cnt > 0) {
+                badge.textContent = cnt > 99 ? '99+' : cnt;
+                badge.style.display = 'inline';
+            } else {
+                badge.style.display = 'none';
+            }
+        } catch (_) {}
+    }
+    window.refreshDriverHireBadge = refreshDriverHireBadge;
+    refreshDriverHireBadge();
+    setInterval(refreshDriverHireBadge, 60000);
+
     let lastSearch = '';
 
     const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -471,6 +491,18 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 hideLoading();
             }
         },
+        driverHire: async () => {
+            showLoading();
+            try {
+                if (typeof window.renderDriverHireModule !== "function") {
+                    tableWrap.innerHTML = '<div class="error">Driver Hire module not loaded</div>';
+                    return;
+                }
+                await window.renderDriverHireModule(tableWrap)();
+            } finally {
+                hideLoading();
+            }
+        },
     };
 
     attachFilterListeners(tabRenderers, () => currentTab);
@@ -489,7 +521,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
             }
         }
 
-        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams' || tab === 'expenses' || tab === 'tripLogs' || tab === 'appSettings' || tab === 'complaints' || tab === 'ratings' || tab === 'inbox' || tab === 'scheduleRequests') {
+        if (tab === 'schedule' || tab === 'enquiries' || tab === 'dashboard' || tab == 'cms' || tab === 'exams' || tab === 'expenses' || tab === 'tripLogs' || tab === 'appSettings' || tab === 'complaints' || tab === 'ratings' || tab === 'inbox' || tab === 'scheduleRequests' || tab === 'driverHire') {
             searchInput?.classList.add('hidden');
             addBtn?.classList.add('hidden');
         } else if (tab === 'trainingDays' || tab === 'courses' || tab === 'packages') {
