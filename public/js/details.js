@@ -338,9 +338,11 @@ import { openSlotPicker } from "./globals/slotPicker.js";
                     const sourceTag = isAdHoc
                         ? `<span style="font-size:10px;color:#7c3aed;background:#ede9fe;padding:1px 5px;border-radius:3px;margin-left:4px;">Ad-hoc</span>`
                         : '';
-                    const deleteBtn = isAdHoc
-                        ? ''
-                        : `<button class="ah-delete-btn" data-id="${r.id}" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>`;
+                    // Ad-hoc slots live in schedule_slots, not attendance — deleting one goes
+                    // through /api/schedule-slots/:id, which snapshots it into
+                    // schedule_slots_deletions (who created it, who removed it) before the
+                    // row is gone, same as the Schedule page's own delete.
+                    const deleteBtn = `<button class="ah-delete-btn" data-id="${r.id}" data-source="${r.source}" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>`;
                     return `
                         <tr data-id="${r.id}">
                             <td>${r.date}</td>
@@ -353,12 +355,20 @@ import { openSlotPicker } from "./globals/slotPicker.js";
 
                 tbody.querySelectorAll('.ah-delete-btn').forEach(btn => {
                     btn.addEventListener('click', async () => {
-                        if (!confirm('Delete this attendance record?')) return;
                         const recId = btn.dataset.id;
+                        const recSource = btn.dataset.source;
+                        const isAdHocRow = recSource === 'ad_hoc';
+                        const confirmMsg = isAdHocRow
+                            ? 'Delete this ad-hoc slot? A record of who created and who removed it is kept.'
+                            : 'Delete this attendance record?';
+                        if (!confirm(confirmMsg)) return;
+                        const url = isAdHocRow
+                            ? `/api/schedule-slots/${recId}`
+                            : `/api/attendance/${bk.id}/${recId}`;
                         try {
-                            const del = await window.api(`/api/attendance/${bk.id}/${recId}`, { method: 'DELETE' });
-                            if (!del.success) return alert('Failed to delete.');
-                            const updated = records.filter(r => String(r.id) !== String(recId) || r.source === 'ad_hoc');
+                            const del = await window.api(url, { method: 'DELETE' });
+                            if (!del.success) return alert(del.error || 'Failed to delete.');
+                            const updated = records.filter(r => !(String(r.id) === String(recId) && r.source === recSource));
                             records.length = 0;
                             updated.forEach(r => records.push(r));
                             renderRows(records);
