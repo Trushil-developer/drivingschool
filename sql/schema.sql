@@ -2668,3 +2668,21 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN change_reque
 
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='replaced_from_time');
 SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN replaced_from_time VARCHAR(10) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- created_by_admin_id/created_by_name/created_by_role: who created this ad-hoc/
+-- replacement slot (session account id, resolved display name, and whether they
+-- were logged in as an instructor or an admin), so it's answerable with a direct
+-- query instead of guesswork from instructor_name alone. Added after a case
+-- where an ad-hoc slot (booking 1383, Dipa Patel, 2026-09-07) had no traceable
+-- creator and also silently disappeared from the office Schedule grid because
+-- it collided, unnoticed, with an existing regular booking in the same car/time
+-- — see also the conflict check added in POST /api/schedule-slots and
+-- POST /api/driver/schedule-slots (findScheduleSlotConflict in server.js).
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='created_by_admin_id');
+SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN created_by_admin_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='created_by_name');
+SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN created_by_name VARCHAR(100) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='created_by_role');
+SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN created_by_role VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
