@@ -1802,6 +1802,14 @@ SET @sql := IF(@col_exists=0,
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- ip_address (captured when the attempt is started, for admin "who / from where" logs)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='exam_attempts' AND column_name='ip_address');
+SET @sql := IF(@col_exists=0,'ALTER TABLE exam_attempts ADD COLUMN ip_address VARCHAR(45);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- user_agent (captured when the attempt is started, for admin "who / from where" logs)
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='exam_attempts' AND column_name='user_agent');
+SET @sql := IF(@col_exists=0,'ALTER TABLE exam_attempts ADD COLUMN user_agent TEXT;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- FOREIGN KEY (SAFE CHECK)
 -- =====================================

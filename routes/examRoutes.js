@@ -33,6 +33,8 @@ const writeQuestions = (questions, lang = 'en') => {
 ========================= */
 router.post("/attempt/start", requireExamUser, async (req, res) => {
     const userId = req.session.examUser.id;
+    const ip = req.ip;
+    const agent = req.headers["user-agent"] || null;
 
     try {
         const [existing] = await dbPool.query(
@@ -47,9 +49,9 @@ router.post("/attempt/start", requireExamUser, async (req, res) => {
         }
 
         const [result] = await dbPool.query(
-            `INSERT INTO exam_attempts (user_id, mode, started_at, status, school_id)
-            VALUES (?, 'mock', NOW(), 'started', ?)`,
-            [userId, req.schoolId]
+            `INSERT INTO exam_attempts (user_id, mode, started_at, status, school_id, ip_address, user_agent)
+            VALUES (?, 'mock', NOW(), 'started', ?, ?, ?)`,
+            [userId, req.schoolId, ip, agent]
         );
 
         res.json({ success: true, attempt_id: result.insertId });
@@ -262,6 +264,7 @@ router.get("/admin/attempts", requireAdmin, async (req, res) => {
             SELECT
                 a.id, a.user_id, a.mode, a.score, a.total_questions,
                 a.correct_answers, a.result, a.started_at, a.finished_at, a.status,
+                a.ip_address, a.user_agent,
                 u.email
             FROM exam_attempts a
             JOIN exam_users u ON a.user_id = u.id
@@ -553,14 +556,15 @@ router.get("/admin/attempts/export", requireAdmin, async (req, res) => {
         const [attempts] = await dbPool.query(`
             SELECT
                 a.id, u.email, a.mode, a.score, a.total_questions,
-                a.result, a.started_at, a.finished_at, a.status
+                a.result, a.started_at, a.finished_at, a.status,
+                a.ip_address, a.user_agent
             FROM exam_attempts a
             JOIN exam_users u ON a.user_id = u.id
             WHERE a.school_id = ?
             ORDER BY a.started_at DESC
         `, [req.schoolId]);
 
-        const headers = ['ID', 'Email', 'Mode', 'Score', 'Total Questions', 'Result', 'Started At', 'Finished At', 'Status'];
+        const headers = ['ID', 'Email', 'Mode', 'Score', 'Total Questions', 'Result', 'Started At', 'Finished At', 'Status', 'IP Address', 'Device'];
         const csvRows = [headers.join(',')];
 
         attempts.forEach(a => {
@@ -573,7 +577,9 @@ router.get("/admin/attempts/export", requireAdmin, async (req, res) => {
                 a.result || '',
                 a.started_at ? (() => { const d = new Date(a.started_at); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; })() : '',
                 a.finished_at ? (() => { const d = new Date(a.finished_at); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; })() : '',
-                a.status
+                a.status,
+                a.ip_address || '',
+                `"${(a.user_agent || '').replace(/"/g, '""')}"`
             ].join(','));
         });
 
