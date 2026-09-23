@@ -1615,6 +1615,22 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_slots.present:', e.message); }
 })();
 
+// Migration: schedule_slots audit columns — who created each ad-hoc/replacement
+// slot (account id, resolved display name, and whether they were logged in as
+// an instructor or an admin), so "who created this?" is a direct query instead
+// of guesswork from instructor_name alone.
+(async () => {
+  try {
+    await dbPool.query(`ALTER TABLE schedule_slots ADD COLUMN created_by_admin_id INT NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_slots.created_by_admin_id:', e.message); }
+  try {
+    await dbPool.query(`ALTER TABLE schedule_slots ADD COLUMN created_by_name VARCHAR(100) NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_slots.created_by_name:', e.message); }
+  try {
+    await dbPool.query(`ALTER TABLE schedule_slots ADD COLUMN created_by_role VARCHAR(20) NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_slots.created_by_role:', e.message); }
+})();
+
 // Migration: add time column to attendance + update unique key to (booking_id, date, time)
 // Existing rows keep time='' so old display behavior is preserved via frontend fallback
 (async () => {
@@ -1900,12 +1916,62 @@ app.delete('/api/attendance/:booking_id/:attendance_id', requireAdmin, async (re
 });
 
 // ---------- SCHEDULE AD-HOC SLOTS ----------
+
+// A car can only be in one place at a time. Before inserting an ad-hoc/
+// replacement schedule_slots row, make sure this car isn't already committed
+// to someone else at this exact date+time — either a regular booking that
+// hasn't been marked absent for this slot, or another ad-hoc slot already
+// sitting on it. Without this, a new slot can silently collide with one
+// already occupying the same car/time cell and disappear from the office
+// Schedule grid (it still exists in the DB and counts toward attendance —
+// it just never renders), which is how the Dipa Patel / booking 1383 case
+// went unnoticed on 2026-09-07.
+//
+// The one legitimate collision is the "Replace Slot" flow: the frontend
+// marks the original student's attendance absent for this same date+time
+// immediately before calling here, so by the time this check runs, that
+// booking's attendance is already present=0 and the slot is correctly
+// treated as free.
+async function findScheduleSlotConflict(conn, schoolId, carName, date, time, excludeBookingId) {
+  const [[regular]] = await conn.query(
+    `SELECT b.id, b.customer_name FROM bookings b
+     WHERE b.school_id = ? AND b.car_name = ? AND b.id != ?
+       AND LOWER(b.attendance_status) IN ('active','pending')
+       AND (TIME(b.allotted_time) = TIME(?) OR TIME(b.allotted_time2) = TIME(?)
+            OR TIME(b.allotted_time3) = TIME(?) OR TIME(b.allotted_time4) = TIME(?))
+     LIMIT 1`,
+    [schoolId, carName, excludeBookingId || 0, time, time, time, time]
+  );
+  if (regular) {
+    const [[marked]] = await conn.query(
+      `SELECT present FROM attendance WHERE booking_id = ? AND date = ? AND time = ? LIMIT 1`,
+      [regular.id, date, time]
+    );
+    if (!marked || Number(marked.present) !== 0) {
+      return `${carName} is already booked at ${time} for ${regular.customer_name}. Pick another time or car, or mark them absent first to free the slot.`;
+    }
+  }
+
+  const [[adhoc]] = await conn.query(
+    `SELECT ss.id, b.customer_name FROM schedule_slots ss JOIN bookings b ON b.id = ss.booking_id
+     WHERE ss.school_id = ? AND ss.car_name = ? AND ss.date = ? AND ss.time = ? AND ss.booking_id != ?
+     LIMIT 1`,
+    [schoolId, carName, date, time, excludeBookingId || 0]
+  );
+  if (adhoc) {
+    return `${carName} already has an ad-hoc lesson at ${time} for ${adhoc.customer_name}. Pick another time or car.`;
+  }
+
+  return null;
+}
+
 app.get('/api/schedule-slots', requireAdmin, async (req, res, next) => {
   const { branch, date } = req.query;
   if (!branch || !date) return res.json({ success: false, error: 'branch and date required' });
   try {
     const [rows] = await dbPool.query(`
       SELECT ss.id, ss.booking_id, ss.time, ss.car_name, ss.instructor_name, ss.present,
+             ss.created_by_name, ss.created_by_role, ss.created_at,
              b.customer_name, b.present_days, b.training_days, b.mobile_no
       FROM schedule_slots ss
       JOIN bookings b ON ss.booking_id = b.id
@@ -1931,9 +1997,18 @@ app.post('/api/schedule-slots', requireAdmin, async (req, res, next) => {
     const [[bk]] = await conn.query(`SELECT id FROM bookings WHERE id = ? AND school_id = ?`, [booking_id, req.schoolId]);
     if (!bk) { await conn.rollback(); conn.release(); return res.status(404).json({ success: false, error: 'Booking not found' }); }
 
+    const trimmedCar = String(car_name).trim();
+    const cleanTime = String(time).substring(0, 5);
+    const conflict = await findScheduleSlotConflict(conn, req.schoolId, trimmedCar, date, cleanTime, booking_id);
+    if (conflict) { await conn.rollback(); conn.release(); return res.json({ success: false, error: conflict }); }
+
+    const createdByName = await resolveClockPersonName(req);
+    const createdByRole = req.session.adminRole === 'admin' ? 'admin' : 'instructor';
+
     const [result] = await conn.query(
-      `INSERT INTO schedule_slots (booking_id, date, time, car_name, instructor_name, present, school_id) VALUES (?, ?, ?, ?, ?, 0, ?)`,
-      [booking_id, date, time, car_name || null, instructor_name || null, req.schoolId]
+      `INSERT INTO schedule_slots (booking_id, date, time, car_name, instructor_name, present, school_id, created_by_admin_id, created_by_name, created_by_role)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
+      [booking_id, date, time, trimmedCar || null, instructor_name || null, req.schoolId, req.session.adminId, createdByName || null, createdByRole]
     );
 
     // Recalculate present_days (new slot has present=0, not counted until marked)
@@ -3929,10 +4004,15 @@ app.post('/api/driver/schedule-slots', requireAdmin, async (req, res, next) => {
 
     const date = ymd(new Date()); // today, IST (process.env.TZ = 'Asia/Kolkata')
 
+    const conflict = await findScheduleSlotConflict(conn, req.schoolId, trimmedCar, date, cleanTime, booking_id);
+    if (conflict) { await conn.rollback(); conn.release(); return res.json({ success: false, error: conflict }); }
+
+    const createdByRole = req.session.adminRole === 'admin' ? 'admin' : 'instructor';
+
     const [result] = await conn.query(
-      `INSERT INTO schedule_slots (booking_id, date, time, car_name, instructor_name, present, school_id)
-       VALUES (?, ?, ?, ?, ?, 0, ?)`,
-      [booking_id, date, cleanTime, trimmedCar, inst.instructor_name, req.schoolId]
+      `INSERT INTO schedule_slots (booking_id, date, time, car_name, instructor_name, present, school_id, created_by_admin_id, created_by_name, created_by_role)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
+      [booking_id, date, cleanTime, trimmedCar, inst.instructor_name, req.schoolId, instructorId, inst.instructor_name, createdByRole]
     );
 
     // Keep present_days / attendance_status consistent with the admin ad-hoc path

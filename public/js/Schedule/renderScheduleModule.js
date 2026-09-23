@@ -445,18 +445,30 @@ window.renderScheduleModule = function(tableWrap) {
                             mobile_no: s.mobile_no || '',
                             ad_hoc: true,
                             slot_id: s.id,
-                            ad_hoc_present: Number(s.present)
+                            ad_hoc_present: Number(s.present),
+                            created_by_name: s.created_by_name || '',
+                            created_by_role: s.created_by_role || ''
                         };
                         const existing = bookedSlots[car][key];
                         if (existing && !existing.ad_hoc) {
-                            // Regular slot already here — override only if original is absent (replacement)
+                            // Regular slot already here — override cleanly if the original was
+                            // marked absent for this date+time (a genuine replacement). Otherwise
+                            // this is an unresolved double-booking of the same car+time — still
+                            // show the ad-hoc lesson (it's real and counts toward attendance)
+                            // instead of silently hiding it like before; just flag the collision
+                            // so office staff notice and can sort it out.
                             const existingDayMap = attendanceMap[existing.booking_id]?.[dateStr];
                             const existingPv = existingDayMap?.[key] ?? existingDayMap?.[''] ?? null;
-                            if (existingPv === 0) {
-                                adHocEntry.replacedCustomer = existing.customer.split(' (')[0];
-                                bookedSlots[car][key] = adHocEntry;
-                            }
-                        } else if (!existing) {
+                            adHocEntry.replacedCustomer = existing.customer.split(' (')[0];
+                            if (existingPv !== 0) adHocEntry.collision = true;
+                            bookedSlots[car][key] = adHocEntry;
+                        } else if (existing && existing.ad_hoc) {
+                            // Two ad-hoc slots landed on the same car+time — flag it rather than
+                            // letting the earlier one disappear without a trace.
+                            adHocEntry.replacedCustomer = existing.customer.split(' (')[0];
+                            adHocEntry.collision = true;
+                            bookedSlots[car][key] = adHocEntry;
+                        } else {
                             bookedSlots[car][key] = adHocEntry;
                         }
                     });
@@ -595,6 +607,7 @@ window.renderScheduleModule = function(tableWrap) {
                                             if (slot.ad_hoc) slotClass += " slot-adhoc";
                                             if (slot.historical) slotClass += " slot-historical";
                                             if (slot.completed) slotClass += " slot-completed";
+                                            if (slot.collision) slotClass += " slot-collision";
 
                                             return `
                                                 <td class="${slotClass}" rowspan="${slot.rowspan}"
@@ -615,12 +628,14 @@ window.renderScheduleModule = function(tableWrap) {
                                                             ${!slot.ad_hoc && !slot.historical && !slot.completed ? `<button class="att-btn att-replace" title="Replace for today" data-action="replace">⇄</button>` : ''}
                                                             <span class="info-tooltip">
                                                                 ℹ
-                                                                <span class="tooltip-text">${slot.instructor_name}</span>
+                                                                <span class="tooltip-text">${slot.instructor_name}${slot.ad_hoc && slot.created_by_name ? ` · Added by ${slot.created_by_name}${slot.created_by_role ? ` (${slot.created_by_role})` : ''}` : ''}</span>
                                                             </span>
                                                             ${slot.mobile_no ? `<a class="phone-icon" href="tel:${slot.mobile_no}" title="Call ${slot.mobile_no}" onclick="event.stopPropagation()">📞</a>` : ''}
                                                             ${slot.ad_hoc ? `<button class="att-btn att-remove" title="Remove ad-hoc slot" data-action="remove">✕</button>` : ''}
                                                         </div>
-                                                        ${slot.replacedCustomer ? `<span class="slot-replaced-label">↩ ${slot.replacedCustomer}</span>` : ''}
+                                                        ${slot.collision
+                                                            ? `<span class="slot-replaced-label slot-collision-label" title="This car/time is double-booked — the original slot was not marked absent">⚠ also: ${slot.replacedCustomer}</span>`
+                                                            : (slot.replacedCustomer ? `<span class="slot-replaced-label">↩ ${slot.replacedCustomer}</span>` : '')}
                                                     </div>
                                                 </td>`;
                                         }
@@ -928,6 +943,8 @@ function printSchedule(branch, date) {
                 .slot-absent  { background: #fee2e2 !important; }
                 .slot-adhoc      { border: 2px dashed #38bdf8 !important; }
                 .slot-historical { border: 2px dashed #f59e0b !important; }
+                .slot-collision  { border: 2px dashed #dc2626 !important; }
+                .slot-collision-label { color: #dc2626; font-weight: bold; }
                 /* Hide interactive elements */
                 .att-btn, .add-slot-btn, .adhoc-badge,
                 .slot-actions, .info-tooltip, .phone-icon { display: none !important; }
