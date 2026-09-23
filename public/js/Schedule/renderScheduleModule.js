@@ -821,7 +821,10 @@ window.renderScheduleModule = function(tableWrap) {
                         if (action === 'remove') {
                             const slotId = td.dataset.slotId;
                             if (!slotId) return;
-                            if (!confirm('Remove this ad-hoc slot?')) return;
+                            // Deleting doesn't erase the audit trail — the server snapshots
+                            // the slot (who created it, when) into schedule_slots_deletions
+                            // along with who deleted it, before removing the live row.
+                            if (!confirm('Remove this ad-hoc slot? A record of who created and who removed it is kept.')) return;
                             wrap.style.pointerEvents = 'none';
                             const r = await window.api(`/api/schedule-slots/${slotId}`, { method: 'DELETE' });
                             if (r.success) await renderDay();

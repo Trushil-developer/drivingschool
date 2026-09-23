@@ -1631,6 +1631,52 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_slots.created_by_role:', e.message); }
 })();
 
+// Migration: exam_attempts.ip_address/user_agent — captured on attempt start
+// (routes/examRoutes.js POST /attempt/start) and surfaced in the admin Exam
+// History tab and its CSV export. Lives here rather than in examRoutes.js
+// because examRoutes.js imports dbPool from this file, so a top-level
+// migration there would run before dbPool finishes initializing.
+(async () => {
+  try {
+    await dbPool.query(`ALTER TABLE exam_attempts ADD COLUMN ip_address VARCHAR(45) NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] exam_attempts.ip_address:', e.message); }
+  try {
+    await dbPool.query(`ALTER TABLE exam_attempts ADD COLUMN user_agent TEXT NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] exam_attempts.user_agent:', e.message); }
+})();
+
+// Migration: schedule_slots_deletions — a full snapshot of every ad-hoc/
+// replacement slot at the moment it's deleted, plus who deleted it and when.
+// Deleting a schedule_slots row is allowed again, but it must never be a
+// clean erase: this is what keeps "who created it and what happened to it"
+// answerable even after the row itself is gone.
+(async () => {
+  try {
+    await dbPool.query(`
+      CREATE TABLE IF NOT EXISTS schedule_slots_deletions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        original_slot_id INT NOT NULL,
+        booking_id INT NOT NULL,
+        date DATE NOT NULL,
+        time VARCHAR(10) NOT NULL,
+        car_name VARCHAR(100),
+        instructor_name VARCHAR(100),
+        present TINYINT(1),
+        source VARCHAR(30),
+        created_by_admin_id INT NULL,
+        created_by_name VARCHAR(100) NULL,
+        created_by_role VARCHAR(20) NULL,
+        created_at TIMESTAMP NULL,
+        deleted_by_admin_id INT NULL,
+        deleted_by_name VARCHAR(100) NULL,
+        deleted_by_role VARCHAR(20) NULL,
+        deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        school_id INT NOT NULL DEFAULT 1
+      )
+    `);
+  } catch (e) { console.error('[Migration] schedule_slots_deletions:', e.message); }
+})();
+
 // Migration: add time column to attendance + update unique key to (booking_id, date, time)
 // Existing rows keep time='' so old display behavior is preserved via frontend fallback
 (async () => {
@@ -2041,6 +2087,11 @@ app.post('/api/schedule-slots', requireAdmin, async (req, res, next) => {
   }
 });
 
+// Deleting an ad-hoc slot never erases it outright — a full snapshot goes to
+// schedule_slots_deletions first (what it was, who created it) along with who
+// deleted it and when, so "who created this and what happened to it" stays
+// answerable even after the row is gone. This is what closes the gap that
+// let the Dipa Patel / booking 1383 case go unanswerable.
 app.delete('/api/schedule-slots/:id', requireAdmin, async (req, res, next) => {
   const conn = await dbPool.getConnection();
   try {
@@ -2051,6 +2102,20 @@ app.delete('/api/schedule-slots/:id', requireAdmin, async (req, res, next) => {
       await conn.rollback();
       return res.json({ success: false, error: 'Slot not found' });
     }
+
+    const deletedByName = await resolveClockPersonName(req);
+    const deletedByRole = req.session.adminRole === 'admin' ? 'admin' : 'instructor';
+
+    await conn.query(
+      `INSERT INTO schedule_slots_deletions
+         (original_slot_id, booking_id, date, time, car_name, instructor_name, present, source,
+          created_by_admin_id, created_by_name, created_by_role, created_at,
+          deleted_by_admin_id, deleted_by_name, deleted_by_role, school_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [slot.id, slot.booking_id, slot.date, slot.time, slot.car_name, slot.instructor_name, slot.present, slot.source,
+       slot.created_by_admin_id, slot.created_by_name, slot.created_by_role, slot.created_at,
+       req.session.adminId, deletedByName || null, deletedByRole, req.schoolId]
+    );
 
     await conn.query(`DELETE FROM schedule_slots WHERE id = ?`, [req.params.id]);
 

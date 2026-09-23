@@ -65,6 +65,7 @@ function renderMockHistoryTable(history) {
                     <th>Score</th>
                     <th>Result</th>
                     <th>Duration</th>
+                    <th>Device</th>
                 </tr>
             </thead>
             <tbody>
@@ -82,11 +83,37 @@ function renderMockHistoryTable(history) {
                         <td>${h.score}/${h.total_questions}</td>
                         <td><span class="result-badge ${h.result === 'PASS' ? 'pass' : 'fail'}">${h.result}</span></td>
                         <td>${duration}</td>
+                        <td style="font-size:12px; color:#64748b;" title="${(h.user_agent || '').replace(/"/g, '&quot;')}">
+                            ${parseDevice(h.user_agent)}<br>
+                            <span style="color:#94a3b8;">${h.ip_address || '—'}</span>
+                        </td>
                     </tr>`;
                 }).join('')}
             </tbody>
         </table>
     </div>`;
+}
+
+// Turns a raw User-Agent string into a short "which device did I use" label —
+// shown so the student can spot an attempt they didn't actually make.
+function parseDevice(ua) {
+    if (!ua) return '—';
+    const isMobile = /Mobile|Android|iPhone|iPad/i.test(ua);
+
+    let os = 'Unknown OS';
+    if (/Android/i.test(ua)) os = 'Android';
+    else if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS';
+    else if (/Windows/i.test(ua)) os = 'Windows';
+    else if (/Mac OS X/i.test(ua)) os = 'Mac';
+    else if (/Linux/i.test(ua)) os = 'Linux';
+
+    let browser = 'Browser';
+    if (/EdgA|Edge|Edg\//i.test(ua)) browser = 'Edge';
+    else if (/CriOS|Chrome/i.test(ua)) browser = 'Chrome';
+    else if (/FxiOS|Firefox/i.test(ua)) browser = 'Firefox';
+    else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+
+    return `${isMobile ? '📱' : '💻'} ${os} · ${browser}`;
 }
 
 function renderWeakAreas(summary) {

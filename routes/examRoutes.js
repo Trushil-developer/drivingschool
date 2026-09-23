@@ -198,7 +198,7 @@ router.get("/progress", requireExamUser, async (req, res) => {
 
     try {
         const [attempts] = await dbPool.query(`
-            SELECT id, score, total_questions, result, started_at, finished_at, status
+            SELECT id, score, total_questions, result, started_at, finished_at, status, ip_address, user_agent
             FROM exam_attempts
             WHERE user_id = ? AND school_id = ? AND status = 'completed'
             ORDER BY finished_at DESC
