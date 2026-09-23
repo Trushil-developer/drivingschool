@@ -554,6 +554,7 @@ async function loadAttempts(userId = null, userEmail = null) {
                             <th>Questions</th>
                             <th>Result</th>
                             <th>Date</th>
+                            <th>Device</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -592,10 +593,35 @@ function renderAttemptRows(attempts) {
                 <td>${a.correct_answers || 0}/${a.total_questions || '—'}</td>
                 <td class="${a.result === 'PASS' ? 'status-pass' : a.result === 'FAIL' ? 'status-fail' : ''}">${a.result || '—'}</td>
                 <td style="font-size:12px; color:#64748b;">${formatDateTime(a.started_at)}</td>
+                <td style="font-size:12px; color:#64748b;" title="${(a.user_agent || '').replace(/"/g, '&quot;')}">
+                    ${parseDevice(a.user_agent)}<br>
+                    <span style="color:#94a3b8;">${a.ip_address || '—'}</span>
+                </td>
                 <td class="status-${a.status}">${a.status}</td>
             </tr>
         `;
     }).join('');
+}
+
+// Turns a raw User-Agent string into a short "who took it from where" label
+function parseDevice(ua) {
+    if (!ua) return '—';
+    const isMobile = /Mobile|Android|iPhone|iPad/i.test(ua);
+
+    let os = 'Unknown OS';
+    if (/Android/i.test(ua)) os = 'Android';
+    else if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS';
+    else if (/Windows/i.test(ua)) os = 'Windows';
+    else if (/Mac OS X/i.test(ua)) os = 'Mac';
+    else if (/Linux/i.test(ua)) os = 'Linux';
+
+    let browser = 'Browser';
+    if (/EdgA|Edge|Edg\//i.test(ua)) browser = 'Edge';
+    else if (/CriOS|Chrome/i.test(ua)) browser = 'Chrome';
+    else if (/FxiOS|Firefox/i.test(ua)) browser = 'Firefox';
+    else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+
+    return `${isMobile ? '📱' : '💻'} ${os} · ${browser}`;
 }
 
 function filterAttempts() {
