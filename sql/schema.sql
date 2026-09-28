@@ -406,6 +406,14 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN updated_by_id I
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='updated_by_type');
 SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- branch2: an optional second branch an instructor also teaches at (e.g. one
+-- instructor covering both Malabar and Vandematram). Kept as a second nullable
+-- column rather than a join table, matching this schema's existing pattern for
+-- "a few extra values" (allotted_time2/3/4 on bookings). Every "does this
+-- instructor belong to branch X" check must test branch OR branch2.
+SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='branch2');
+SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN branch2 VARCHAR(50) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- =====================================
 -- BOOKINGS TABLE
 -- =====================================

@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!data.success) throw new Error("Failed to fetch instructors");
 
             const instructors = data.instructors.filter(
-                ins => ins.is_active && ins.branch === selectedBranch
+                ins => ins.is_active && (ins.branch === selectedBranch || ins.branch2 === selectedBranch)
             );
 
             instructorSelect.innerHTML = "";

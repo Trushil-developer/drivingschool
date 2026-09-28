@@ -136,6 +136,7 @@ window.renderInstructorsModule = function(tableWrap, tabRenderers, currentTab) {
                             <th>Email</th>
                             <th>Mobile</th>
                             <th>Branch</th>
+                            <th>2nd Branch</th>
                             <th>Driver Licence</th>
                             <th>Adhar</th>
                             <th>Address</th>
@@ -153,6 +154,7 @@ window.renderInstructorsModule = function(tableWrap, tabRenderers, currentTab) {
                                 <td>${i.email || '-'}</td>
                                 <td>${i.mobile_no || '-'}</td>
                                 <td>${i.branch || '-'}</td>
+                                <td>${i.branch2 || '-'}</td>
                                 <td>${i.drivers_license || '-'}</td>
                                 <td>${i.adhar_no || '-'}</td>
                                 <td>${i.address || '-'}</td>
@@ -167,6 +169,7 @@ window.renderInstructorsModule = function(tableWrap, tabRenderers, currentTab) {
                                         data-email="${i.email}"
                                         data-mobile="${i.mobile_no}"
                                         data-branch="${i.branch}"
+                                        data-branch2="${i.branch2 || ''}"
                                         data-license="${i.drivers_license}"
                                         data-adhar="${i.adhar_no}"
                                         data-address="${i.address}">
@@ -189,6 +192,7 @@ window.renderInstructorsModule = function(tableWrap, tabRenderers, currentTab) {
                         email: btn.dataset.email,
                         mobile_no: btn.dataset.mobile,
                         branch: btn.dataset.branch,
+                        branch2: btn.dataset.branch2,
                         drivers_license: btn.dataset.license,
                         adhar_no: btn.dataset.adhar,
                         address: btn.dataset.address

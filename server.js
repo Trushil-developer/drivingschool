@@ -1645,6 +1645,21 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
   } catch (e) { if (e.errno !== 1060) console.error('[Migration] exam_attempts.user_agent:', e.message); }
 })();
 
+// Migration: instructors.branch2 — an optional second branch an instructor
+// also teaches at (routes/instructorsRoutes.js). Lives here rather than
+// there for the same dbPool-not-yet-initialized reason as the migration
+// above. One instructor covering two branches (e.g. Malabar and
+// Vandematram) previously had to pick a single `branch`, which silently
+// broke them everywhere that matched on it: the school-WiFi SSID they're
+// required to clock in from (GET /api/app-config), and the instructor
+// dropdowns in the New Training form, the public registration wizard, and
+// the admin Schedule tab (GET /api/instructors?branch=).
+(async () => {
+  try {
+    await dbPool.query(`ALTER TABLE instructors ADD COLUMN branch2 VARCHAR(50) NULL`);
+  } catch (e) { if (e.errno !== 1060) console.error('[Migration] instructors.branch2:', e.message); }
+})();
+
 // Migration: schedule_slots_deletions — a full snapshot of every ad-hoc/
 // replacement slot at the moment it's deleted, plus who deleted it and when.
 // Deleting a schedule_slots row is allowed again, but it must never be a
@@ -3049,11 +3064,14 @@ app.get('/api/app-config', async (req, res, next) => {
       config[row.key] = row.value === 'true' ? true : row.value === 'false' ? false : row.value;
     }
     // If an instructor is logged in, override wifi_ssid with their branch's wifi_ssid
+    // — and, if they also teach at a second branch (branch2), add its SSID as
+    // wifi_ssid_2 so they can clock in from either one (useSchoolWifiStatus in
+    // the app checks the device's current SSID against both).
     if (req.session?.adminId) {
       try {
         const schoolId = req.session.schoolId || 1;
         const [[inst]] = await dbPool.query(
-          'SELECT branch FROM instructors WHERE id=? AND school_id=? LIMIT 1',
+          'SELECT branch, branch2 FROM instructors WHERE id=? AND school_id=? LIMIT 1',
           [req.session.adminId, schoolId]
         );
         if (inst?.branch) {
@@ -3062,6 +3080,13 @@ app.get('/api/app-config', async (req, res, next) => {
             [inst.branch, schoolId]
           );
           if (br?.wifi_ssid) config.wifi_ssid = br.wifi_ssid;
+        }
+        if (inst?.branch2) {
+          const [[br2]] = await dbPool.query(
+            'SELECT wifi_ssid FROM branches WHERE branch_name=? AND school_id=? LIMIT 1',
+            [inst.branch2, schoolId]
+          );
+          if (br2?.wifi_ssid) config.wifi_ssid_2 = br2.wifi_ssid;
         }
       } catch (_) {}
     }

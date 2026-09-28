@@ -35,6 +35,8 @@ window.openInstructorAddModal = function(tabRenderers, currentTab) {
                 <label>Mobile</label><input id="ins_mobile" type="text" required>
                 <label>Branch</label>
                 <select id="ins_branch" required>${branchOptions}</select>
+                <label>Second Branch <span style="font-weight:normal;color:#6B7280;">(optional — for an instructor who also teaches at another branch)</span></label>
+                <select id="ins_branch2"><option value="">None</option>${branchOptions}</select>
                 <label>Driver Licence</label><input id="ins_license" type="text">
                 <label>Adhar No</label><input id="ins_adhar" type="text">
                 <label>Address</label><textarea id="ins_address"></textarea>
@@ -52,6 +54,7 @@ window.openInstructorAddModal = function(tabRenderers, currentTab) {
                     email: document.getElementById("ins_email").value.trim(),
                     mobile_no: document.getElementById("ins_mobile").value.trim(),
                     branch: document.getElementById("ins_branch").value.trim(),
+                    branch2: document.getElementById("ins_branch2").value.trim(),
                     drivers_license: document.getElementById("ins_license").value.trim(),
                     adhar_no: document.getElementById("ins_adhar").value.trim(),
                     address: document.getElementById("ins_address").value.trim(),
@@ -60,6 +63,8 @@ window.openInstructorAddModal = function(tabRenderers, currentTab) {
                 if (!instructorData.instructor_name) return alert("Please fill in name");
                 if (!instructorData.mobile_no) return alert("Please fill in mobile");
                 if (!instructorData.branch) return alert("Please select a branch");
+                if (instructorData.branch2 && instructorData.branch2 === instructorData.branch)
+                    return alert("Second branch must be different from the first branch");
 
                 try {
                     const res = await window.api("/api/instructors", {
@@ -87,11 +92,15 @@ window.openInstructorEditModal = function(id, data, tabRenderers, currentTab) {
 
         // Fetch branches from API
         let branchOptions = "<option value=''>Loading...</option>";
+        let branch2Options = "<option value=''>None</option>";
         try {
             const res = await window.api("/api/branches");
             if(res.success && res.branches.length) {
-                branchOptions = res.branches.map(b => 
+                branchOptions = res.branches.map(b =>
                     `<option value="${b.branch_name}" ${b.branch_name === data.branch ? 'selected' : ''}>${b.branch_name}</option>`
+                ).join('');
+                branch2Options = "<option value=''>None</option>" + res.branches.map(b =>
+                    `<option value="${b.branch_name}" ${b.branch_name === data.branch2 ? 'selected' : ''}>${b.branch_name}</option>`
                 ).join('');
             } else {
                 branchOptions = "<option value=''>No branches found</option>";
@@ -114,6 +123,8 @@ window.openInstructorEditModal = function(id, data, tabRenderers, currentTab) {
                 <label>Mobile</label><input id="ins_mobile" type="text" value="${data.mobile_no || ''}" required>
                 <label>Branch</label>
                 <select id="ins_branch" required>${branchOptions}</select>
+                <label>Second Branch <span style="font-weight:normal;color:#6B7280;">(optional — for an instructor who also teaches at another branch)</span></label>
+                <select id="ins_branch2">${branch2Options}</select>
                 <label>Driver Licence</label><input id="ins_license" type="text" value="${data.drivers_license || ''}">
                 <label>Adhar No</label><input id="ins_adhar" type="text" value="${data.adhar_no || ''}">
                 <label>Address</label><textarea id="ins_address">${data.address || ''}</textarea>
@@ -131,6 +142,7 @@ window.openInstructorEditModal = function(id, data, tabRenderers, currentTab) {
                     email: document.getElementById("ins_email").value.trim(),
                     mobile_no: document.getElementById("ins_mobile").value.trim(),
                     branch: document.getElementById("ins_branch").value.trim(),
+                    branch2: document.getElementById("ins_branch2").value.trim(),
                     drivers_license: document.getElementById("ins_license").value.trim(),
                     adhar_no: document.getElementById("ins_adhar").value.trim(),
                     address: document.getElementById("ins_address").value.trim(),
@@ -139,6 +151,8 @@ window.openInstructorEditModal = function(id, data, tabRenderers, currentTab) {
                 if (!instructorData.instructor_name) return alert("Please fill in name");
                 if (!instructorData.mobile_no) return alert("Please fill in mobile");
                 if (!instructorData.branch) return alert("Please select a branch");
+                if (instructorData.branch2 && instructorData.branch2 === instructorData.branch)
+                    return alert("Second branch must be different from the first branch");
 
                 try {
                     const res = await window.api(`/api/instructors/${id}`, {

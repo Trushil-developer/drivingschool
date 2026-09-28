@@ -13,11 +13,13 @@ router.get('/', async (req, res) => {
     const conditions = ['school_id = ?'];
     const params = [1];
     if (role) { conditions.push('role = ?'); params.push(role); }
-    if (branch) { conditions.push('branch = ?'); params.push(branch); }
+    // An instructor can teach at a second branch (branch2) — anyone filtering
+    // "instructors at branch X" must match either column, not just the first.
+    if (branch) { conditions.push('(branch = ? OR branch2 = ?)'); params.push(branch, branch); }
     const where = 'WHERE ' + conditions.join(' AND ');
 
     const [rows] = await dbPool.query(`
-      SELECT id, employee_no, role, instructor_name, email, mobile_no, branch,
+      SELECT id, employee_no, role, instructor_name, email, mobile_no, branch, branch2,
              drivers_license, adhar_no, address, is_active
       FROM instructors
       ${where}
@@ -34,16 +36,16 @@ router.get('/', async (req, res) => {
   ADD new instructor
 */
 router.post('/', requireAdmin, async (req, res) => {
-  const { instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address, role } = req.body;
+  const { instructor_name, email, mobile_no, branch, branch2, drivers_license, adhar_no, address, role } = req.body;
 
   if (!instructor_name) return res.json({ success: false, error: 'Employee name is required' });
 
   try {
     const [result] = await dbPool.query(`
       INSERT INTO instructors
-      (instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address, role, is_active, school_id, created_by_id, created_by_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
-    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '', role || 'Instructor', req.schoolId, req.session.adminId, req.session.adminRole || 'instructor']);
+      (instructor_name, email, mobile_no, branch, branch2, drivers_license, adhar_no, address, role, is_active, school_id, created_by_id, created_by_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+    `, [instructor_name, email || '', mobile_no || '', branch || '', (branch2 || '').trim() || null, drivers_license || '', adhar_no || '', address || '', role || 'Instructor', req.schoolId, req.session.adminId, req.session.adminRole || 'instructor']);
 
     const newId = result.insertId;
     const employee_no = `EMP${String(newId).padStart(3, '0')}`;
@@ -61,17 +63,17 @@ router.post('/', requireAdmin, async (req, res) => {
 */
 router.put('/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { instructor_name, email, mobile_no, branch, drivers_license, adhar_no, address, role } = req.body;
+  const { instructor_name, email, mobile_no, branch, branch2, drivers_license, adhar_no, address, role } = req.body;
 
   if (!instructor_name) return res.json({ success: false, error: 'Employee name is required' });
 
   try {
     await dbPool.query(`
       UPDATE instructors SET
-        instructor_name=?, email=?, mobile_no=?, branch=?, drivers_license=?, adhar_no=?, address=?, role=?,
+        instructor_name=?, email=?, mobile_no=?, branch=?, branch2=?, drivers_license=?, adhar_no=?, address=?, role=?,
         updated_by_id=?, updated_by_type=?
       WHERE id=? AND school_id=?
-    `, [instructor_name, email || '', mobile_no || '', branch || '', drivers_license || '', adhar_no || '', address || '', role || 'Instructor', req.session.adminId, req.session.adminRole || 'instructor', id, req.schoolId]);
+    `, [instructor_name, email || '', mobile_no || '', branch || '', (branch2 || '').trim() || null, drivers_license || '', adhar_no || '', address || '', role || 'Instructor', req.session.adminId, req.session.adminRole || 'instructor', id, req.schoolId]);
 
     res.json({ success: true });
   } catch (err) {

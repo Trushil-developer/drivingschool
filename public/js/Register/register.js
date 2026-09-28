@@ -859,7 +859,7 @@ async function loadInstructors() {
         const res = await fetch("/api/instructors?role=Instructor");
         const data = await res.json();
 
-        const filtered = data.instructors.filter(i => i.branch === state.branch && i.is_active);
+        const filtered = data.instructors.filter(i => (i.branch === state.branch || i.branch2 === state.branch) && i.is_active);
 
         if (filtered.length === 0) {
             instructorSelect.innerHTML = `<option value="">No instructors available for this branch</option>`;
