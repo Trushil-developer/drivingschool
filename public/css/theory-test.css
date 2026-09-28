@@ -910,6 +910,17 @@ body {
     border: 1px solid #e5eaf0;
 }
 
+.question-image-missing {
+    max-width: 200px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px dashed #cbd5e1;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 13px;
+}
+
 /* ==================================================
    RESPONSIVE - QUESTION NAV
 ================================================== */

@@ -34,9 +34,11 @@ export function renderQuestion() {
         dom.nextBtn.disabled = false;
     }
 
-    // Question text
+    // Question text — if the sign image fails to load (missing file on the
+    // server), swap in a visible placeholder instead of leaving a blank/broken
+    // image icon, so a missing asset doesn't look like the question is broken.
     dom.questionText.innerHTML = `
-        ${q.image ? `<img src="${q.image}" alt="Theory test question illustration" class="question-image">` : ""}
+        ${q.image ? `<img src="${q.image}" alt="Theory test question illustration" class="question-image" onerror="this.replaceWith(Object.assign(document.createElement('div'), { className: 'question-image-missing', textContent: 'Sign image unavailable — please answer from the question text.' }))">` : ""}
         <span>${q.question}</span>
     `;
 
