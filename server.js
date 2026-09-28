@@ -4381,6 +4381,19 @@ app.get('/api/admin/complaints', requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Admin: count of open/in-review complaints (for the sidebar badge)
+app.get('/api/admin/complaints/pending-count', requireAdmin, async (req, res, next) => {
+  try {
+    await ensureComplaintsTable();
+    const [[row]] = await dbPool.query(
+      `SELECT COUNT(*) AS count FROM student_complaints
+       WHERE school_id = ? AND status IN ('Open','In Review')`,
+      [req.schoolId]
+    );
+    res.json({ success: true, count: row.count });
+  } catch (err) { next(err); }
+});
+
 // Admin: update complaint status / add note
 app.patch('/api/admin/complaints/:id', requireAdmin, async (req, res, next) => {
   const { id } = req.params;

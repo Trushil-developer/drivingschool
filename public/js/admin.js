@@ -109,6 +109,26 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
     refreshDriverHireBadge();
     setInterval(refreshDriverHireBadge, 60000);
 
+    // Open/in-review complaint count on its sidebar nav item — same lifecycle
+    // as the schedule-requests and driver-hire badges above.
+    async function refreshComplaintsBadge() {
+        try {
+            const r = await window.api('/api/admin/complaints/pending-count');
+            const cnt = r?.count || 0;
+            const badge = document.getElementById('complaintsPendingBadge');
+            if (!badge) return;
+            if (cnt > 0) {
+                badge.textContent = cnt > 99 ? '99+' : cnt;
+                badge.style.display = 'inline';
+            } else {
+                badge.style.display = 'none';
+            }
+        } catch (_) {}
+    }
+    window.refreshComplaintsBadge = refreshComplaintsBadge;
+    refreshComplaintsBadge();
+    setInterval(refreshComplaintsBadge, 60000);
+
     let lastSearch = '';
 
     const MS_PER_DAY = 1000 * 60 * 60 * 24;

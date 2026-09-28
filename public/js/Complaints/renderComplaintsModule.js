@@ -160,7 +160,7 @@ window.renderComplaintsModule = async function (tableWrap) {
                 method: 'PATCH',
                 body: JSON.stringify({ status: currentStatus, admin_note: note || null }),
             });
-            if (res?.success) { closeModal(); await load(); }
+            if (res?.success) { closeModal(); await load(); window.refreshComplaintsBadge?.(); }
             else alert('Failed to update: ' + (res?.error || 'Unknown error'));
         } catch (e) {
             alert('Error: ' + e.message);
