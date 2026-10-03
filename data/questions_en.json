@@ -2457,7 +2457,7 @@
     "OPTION2": "maintain your speed and sound the horn",
     "OPTION3": "use hazard warning light",
     "ANSWER": "1",
-    "IMAGE": null
+    "IMAGE": "q246.jpg"
   },
   {
     "Q_NUMBER": "247",
@@ -2557,7 +2557,7 @@
     "OPTION2": "cannot cross for over taking",
     "OPTION3": "cannot stop",
     "ANSWER": "2",
-    "IMAGE": null
+    "IMAGE": "q256.jpg"
   },
   {
     "Q_NUMBER": "257",

@@ -322,9 +322,18 @@ import { openSlotPicker } from "./globals/slotPicker.js";
             }
 
             const renderRows = (recs) => {
-                const presentCount = recs.filter(r => r.present == 1).length;
-                const absentCount  = recs.filter(r => r.present == 0).length;
-                overlay.querySelector('#ahTotal').textContent   = recs.length;
+                // A future ad-hoc/replacement slot (schedule_slots row for a date that
+                // hasn't happened yet) defaults to present=0 until the lesson actually
+                // occurs — counting it as "Absent" here would flag a not-yet-attended
+                // future class as a missed one. Only tally present/absent for
+                // today-or-earlier records; the table below still lists everything,
+                // including upcoming ones, for visibility.
+                const now = new Date();
+                const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                const recordedSoFar = recs.filter(r => r.date <= todayStr);
+                const presentCount = recordedSoFar.filter(r => r.present == 1).length;
+                const absentCount  = recordedSoFar.filter(r => r.present == 0).length;
+                overlay.querySelector('#ahTotal').textContent   = recordedSoFar.length;
                 overlay.querySelector('#ahPresent').textContent = presentCount;
                 overlay.querySelector('#ahAbsent').textContent  = absentCount;
 

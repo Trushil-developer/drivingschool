@@ -631,7 +631,7 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
               b.starting_from, b.total_fees, b.advance,
               b.car_name, b.instructor_name, b.duration_minutes,
               b.attendance_status, b.certificate_url, b.created_at,
-              b.present_days
+              b.present_days, b.hold_status, b.hold_from, b.resume_from, b.extended_days
        FROM bookings b
        WHERE b.customer_name = ? AND b.mobile_no = ? AND b.school_id = ?
        ORDER BY b.created_at DESC`,
@@ -658,14 +658,29 @@ app.get('/api/student/sessions', requireExamUser, async (req, res, next) => {
     );
     if (!anchor) return res.json({ success: true, sessions: [] });
 
+    // Union in ad-hoc/makeup slots (schedule_slots) alongside regular attendance —
+    // present_days itself is attendance(present=1) + schedule_slots(present=1)
+    // (see trip-logs approve etc.), so leaving ad-hoc rows out here makes
+    // "Sessions Done"/"Absent" undercount vs the progress %, and makes ad-hoc
+    // absences invisible to the student. Mirrors /api/attendance/:booking_id's
+    // UNION for the admin panel. Only past/today slots — upcoming ones belong
+    // to the separate schedule-slots-upcoming endpoint.
     const [rows] = await dbPool.query(
       `SELECT a.id, a.booking_id, a.date, a.time, a.present, a.change_source,
+              'regular' AS source,
               b.branch, b.instructor_name, b.car_name, b.training_days, b.starting_from
        FROM attendance a
        JOIN bookings b ON b.id = a.booking_id
        WHERE b.customer_name = ? AND b.mobile_no = ? AND b.school_id = ?
-       ORDER BY a.date DESC, a.time ASC`,
-      [anchor.customer_name, anchor.mobile_no, req.schoolId]
+       UNION ALL
+       SELECT ss.id, ss.booking_id, ss.date, ss.time, ss.present, NULL AS change_source,
+              'ad_hoc' AS source,
+              b.branch, b.instructor_name, b.car_name, b.training_days, b.starting_from
+       FROM schedule_slots ss
+       JOIN bookings b ON b.id = ss.booking_id
+       WHERE b.customer_name = ? AND b.mobile_no = ? AND b.school_id = ? AND ss.date <= CURDATE()
+       ORDER BY date DESC, time ASC`,
+      [anchor.customer_name, anchor.mobile_no, req.schoolId, anchor.customer_name, anchor.mobile_no, req.schoolId]
     );
     res.json({ success: true, sessions: rows });
   } catch (err) { next(err); }
@@ -3642,6 +3657,7 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
 
     const markedById = req.session.adminId || null;
     const markedByType = req.session.adminRole || 'instructor';
+    let ratingAttendanceId = null;
 
     conn = await dbPool.getConnection();
     await conn.beginTransaction();
@@ -3684,6 +3700,11 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
          ON DUPLICATE KEY UPDATE present = 1, marked_at = NOW(), marked_by_id = ?, marked_by_type = ?`,
         [trip.booking_id, dateStr, slotTime, markedById, markedByType, markedById, markedByType]
       );
+      const [[attRow]] = await conn.query(
+        `SELECT id FROM attendance WHERE booking_id = ? AND date = ? AND time = ? LIMIT 1`,
+        [trip.booking_id, dateStr, slotTime]
+      );
+      ratingAttendanceId = attRow?.id || null;
     }
 
     const [presentSumRows] = await conn.query(
@@ -3737,6 +3758,23 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
 
     await conn.commit();
     res.json({ success: true, present_days: totalPresent, attendance_status: newStatus });
+
+    // Nudge the student to rate this session now that the attendance record
+    // behind /api/student/pending-rating actually exists — pushing any
+    // earlier (e.g. at trip/end) would send students to an empty rating card.
+    if (ratingAttendanceId) {
+      const refKey = `rateprompt|${ratingAttendanceId}`;
+      claimNotificationOnce(refKey)
+        .then(claimed => {
+          if (!claimed) return;
+          return sendPushToPerson('student', trip.booking_id, {
+            title: 'How was your lesson?',
+            body: 'Your driving lesson is complete — tap to rate your session.',
+            data: { screen: 'Home', bookingId: String(trip.booking_id), attendanceId: String(ratingAttendanceId) },
+          });
+        })
+        .catch(err => console.error('[trip-logs/approve] Rating push failed for booking', trip.booking_id, err.message));
+    }
   } catch (err) {
     if (conn) await conn.rollback().catch(() => {});
     next(err);

@@ -351,12 +351,27 @@ window.renderScheduleModule = function(tableWrap) {
                         console.error("API fetch failed:", err);
                     }
 
+                    // Attendance rows are sometimes stamped with the wall-clock minute
+                    // they were marked at (e.g. instructor app fallback) rather than the
+                    // booking's actual half-hour slot. Snap to the nearest grid line so
+                    // those records still land on a visible row instead of vanishing.
+                    function snapToHalfHour(hhmm) {
+                        if (!hhmm) return hhmm;
+                        const [h, m] = hhmm.split(':').map(Number);
+                        if (Number.isNaN(h) || Number.isNaN(m)) return hhmm;
+                        let total = Math.round((h * 60 + m) / 30) * 30;
+                        total = Math.min(Math.max(total, 6 * 60), 22 * 60);
+                        const hh = String(Math.floor(total / 60)).padStart(2, '0');
+                        const mm = String(total % 60).padStart(2, '0');
+                        return `${hh}:${mm}`;
+                    }
+
                     const attendanceMap = {};
                     attendanceRecords.forEach(r => {
                         if (!attendanceMap[r.booking_id]) attendanceMap[r.booking_id] = {};
                         const dk = new Date(r.date).toISOString().split("T")[0];
                         if (!attendanceMap[r.booking_id][dk]) attendanceMap[r.booking_id][dk] = {};
-                        const tk = (r.time || '').substring(0, 5);
+                        const tk = snapToHalfHour((r.time || '').substring(0, 5));
                         attendanceMap[r.booking_id][dk][tk] = Number(r.present);
                     });
 
@@ -392,14 +407,14 @@ window.renderScheduleModule = function(tableWrap) {
                         );
                     });
 
-                    // Also include completed bookings that were present on this specific date
+                    // Also include completed bookings that have any attendance record (present or absent) on this specific date
                     const completedOnDate = bookings.filter(b => {
                         const status = (b.attendance_status || '').trim().toLowerCase();
                         if (status !== 'completed') return false;
                         if (!b.car_name) return false;
                         if ((b.branch || '').trim().toLowerCase() !== branch.trim().toLowerCase()) return false;
                         const dayMap = attendanceMap[b.id]?.[dateStr];
-                        return dayMap && Object.values(dayMap).some(v => Number(v) === 1);
+                        return dayMap && Object.keys(dayMap).length > 0;
                     }).map(b => ({ ...b, completed: true }));
 
                     const allBranchBookings = [...branchBookings, ...completedOnDate];
