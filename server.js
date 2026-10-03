@@ -666,14 +666,14 @@ app.get('/api/student/sessions', requireExamUser, async (req, res, next) => {
     // UNION for the admin panel. Only past/today slots — upcoming ones belong
     // to the separate schedule-slots-upcoming endpoint.
     const [rows] = await dbPool.query(
-      `SELECT a.id, a.booking_id, a.date, a.time, a.present, a.change_source,
+      `SELECT a.id, a.booking_id, a.date, a.time COLLATE utf8mb4_unicode_ci AS time, a.present, a.change_source,
               'regular' AS source,
               b.branch, b.instructor_name, b.car_name, b.training_days, b.starting_from
        FROM attendance a
        JOIN bookings b ON b.id = a.booking_id
        WHERE b.customer_name = ? AND b.mobile_no = ? AND b.school_id = ?
        UNION ALL
-       SELECT ss.id, ss.booking_id, ss.date, ss.time, ss.present, NULL AS change_source,
+       SELECT ss.id, ss.booking_id, ss.date, ss.time COLLATE utf8mb4_unicode_ci AS time, ss.present, NULL AS change_source,
               'ad_hoc' AS source,
               b.branch, b.instructor_name, b.car_name, b.training_days, b.starting_from
        FROM schedule_slots ss
@@ -4411,7 +4411,7 @@ app.get('/api/admin/complaints', requireAdmin, async (req, res, next) => {
               sc.booking_id, sc.subject, sc.message, sc.category, sc.status, sc.admin_note, sc.created_at, sc.updated_at
        FROM student_complaints sc
        LEFT JOIN bookings b ON b.id = sc.booking_id
-       LEFT JOIN exam_users eu ON eu.email = sc.student_email
+       LEFT JOIN exam_users eu ON eu.email = sc.student_email COLLATE utf8mb4_unicode_ci
        ${where} ORDER BY sc.created_at DESC LIMIT 500`,
       params,
     );
