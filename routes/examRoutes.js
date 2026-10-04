@@ -34,7 +34,12 @@ const writeQuestions = (questions, lang = 'en') => {
 router.post("/attempt/start", requireExamUser, async (req, res) => {
     const userId = req.session.examUser.id;
     const ip = req.ip;
-    const agent = req.headers["user-agent"] || null;
+    // The mobile app tags its own requests (its native networking layer's
+    // default User-Agent doesn't look anything like a browser UA, so it
+    // wouldn't otherwise be recognizable as mobile on the admin/student side).
+    const appPlatform = req.headers["x-app-platform"];
+    const rawAgent = req.headers["user-agent"] || null;
+    const agent = appPlatform ? `MobileApp/${appPlatform} ${rawAgent || ''}`.trim() : rawAgent;
 
     try {
         const [existing] = await dbPool.query(

@@ -98,6 +98,16 @@ function renderMockHistoryTable(history) {
 // shown so the student can spot an attempt they didn't actually make.
 function parseDevice(ua) {
     if (!ua) return '—';
+
+    // Our own mobile app tags its requests (see examRoutes.js /attempt/start) —
+    // its native networking layer's default UA doesn't look like a browser one,
+    // so without this tag these attempts would otherwise show as "Unknown OS".
+    const appMatch = /^MobileApp\/(ios|android)/i.exec(ua);
+    if (appMatch) {
+        const os = appMatch[1].toLowerCase() === 'ios' ? 'iOS' : 'Android';
+        return `📱 App · ${os}`;
+    }
+
     const isMobile = /Mobile|Android|iPhone|iPad/i.test(ua);
 
     let os = 'Unknown OS';
