@@ -2694,3 +2694,31 @@ SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN created_by_n
 
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='created_by_role');
 SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN created_by_role VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- =====================================
+-- AUDIT LOG
+-- =====================================
+-- Generic "who did what, when" log for accountability-sensitive mobile-app
+-- actions (attendance mark, clock in/out, trip start/end, meter reset,
+-- schedule-slot create, leave request/decide). actor_name is a snapshot at
+-- the time of the action, so the log stays readable even if the person is
+-- later renamed or deleted. details is a free-form JSON blob with whatever
+-- context that action's handler chose to record. See logAudit() in server.js
+-- — every one of these call sites awaits it after the action already
+-- succeeded, and logAudit itself swallows its own errors so a logging
+-- failure can never break the request that triggered it.
+CREATE TABLE IF NOT EXISTS audit_log (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    school_id   INT NOT NULL DEFAULT 1,
+    actor_id    INT NULL,
+    actor_type  VARCHAR(20) NULL,
+    actor_name  VARCHAR(100) NULL,
+    action      VARCHAR(60) NOT NULL,
+    entity_type VARCHAR(40) NULL,
+    entity_id   INT NULL,
+    details     TEXT NULL,
+    platform    VARCHAR(20) NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_audit_log_actor (school_id, actor_id, created_at),
+    INDEX idx_audit_log_entity (school_id, entity_type, entity_id)
+);

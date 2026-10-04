@@ -1,6 +1,6 @@
 import express from 'express';
 import { dbPool } from '../server.js';
-import { requireAdmin, toMySQLDate, maxPastOdometer, ensureMeterResetsTable } from '../server.js';
+import { requireAdmin, toMySQLDate, maxPastOdometer, ensureMeterResetsTable, logAudit } from '../server.js';
 
 const router = express.Router();
 
@@ -158,11 +158,16 @@ router.get('/:id/meter', requireAdmin, async (req, res, next) => {
 
     await ensureMeterResetsTable();
     const current = await maxPastOdometer(car.car_name, req.schoolId, 0);
+    // Resolve created_by_id -> an actual name, from whichever table matches
+    // created_by_type, so the history shows who reset it, not just a role.
     const [resets] = await dbPool.query(
-      `SELECT reading, note, created_at, created_by_type
-       FROM car_meter_resets
-       WHERE car_name=? AND school_id=?
-       ORDER BY created_at DESC, id DESC
+      `SELECT cmr.reading, cmr.note, cmr.created_at, cmr.created_by_type,
+              COALESCE(a.full_name, a.username, i.instructor_name) AS created_by_name
+       FROM car_meter_resets cmr
+       LEFT JOIN admins a ON a.id = cmr.created_by_id AND cmr.created_by_type IN ('admin', 'manager') AND a.school_id = cmr.school_id
+       LEFT JOIN instructors i ON i.id = cmr.created_by_id AND cmr.created_by_type = 'instructor' AND i.school_id = cmr.school_id
+       WHERE cmr.car_name=? AND cmr.school_id=?
+       ORDER BY cmr.created_at DESC, cmr.id DESC
        LIMIT 10`,
       [car.car_name, req.schoolId]
     );
@@ -202,6 +207,12 @@ router.post('/:id/meter/reset', requireAdmin, async (req, res, next) => {
     );
 
     const current = await maxPastOdometer(car.car_name, req.schoolId, 0);
+    await logAudit(req, {
+      action: 'meter.reset',
+      entityType: 'car',
+      entityId: Number(req.params.id),
+      details: { car_name: car.car_name, reading, note },
+    });
     res.json({ success: true, current_meter: current });
   } catch (err) {
     console.error('CAR METER RESET ERROR:', err);

@@ -779,6 +779,7 @@ app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', NOW(), ?)`,
       [instructorId, name, branch, leave_from, leave_to, leave_type, reason || null, req.schoolId]
     );
+    await logAudit(req, { action: 'leave.request', entityType: 'leave_requests', entityId: result.insertId, details: { leave_from, leave_to, leave_type } });
     res.json({ success: true, id: result.insertId });
   } catch (err) {
     if (err.code === 'ER_NO_SUCH_TABLE') {
@@ -790,6 +791,7 @@ app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
          VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', NOW(), ?)`,
         [instructorId, name, branch, leave_from, leave_to, leave_type, reason || null, req.schoolId]
       );
+      await logAudit(req, { action: 'leave.request', entityType: 'leave_requests', entityId: result.insertId, details: { leave_from, leave_to, leave_type } });
       return res.json({ success: true, id: result.insertId });
     }
     next(err);
@@ -848,6 +850,7 @@ app.patch('/api/admin/leave-requests/:id', requireAdmin, async (req, res, next) 
       [status, req.session.adminId, req.session.adminRole || 'instructor', id, req.schoolId]
     );
     if (!result.affectedRows) return res.json({ success: false, error: 'Leave request not found' });
+    await logAudit(req, { action: 'leave.decide', entityType: 'leave_requests', entityId: Number(id), details: { status } });
     res.json({ success: true });
   } catch (err) { next(err); }
 });
@@ -962,12 +965,15 @@ const ensureDevicePushTokensTable = () => dbPool.query(`
   )
 `);
 
-// Register/update a device's push token. Accepts either an instructor session
-// (driver-login: adminLoggedIn + no adminRole, i.e. not admin/manager) or a
-// student session (student-login: examUser.login_booking_id). Deliberately
-// excludes admin/manager sessions — their `adminId` is a different table's ID
-// space than instructors', so storing it under person_type='instructor' would
-// misdirect instructor-targeted pushes to an unrelated admin's device.
+// Register/update a device's push token. Accepts an instructor OR manager
+// session (driver-login/manager-login: adminLoggedIn + adminRole is unset or
+// 'manager') or a student session (student-login: examUser.login_booking_id).
+// A manager is just an `instructors` row with role='manager', so its
+// `adminId` is a real instructors.id — safe to store as person_type='instructor'.
+// Only a true `admin` is excluded: its adminId comes from the separate
+// `admins` table, a different ID space, so storing it under
+// person_type='instructor' would misdirect pushes to an unrelated instructor
+// with the same numeric id.
 app.post('/api/device-token', async (req, res, next) => {
   const { token, platform } = req.body;
   if (!token || !['ios', 'android'].includes(platform)) {
@@ -975,7 +981,7 @@ app.post('/api/device-token', async (req, res, next) => {
   }
   try {
     let personType, personId, schoolId;
-    if (req.session?.adminLoggedIn && !req.session.adminRole) {
+    if (req.session?.adminLoggedIn && req.session.adminRole !== 'admin') {
       personType = 'instructor';
       personId = req.session.adminId;
       schoolId = req.session.school_id || 1;
@@ -984,7 +990,7 @@ app.post('/api/device-token', async (req, res, next) => {
       personId = req.session.examUser.login_booking_id;
       schoolId = req.session.examUser.school_id || 1;
     } else {
-      return res.json({ success: true }); // admin/manager or no session — nothing to register
+      return res.json({ success: true }); // admin or no session — nothing to register
     }
 
     await ensureDevicePushTokensTable();
@@ -1942,6 +1948,12 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
             const { totalPresent, newStatus } = await attemptUpdate();
+            await logAudit(req, {
+                action: 'attendance.mark',
+                entityType: 'booking',
+                entityId: Number(booking_id),
+                details: { date: mysqlDate, time: slotTime, present: value >= 1 ? 1 : 0 },
+            });
             return res.json({ success: true, present_days: totalPresent, attendance_status: newStatus });
         } catch (err) {
             if (err.errno === 1213 && attempt < 3) {
@@ -2627,6 +2639,54 @@ export async function maxPastOdometer(carName, schoolId, excludeTripId) {
   return Math.max(Number(row?.maxOdo || 0), reset ? Number(reset.reading) : 0);
 }
 
+// Generic "who did what, when" log for accountability-sensitive mobile-app
+// actions (attendance, trips, clock in/out, meter resets, schedule changes,
+// leave). Call after the action has already succeeded — logging failures
+// are swallowed here so they can never break the request that triggered them.
+export const ensureAuditLogTable = () => dbPool.query(`
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    school_id INT NOT NULL DEFAULT 1,
+    actor_id INT NULL,
+    actor_type VARCHAR(20) NULL,
+    actor_name VARCHAR(100) NULL,
+    action VARCHAR(60) NOT NULL,
+    entity_type VARCHAR(40) NULL,
+    entity_id INT NULL,
+    details TEXT NULL,
+    platform VARCHAR(20) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_audit_log_actor (school_id, actor_id, created_at),
+    INDEX idx_audit_log_entity (school_id, entity_type, entity_id)
+  )
+`);
+
+export async function logAudit(req, { action, entityType = null, entityId = null, details = null }) {
+  try {
+    await ensureAuditLogTable();
+    const actorId = req.session?.adminId ?? null;
+    const actorType = req.session?.adminRole || (req.session?.adminLoggedIn ? 'instructor' : null);
+    let actorName = null;
+    if (actorId) {
+      if (actorType === 'admin' || actorType === 'manager') {
+        const [[a]] = await dbPool.query('SELECT full_name, username FROM admins WHERE id=? AND school_id=? LIMIT 1', [actorId, req.schoolId]);
+        actorName = a?.full_name || a?.username || null;
+      } else {
+        const [[i]] = await dbPool.query('SELECT instructor_name FROM instructors WHERE id=? AND school_id=? LIMIT 1', [actorId, req.schoolId]);
+        actorName = i?.instructor_name ?? null;
+      }
+    }
+    await dbPool.query(
+      `INSERT INTO audit_log (school_id, actor_id, actor_type, actor_name, action, entity_type, entity_id, details, platform)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.schoolId, actorId, actorType, actorName, action, entityType, entityId,
+       details ? JSON.stringify(details) : null, req.headers['x-app-platform'] || null],
+    );
+  } catch (err) {
+    console.error('AUDIT LOG ERROR:', err);
+  }
+}
+
 // Migration: add school_id to driver_trips (multi-tenant scoping — trip start/insert
 // writes this column, so a fresh install must have it even before this table pre-dates
 // the school_id rollout)
@@ -2838,6 +2898,12 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
     );
     const [[trip]] = await dbPool.query('SELECT * FROM driver_trips WHERE id=?', [result.insertId]);
     const remainingSecs = trip.duration_mins * 60;
+    await logAudit(req, {
+      action: 'trip.start',
+      entityType: 'driver_trips',
+      entityId: result.insertId,
+      details: { booking_id, car_name: carName, start_odometer: startOdometer, schedule_slot_id: schedule_slot_id || null },
+    });
     res.json({ success: true, trip: { ...trip, remaining_secs: remainingSecs } });
   } catch (err) { next(err); }
 });
@@ -2923,6 +2989,12 @@ app.post('/api/driver/trip/end', requireAdmin, async (req, res, next) => {
        WHERE id=? AND instructor_id=? AND status IN ('active','paused')`,
       [endOdometer, trip_id, instructorId]
     );
+    await logAudit(req, {
+      action: 'trip.end',
+      entityType: 'driver_trips',
+      entityId: Number(trip_id),
+      details: { end_odometer: endOdometer },
+    });
     res.json({ success: true });
   } catch (err) { next(err); }
 });
@@ -3253,6 +3325,22 @@ async function claimNotificationOnce(refKey) {
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') return false;
     throw err;
+  }
+}
+
+// Pushes to every active manager (instructors.role='manager') on the same
+// branch — used for events a manager needs to act on (a trip awaiting
+// approval, a leave request). Deduped via claimNotificationOnce so a retried
+// request (e.g. a flaky network causing the client to resend) can't double-push.
+async function notifyBranchManagers(schoolId, branch, refKey, { title, body, data }) {
+  if (!(await claimNotificationOnce(refKey))) return;
+  const [managers] = await dbPool.query(
+    `SELECT id FROM instructors WHERE school_id=? AND LOWER(role)='manager' AND is_active=1 AND TRIM(branch)=TRIM(?)`,
+    [schoolId, branch || '']
+  );
+  for (const mgr of managers) {
+    await sendPushToPerson('instructor', mgr.id, { title, body, data })
+      .catch(err => console.error('[notifyBranchManagers] push failed for manager', mgr.id, err.message));
   }
 }
 
@@ -4019,6 +4107,7 @@ app.post('/api/driver/attendance/clock-in', requireAdmin, async (req, res, next)
       'INSERT INTO instructor_attendance (instructor_id, instructor_name, person_type, clock_in, date, school_id) VALUES (?, ?, ?, NOW(), CURDATE(), ?)',
       [instructorId, clockName, personType, req.schoolId]
     );
+    await logAudit(req, { action: 'attendance.clock_in', entityType: 'instructor', entityId: instructorId });
     res.json({ success: true });
   } catch (err) { next(err); }
 });
@@ -4038,6 +4127,7 @@ app.post('/api/driver/attendance/clock-out', requireAdmin, async (req, res, next
       'UPDATE instructor_attendance SET clock_out=NOW() WHERE id=? AND school_id=?',
       [record.id, req.schoolId]
     );
+    await logAudit(req, { action: 'attendance.clock_out', entityType: 'instructor', entityId: instructorId });
     res.json({ success: true });
   } catch (err) { next(err); }
 });
@@ -4171,6 +4261,12 @@ app.post('/api/driver/schedule-slots', requireAdmin, async (req, res, next) => {
     );
 
     await conn.commit();
+    await logAudit(req, {
+      action: 'schedule_slot.create',
+      entityType: 'booking',
+      entityId: Number(booking_id),
+      details: { time: cleanTime, car_name: trimmedCar, slot_id: result.insertId },
+    });
     res.json({ success: true, slot_id: result.insertId });
   } catch (err) {
     await conn.rollback();
