@@ -1371,6 +1371,8 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
       }
     }
 
+    const newInstructorName = data.instructor_name ?? current.instructor_name;
+
     const sql = `
       UPDATE bookings SET
         branch=?,
@@ -1442,7 +1444,7 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
       data.total_fees ?? current.total_fees,
       data.advance ?? current.advance,
       data.car_name ?? current.car_name,
-      data.instructor_name ?? current.instructor_name,
+      newInstructorName,
       data.ac_facility ?? current.ac_facility,
       data.pickup_drop ?? current.pickup_drop,
       data.has_licence
@@ -1466,6 +1468,24 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res, next) => {
     await dbPool.query(sql, values);
 
     await recomputeAndStoreAttendanceStatus(id);
+
+    if (newInstructorName && newInstructorName !== current.instructor_name) {
+      (async () => {
+        const [[instructor]] = await dbPool.query(
+          `SELECT id FROM instructors WHERE instructor_name = ? AND school_id = ? LIMIT 1`,
+          [newInstructorName, req.schoolId]
+        );
+        if (!instructor) return;
+        const customerName = data.customer_name ?? current.customer_name;
+        const branch = data.branch ?? current.branch;
+        const startingFrom = toMySQLDate(data.starting_from) ?? current.starting_from;
+        await sendPushToPerson('instructor', instructor.id, {
+          title: 'New Student Assigned',
+          body: `${customerName || 'A student'} — ${branch || ''}, starting ${startingFrom || 'soon'}.`,
+          data: { screen: 'Classes', bookingId: Number(id) },
+        });
+      })().catch(err => console.error('BOOKING REASSIGN PUSH ERROR:', err));
+    }
 
     res.json({ success: true, message: 'Booking updated successfully' });
 
@@ -2704,29 +2724,14 @@ export async function getInstructorRewardsBalance(instructorId, connection = dbP
 const TRIP_START_EARLY_GRACE_MIN = 15;
 const TRIP_START_LATE_GRACE_MIN = 30;
 
-// The car list for a trip's confirm/override screen must come from the
-// booking's (customer's) branch, not the instructor's own branch — an
-// instructor from one branch commonly teaches a customer registered at a
-// different branch, and the car actually assigned to the lesson always
-// belongs to the customer's branch. Falls back to the instructor's own
-// branch only when no booking_id is given (defensive default, not the
-// normal call shape from the app).
+// The car list for a trip's confirm/override screen spans every branch, not
+// just the booking's or instructor's own — a car isn't fixed to one branch,
+// it can be driven at whichever branch needs it that day.
 app.get('/api/driver/cars', requireAdmin, async (req, res, next) => {
-  const instructorId = req.session.adminId;
-  const { booking_id } = req.query;
   try {
-    let branch = null;
-    if (booking_id) {
-      const [[bk]] = await dbPool.query('SELECT branch FROM bookings WHERE id=? AND school_id=? LIMIT 1', [booking_id, req.schoolId]);
-      branch = bk?.branch ?? null;
-    }
-    if (!branch) {
-      const [[inst]] = await dbPool.query('SELECT branch FROM instructors WHERE id=? AND school_id=? LIMIT 1', [instructorId, req.schoolId]);
-      branch = inst?.branch ?? '';
-    }
     const [cars] = await dbPool.query(
-      'SELECT car_name FROM cars WHERE school_id=? AND branch=? ORDER BY car_name',
-      [req.schoolId, branch]
+      'SELECT car_name FROM cars WHERE school_id=? ORDER BY car_name',
+      [req.schoolId]
     );
     res.json({ success: true, cars: cars.map(c => c.car_name).filter(Boolean) });
   } catch (err) { next(err); }
