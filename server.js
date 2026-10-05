@@ -682,7 +682,63 @@ app.get('/api/student/sessions', requireExamUser, async (req, res, next) => {
        ORDER BY date DESC, time ASC`,
       [anchor.customer_name, anchor.mobile_no, req.schoolId, anchor.customer_name, anchor.mobile_no, req.schoolId]
     );
-    res.json({ success: true, sessions: rows });
+
+    // Enrich each attended (present=1) session with its underlying driver_trips
+    // row, when one exists, so the student sees the same real start/end time,
+    // odometer reading and approval status the admin sees in Trip Logs —
+    // rather than just the booking's scheduled slot time. There's no stored FK
+    // from attendance to driver_trips, so the link is reconstructed the same
+    // way PATCH /api/admin/trip-logs/:id/approve does: a schedule_slots-backed
+    // (ad_hoc) session links directly via schedule_slot_id; a regular booking
+    // session links by booking_id + calendar day, picking whichever trip's
+    // start time-of-day is closest to the session's slot time.
+    const bookingIds = [...new Set(rows.map(r => r.booking_id))];
+    let trips = [];
+    if (bookingIds.length) {
+      [trips] = await dbPool.query(
+        `SELECT booking_id, schedule_slot_id, started_at, ended_at, duration_mins,
+                start_odometer, end_odometer, approval_status
+         FROM driver_trips
+         WHERE booking_id IN (?) AND status = 'completed' AND school_id = ?`,
+        [bookingIds, req.schoolId]
+      );
+    }
+
+    const sessions = rows.map(s => {
+      if (!s.present) return { ...s, trip: null };
+
+      let trip = null;
+      if (s.source === 'ad_hoc') {
+        trip = trips.find(t => t.schedule_slot_id === s.id) ?? null;
+      } else {
+        const sameDay = trips.filter(
+          t => t.booking_id === s.booking_id && ymd(new Date(t.started_at)) === ymd(new Date(s.date))
+        );
+        if (sameDay.length) {
+          const [slotH, slotM] = s.time.split(':').map(Number);
+          const slotMins = slotH * 60 + slotM;
+          trip = sameDay.reduce((best, t) => {
+            const mins = d => d.getHours() * 60 + d.getMinutes();
+            return Math.abs(mins(new Date(t.started_at)) - slotMins) < Math.abs(mins(new Date(best.started_at)) - slotMins)
+              ? t : best;
+          });
+        }
+      }
+
+      return {
+        ...s,
+        trip: trip ? {
+          started_at: trip.started_at,
+          ended_at: trip.ended_at,
+          duration_mins: trip.duration_mins,
+          start_odometer: trip.start_odometer,
+          end_odometer: trip.end_odometer,
+          approval_status: trip.approval_status,
+        } : null,
+      };
+    });
+
+    res.json({ success: true, sessions });
   } catch (err) { next(err); }
 });
 
@@ -781,6 +837,11 @@ app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
     );
     await logAudit(req, { action: 'leave.request', entityType: 'leave_requests', entityId: result.insertId, details: { leave_from, leave_to, leave_type } });
     res.json({ success: true, id: result.insertId });
+    notifyBranchManagers(req.schoolId, branch, `leavepending|${result.insertId}`, {
+      title: 'Leave Request Pending',
+      body: `${name} requested leave from ${leave_from} to ${leave_to}.`,
+      data: { screen: 'LeaveRequests', leaveId: String(result.insertId) },
+    }).catch(err => console.error('[driver-leave] manager notify failed:', err.message));
   } catch (err) {
     if (err.code === 'ER_NO_SUCH_TABLE') {
       await ensureTable();
@@ -792,7 +853,13 @@ app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
         [instructorId, name, branch, leave_from, leave_to, leave_type, reason || null, req.schoolId]
       );
       await logAudit(req, { action: 'leave.request', entityType: 'leave_requests', entityId: result.insertId, details: { leave_from, leave_to, leave_type } });
-      return res.json({ success: true, id: result.insertId });
+      res.json({ success: true, id: result.insertId });
+      notifyBranchManagers(req.schoolId, branch, `leavepending|${result.insertId}`, {
+        title: 'Leave Request Pending',
+        body: `${name} requested leave from ${leave_from} to ${leave_to}.`,
+        data: { screen: 'LeaveRequests', leaveId: String(result.insertId) },
+      }).catch(err => console.error('[driver-leave] manager notify failed:', err.message));
+      return;
     }
     next(err);
   }
@@ -2996,6 +3063,21 @@ app.post('/api/driver/trip/end', requireAdmin, async (req, res, next) => {
       details: { end_odometer: endOdometer },
     });
     res.json({ success: true });
+
+    // Let this branch's managers know a trip is sitting in Trip Logs awaiting
+    // their approve/reject — they're the ones who finalise it to present/absent.
+    (async () => {
+      const [[inst]] = await dbPool.query(
+        `SELECT instructor_name, branch FROM instructors WHERE id=? AND school_id=? LIMIT 1`,
+        [instructorId, req.schoolId]
+      );
+      if (!inst) return;
+      await notifyBranchManagers(req.schoolId, inst.branch, `trippending|${trip_id}`, {
+        title: 'Trip Pending Approval',
+        body: `${inst.instructor_name || 'An instructor'}'s lesson is ready for your review in Trip Logs.`,
+        data: { screen: 'TripLogs', tripId: String(trip_id) },
+      });
+    })().catch(err => console.error('[trip/end] manager notify failed:', err.message));
   } catch (err) { next(err); }
 });
 
