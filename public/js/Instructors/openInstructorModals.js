@@ -27,9 +27,7 @@ window.openInstructorAddModal = function(tabRenderers, currentTab) {
                 <label>Role</label>
                 <select id="ins_role" required>
                     <option value="Instructor">Instructor</option>
-                    <option value="Office Staff">Office Staff</option>
                     <option value="Manager">Manager</option>
-                    <option value="Other">Other</option>
                 </select>
                 <label>Email</label><input id="ins_email" type="email">
                 <label>Mobile</label><input id="ins_mobile" type="text" required>
@@ -110,7 +108,7 @@ window.openInstructorEditModal = function(id, data, tabRenderers, currentTab) {
             console.error(err);
         }
 
-        const roles = ['Instructor', 'Office Staff', 'Manager', 'Other'];
+        const roles = ['Instructor', 'Manager'];
         const formHTML = `
             <h2>Edit Employee</h2>
             <div class="modal-content-form">
