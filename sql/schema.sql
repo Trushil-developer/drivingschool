@@ -984,7 +984,11 @@ SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_
 SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='role');
-SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN role ENUM("superadmin","admin") NOT NULL DEFAULT "admin";','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN role ENUM("admin") NOT NULL DEFAULT "admin";','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- "superadmin" was never assigned to any account and nothing in the app
+-- distinguishes it from "admin" — drop it so it can't be picked by mistake.
+ALTER TABLE admins MODIFY COLUMN role ENUM('admin') NOT NULL DEFAULT 'admin';
 
 SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='is_active');
 SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
