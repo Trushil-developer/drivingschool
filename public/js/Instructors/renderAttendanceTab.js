@@ -30,10 +30,12 @@ window.renderAttendanceTab = function (container) {
         const toDate   = new Date();
         const fromDate = new Date(toDate);
 
-        // Load instructors for filter
+        // Load instructors + managers for filter — the attendance table itself
+        // already carries both (instructor_attendance.person_type), only this
+        // dropdown was instructor-only.
         const resInst = await window.api('/api/instructors').catch(() => ({ instructors: [] }));
         const instructors = (resInst?.instructors || [])
-            .filter(i => i.is_active && (i.role || '').toLowerCase() === 'instructor');
+            .filter(i => i.is_active && ['instructor', 'manager'].includes((i.role || '').toLowerCase()));
 
         container.innerHTML = `
             <div id="mgrRosterWrap" style="margin-bottom:22px;"></div>
@@ -50,11 +52,11 @@ window.renderAttendanceTab = function (container) {
                         style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px">
                 </div>
                 <div>
-                    <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px">Instructor</label>
+                    <label style="display:block;font-size:12px;color:#6b7280;margin-bottom:4px">Instructor / Manager</label>
                     <select id="attInstructor"
                         style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;background:#fff">
-                        <option value="">All Instructors</option>
-                        ${instructors.map(i => `<option value="${i.id}">${i.instructor_name}</option>`).join('')}
+                        <option value="">All</option>
+                        ${instructors.map(i => `<option value="${i.id}">${i.instructor_name}${(i.role || '').toLowerCase() === 'manager' ? ' (Manager)' : ''}</option>`).join('')}
                     </select>
                 </div>
                 <button id="attApply"
