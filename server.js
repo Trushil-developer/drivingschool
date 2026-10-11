@@ -214,6 +214,12 @@ app.get('/cms.html', async (req, res, next) => {
   }
 });
 
+// Images are rarely edited in place (replacements typically get a new
+// filename, as with grand-vitara.webp), unlike CSS/JS here which get edited
+// in place often with no fingerprinting — so only images get a real cache
+// lifetime. A long cache on CSS/JS/HTML would silently serve stale code
+// after a deploy, exactly the bug already hit once this session.
+app.use('/images', express.static(path.join(__dirname, 'public/images'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Mobile auth bridge: iOS strips Cookie headers, so mobile sends token via X-Session-Token.
