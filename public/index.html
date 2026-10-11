@@ -40,7 +40,641 @@
          CSS
     ========================================================= -->
     <link rel="stylesheet" href="css/layout.css">
-    <link rel="stylesheet" href="css/index.css">
+    <style>
+/* =========================================================
+   VARIABLES
+========================================================= */
+:root {
+    --primary: #1a73e8;
+    --primary-dark: #0f5ec7;
+    --success: #2e7d32;
+    --danger: #e53935;
+    --warning: #fbbc04;
+    --text-main: #202124;
+    --text-muted: #555;
+    --bg-main: #f4f6f9;
+    --bg-light: #f8fafc;
+    --border-light: #e5e7eb;
+    --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 10px 25px rgba(0, 0, 0, 0.1);
+    --radius-lg: 18px;
+}
+
+/* =========================================================
+   GLOBAL STYLES
+========================================================= */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    line-height: 1.6;
+    background: var(--bg-main);
+    color: var(--text-main);
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    outline: none;
+}
+
+/* =========================================================
+   TYPOGRAPHY
+========================================================= */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin: 0;
+    font-weight: 600;
+}
+
+p {
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+/* =========================================================
+   HERO SECTION
+========================================================= */
+.hero-section {
+    text-align: center;
+    padding: 3rem 1rem 2rem;
+}
+
+.hero-section h1 {
+    font-size: clamp(2rem, 4vw, 2.6rem);
+    color: var(--primary);
+    margin-bottom: 0.8rem;
+}
+
+.hero-section p {
+    max-width: 720px;
+    margin: auto;
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+}
+
+/* =========================================================
+   NEW ARRIVAL SECTION
+========================================================= */
+.new-arrival-section {
+    padding: 0 1rem 1rem;
+    max-width: 1100px;
+    margin: auto;
+}
+
+.new-arrival-card {
+    display: flex;
+    align-items: stretch;
+    background: #fff;
+    border-radius: var(--radius-lg);
+    border: 3px solid var(--primary);
+    overflow: hidden;
+    animation: new-arrival-glow 2.2s ease-in-out infinite;
+}
+
+@keyframes new-arrival-glow {
+
+    0%,
+    100% {
+        box-shadow: var(--shadow-md), 0 0 0 0 rgba(26, 115, 232, 0.45);
+    }
+
+    50% {
+        box-shadow: var(--shadow-md), 0 0 22px 6px rgba(26, 115, 232, 0.35);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .new-arrival-card {
+        animation: none;
+        box-shadow: var(--shadow-md);
+    }
+}
+
+.new-arrival-media {
+    flex: 1 1 42%;
+    min-width: 0;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.new-arrival-media img {
+    width: 100%;
+    height: 100%;
+    min-height: 260px;
+    object-fit: contain;
+    display: block;
+}
+
+.new-arrival-content {
+    flex: 1 1 58%;
+    padding: 2rem 2.2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.new-arrival-tag {
+    align-self: flex-start;
+    background: var(--success);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    margin-bottom: 0.8rem;
+}
+
+.new-arrival-content h2 {
+    color: var(--primary);
+    font-size: clamp(1.4rem, 3vw, 1.8rem);
+    margin-bottom: 0.6rem;
+}
+
+.new-arrival-content p {
+    margin-bottom: 1.2rem;
+}
+
+.new-arrival-btn {
+    align-self: flex-start;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+    padding: 0.7rem 1.6rem;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.new-arrival-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+/* =========================================================
+   PACKAGES SECTION
+========================================================= */
+.packages-section {
+    padding: 2.5rem 1rem 3rem;
+}
+
+.packages-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    max-width: 1100px;
+    margin: auto;
+    min-height: 370px;
+}
+
+.package-card {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: var(--shadow-md);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.package-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
+}
+
+.package-card.highlight {
+    border: 2px solid var(--primary);
+}
+
+.package-card h2 {
+    text-align: center;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+
+.package-desc {
+    text-align: center;
+    font-size: 0.95rem;
+    color: #666;
+    margin-bottom: 1.5rem;
+}
+
+/* Badges */
+.badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.35rem 0.9rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #fff;
+    border-radius: 20px;
+    background: var(--success);
+    text-transform: uppercase;
+}
+
+.badge.premium {
+    background: var(--primary);
+}
+
+/* Features */
+.features,
+.package-features {
+    list-style: none;
+    margin-bottom: 2rem;
+    padding-left: 0;
+}
+
+.features li,
+.package-features li {
+    position: relative;
+    padding-left: 1.8rem;
+    margin-bottom: 0.7rem;
+    font-size: 0.95rem;
+}
+
+.features li::before,
+.package-features li::before {
+    content: "✔";
+    position: absolute;
+    left: 0;
+    color: var(--success);
+    font-weight: bold;
+}
+
+/* Buttons */
+.btn-book {
+    margin-top: auto;
+    padding: 0.85rem;
+    border-radius: 30px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: background 0.25s ease, transform 0.2s ease;
+}
+
+.btn-book:hover {
+    background: var(--primary-dark);
+    transform: scale(1.03);
+}
+
+/* =========================================================
+   GOOGLE REVIEWS SECTION
+========================================================= */
+.google-reviews {
+    padding: 3rem 1rem;
+    background: var(--bg-light);
+}
+
+.reviews-container {
+    max-width: 1150px;
+    margin: auto;
+}
+
+.reviews-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.reviews-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.reviews-left img {
+    width: 44px;
+    height: auto;
+}
+
+.reviews-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.google-reviews-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 28px;
+}
+
+.verified-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 14px;
+    background: #e6f4ea;
+    color: #1e8e3e;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.rating-line {
+    font-size: 15px;
+}
+
+.rating-score {
+    font-weight: 700;
+}
+
+.stars {
+    color: var(--warning);
+    margin: 0 4px;
+}
+
+/* Branch select */
+.reviews-branch-select {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: var(--shadow-sm);
+}
+
+.reviews-branch-select select {
+    border: none;
+    background: transparent;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+}
+
+/* Carousel */
+.reviews-carousel {
+    margin-top: 20px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    scroll-behavior: smooth;
+    min-height: 180px; /* reserves space so reviews loading in doesn't cause CLS */
+}
+
+.reviews-carousel::-webkit-scrollbar {
+    display: none;
+}
+
+.reviews-track {
+    display: flex;
+    gap: 20px;
+}
+
+.review-card {
+    min-width: 320px;
+    background: #fff;
+    border-radius: 14px;
+    padding: 14px 16px;
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-sm);
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.review-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+.review-header {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.review-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.review-name {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.review-stars {
+    color: var(--warning);
+    font-size: 14px;
+}
+
+.review-card p {
+    font-size: 14px;
+    color: #3c4043;
+    margin-top: 8px;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+    overflow: hidden;
+}
+
+/* =========================================================
+   FOLLOW US SECTION
+========================================================= */
+.follow-paper-section {
+    padding: 3rem 1rem 2.5rem;
+}
+
+.paper-wrapper {
+    max-width: 900px;
+    margin: auto;
+    text-align: center;
+}
+
+.paper-wrapper h2 {
+    font-size: clamp(1.8rem, 4vw, 2.2rem);
+    color: var(--primary);
+}
+
+.paper-wrapper p {
+    margin: 0.5rem 0 2rem;
+    color: var(--text-muted);
+}
+
+.paper-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+}
+
+.paper-card {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    padding: 1.6rem 1.8rem;
+    display: flex;
+    align-items: center;
+    gap: 1.3rem;
+    text-decoration: none;
+    color: var(--text-main);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.paper-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.icon-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.6rem;
+}
+
+.paper-card.instagram .icon-wrap {
+    background: linear-gradient(135deg, #f58529, #dd2a7b, #8134af);
+}
+
+.paper-card.facebook .icon-wrap {
+    background: #1877f2;
+}
+
+.card-text h3 {
+    font-size: 1.1rem;
+}
+
+.card-text span {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* Reviews loading state */
+.loader {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+/* View on Google button */
+.view-google-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding: 10px 22px;
+    background: #fff;
+    border: 1px solid var(--border-light);
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    text-decoration: none;
+}
+
+.view-google-btn:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+@media (max-width: 768px) {
+    .new-arrival-card {
+        flex-direction: column;
+    }
+
+    .new-arrival-media img {
+        min-height: 200px;
+    }
+
+    .new-arrival-content {
+        padding: 1.5rem;
+        align-items: center;
+        text-align: center;
+    }
+
+    .new-arrival-tag,
+    .new-arrival-btn {
+        align-self: center;
+    }
+
+    .reviews-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    /* Keep G logo and title on the same row — looks cleaner */
+    .reviews-left {
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .reviews-left img {
+        width: 36px;
+        height: 36px;
+    }
+
+    .google-reviews-title {
+        font-size: 1.3rem;
+        flex-wrap: wrap;
+    }
+
+    .rating-line {
+        font-size: 14px;
+    }
+
+    .verified-inline {
+        font-size: 12px;
+        padding: 3px 6px;
+    }
+
+    .review-card {
+        min-width: 280px;
+    }
+
+    .packages-grid {
+        min-height: 1100px;
+    }
+}
+    </style>
 
     <!-- =========================================================
          Google Analytics
