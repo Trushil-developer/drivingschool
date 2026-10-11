@@ -1,2024 +1,897 @@
-USE drivingschool;
-
--- =====================================
--- EXPENSE CATEGORIES TABLE
--- school_id = 0 → global defaults (shared across all schools)
--- school_id > 0 → custom category belonging to that school
--- =====================================
-CREATE TABLE IF NOT EXISTS expense_categories (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    is_car_related TINYINT(1) NOT NULL DEFAULT 0,
-    extra_field VARCHAR(20) DEFAULT NULL,
-    is_custom TINYINT(1) NOT NULL DEFAULT 0,
-    school_id INT NOT NULL DEFAULT 0,
-    show_in_earnings TINYINT(1) NOT NULL DEFAULT 0
-);
-
-
--- =====================================
--- PAYMENT MODES TABLE
--- school_id = 0 → global defaults
--- school_id > 0 → custom mode for that school
--- =====================================
-CREATE TABLE IF NOT EXISTS payment_modes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    is_custom TINYINT(1) NOT NULL DEFAULT 0,
-    school_id INT NOT NULL DEFAULT 0
-);
-
-INSERT INTO payment_modes (id, name, is_custom, school_id) VALUES
-(1, 'Cash',            0, 0),
-(2, 'UPI',             0, 0),
-(3, 'Bank Transfer',   0, 0),
-(4, 'Cheque',          0, 0)
-ON DUPLICATE KEY UPDATE name = VALUES(name);
-
--- =====================================
--- EXPENSES TABLE
--- school_id → which driving school owns this record
--- =====================================
-CREATE TABLE IF NOT EXISTS expenses (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id INT NOT NULL DEFAULT 1,
-    branch VARCHAR(100) NOT NULL,
-    debitor VARCHAR(150) NOT NULL,
-    employee_name VARCHAR(150) NULL,
-    category_id INT NOT NULL,
-    car_id INT NULL,
-    amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-    payment_mode_id INT NOT NULL,
-    note TEXT NULL,
-    expense_date DATE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (category_id) REFERENCES expense_categories(id),
-    FOREIGN KEY (payment_mode_id) REFERENCES payment_modes(id)
-);
-
--- Ensure employee_name column exists (for existing databases)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-                    WHERE table_schema='drivingschool'
-                      AND table_name='expenses'
-                      AND column_name='employee_name');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE expenses ADD COLUMN employee_name VARCHAR(150) NULL AFTER debitor;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- actor tracking (who created/edited this record)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='expenses' AND column_name='created_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE expenses ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='expenses' AND column_name='created_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE expenses ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='expenses' AND column_name='updated_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE expenses ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='expenses' AND column_name='updated_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE expenses ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- CARS TABLE
--- =====================================
-
-CREATE TABLE IF NOT EXISTS cars (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id INT NOT NULL DEFAULT 1
-);
-
--- =====================================
--- Ensure car_name
--- =====================================
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cars'
-      AND column_name='car_name'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cars ADD COLUMN car_name VARCHAR(50) NOT NULL;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- =====================================
--- Ensure branch
--- =====================================
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cars'
-      AND column_name='branch'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cars ADD COLUMN branch VARCHAR(50);',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- =====================================
--- Ensure car_registration_no
--- =====================================
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cars'
-      AND column_name='car_registration_no'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cars ADD COLUMN car_registration_no VARCHAR(50);',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- =====================================
--- Ensure insurance fields
--- =====================================
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cars'
-      AND column_name='insurance_policy_no'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cars ADD COLUMN insurance_policy_no VARCHAR(50);',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cars'
-      AND column_name='insurance_company'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cars ADD COLUMN insurance_company VARCHAR(100);',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cars'
-      AND column_name='insurance_issue_date'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cars ADD COLUMN insurance_issue_date DATE;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cars'
-      AND column_name='insurance_expiry_date'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cars ADD COLUMN insurance_expiry_date DATE;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- =====================================
--- Ensure PUC fields
--- =====================================
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cars'
-      AND column_name='puc_issue_date'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cars ADD COLUMN puc_issue_date DATE;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cars'
-      AND column_name='puc_expiry_date'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cars ADD COLUMN puc_expiry_date DATE;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- =====================================
--- Ensure price_15_days
--- =====================================
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cars'
-      AND column_name='price_15_days'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cars ADD COLUMN price_15_days DECIMAL(10,2) NOT NULL DEFAULT 0.00;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- =====================================
--- Ensure price_21_days
--- =====================================
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cars'
-      AND column_name='price_21_days'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cars ADD COLUMN price_21_days DECIMAL(10,2) NOT NULL DEFAULT 0.00;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- =====================================
--- Ensure inactive
--- =====================================
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cars'
-      AND column_name='inactive'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cars ADD COLUMN inactive TINYINT(1) NOT NULL DEFAULT 0;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- =====================================
---  tag
--- =====================================
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cars'
-      AND column_name='tag'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cars ADD COLUMN tag VARCHAR(30) NULL AFTER car_name;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cars' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE cars ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='cars' AND index_name='idx_cars_school');
-SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_cars_school ON cars (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- actor tracking (who created/edited this record)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cars' AND column_name='created_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE cars ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cars' AND column_name='created_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE cars ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cars' AND column_name='updated_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE cars ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cars' AND column_name='updated_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE cars ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- INSTRUCTORS TABLE
--- =====================================
-CREATE TABLE IF NOT EXISTS instructors (
-    id            INT AUTO_INCREMENT PRIMARY KEY,
-    employee_no   VARCHAR(10),
-    instructor_name VARCHAR(100) NOT NULL,
-    role          VARCHAR(50) NOT NULL DEFAULT 'Instructor',
-    email         VARCHAR(100),
-    mobile_no     VARCHAR(20),
-    branch        VARCHAR(50),
-    drivers_license VARCHAR(30),
-    adhar_no      VARCHAR(20),
-    address       TEXT,
-    is_active     TINYINT(1) DEFAULT 1,
-    school_id     INT NOT NULL DEFAULT 1
-);
-
--- Ensure role column exists (for existing databases where table was already created)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-                    WHERE table_schema='drivingschool'
-                      AND table_name='instructors'
-                      AND column_name='role');
-SET @sql := IF(@col_exists=0,
-               "ALTER TABLE instructors ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'Instructor';",
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Backfill employee_no for any existing rows that have none
-UPDATE instructors SET employee_no = CONCAT('EMP', LPAD(id, 3, '0')) WHERE employee_no IS NULL OR employee_no = '';
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- actor tracking (who created/edited this record)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='created_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='created_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='updated_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='updated_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- branch2: an optional second branch an instructor also teaches at (e.g. one
--- instructor covering both Malabar and Vandematram). Kept as a second nullable
--- column rather than a join table, matching this schema's existing pattern for
--- "a few extra values" (allotted_time2/3/4 on bookings). Every "does this
--- instructor belong to branch X" check must test branch OR branch2.
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructors' AND column_name='branch2');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructors ADD COLUMN branch2 VARCHAR(50) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- BOOKINGS TABLE
--- =====================================
-CREATE TABLE IF NOT EXISTS bookings (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id INT NOT NULL DEFAULT 1
-);
-
--- branch
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='branch');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN branch VARCHAR(100) NOT NULL;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- training_days
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='training_days');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN training_days INT NOT NULL DEFAULT 0;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- customer_name
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='customer_name');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN customer_name VARCHAR(100);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- duration_minutes
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='duration_minutes');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN duration_minutes INT NOT NULL DEFAULT 30;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- address
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='address');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN address VARCHAR(255);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- pincode
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='pincode');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN pincode VARCHAR(10);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- mobile_no
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='mobile_no');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN mobile_no VARCHAR(20);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- whatsapp_no
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='whatsapp_no');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN whatsapp_no VARCHAR(20);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- sex
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='sex');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN sex ENUM("Male","Female","Other");',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- birth_date
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='birth_date');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN birth_date DATE;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- cov_lmv
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='cov_lmv');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN cov_lmv TINYINT(1) DEFAULT 0;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- cov_mc
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='cov_mc');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN cov_mc TINYINT(1) DEFAULT 0;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- dl_no / dl_from / dl_to
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='dl_no');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN dl_no VARCHAR(50);','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='dl_from');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN dl_from VARCHAR(50);','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='dl_to');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN dl_to VARCHAR(50);','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- email
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='email');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN email VARCHAR(100);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- occupation
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='occupation');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN occupation VARCHAR(100);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- ref
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='ref');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN ref VARCHAR(100);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- allotted_time
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='allotted_time');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN allotted_time TIME;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- starting_from
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='starting_from');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN starting_from DATE;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- hold_from
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='hold_from');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN hold_from DATE;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- resume_from
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='resume_from');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN resume_from DATE;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- total_fees
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='total_fees');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN total_fees DECIMAL(10,2);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- advance
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='advance');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN advance DECIMAL(10,2);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- created_at
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='created_at');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- car_name
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='car_name');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN car_name VARCHAR(50);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- instructor_name
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='instructor_name');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN instructor_name VARCHAR(100);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- hold_status
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='hold_status');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN hold_status TINYINT DEFAULT 0;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- present_days
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='present_days');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN present_days INT DEFAULT 0;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- attendance_status
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='attendance_status');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN attendance_status ENUM("Pending","Active","Completed","Expired","Hold") DEFAULT "Pending";',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- expiry_reason
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='expiry_reason');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN expiry_reason TEXT NULL;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- expiry_reason_at
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='expiry_reason_at');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN expiry_reason_at DATETIME NULL;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- extended_days
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='extended_days');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN extended_days INT DEFAULT 0;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- certificate_url
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='certificate_url');
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE bookings ADD COLUMN certificate_url VARCHAR(255);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- ac_facility
-SET @col_exists := (
-    SELECT COUNT(*) 
-    FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool'
-      AND table_name='bookings'
-      AND column_name='ac_facility'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE bookings ADD COLUMN ac_facility TINYINT(1) DEFAULT 0;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- pickup_drop
-SET @col_exists := (
-    SELECT COUNT(*) 
-    FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool'
-      AND table_name='bookings'
-      AND column_name='pickup_drop'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE bookings ADD COLUMN pickup_drop TINYINT(1) DEFAULT 0;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- has_licence
-SET @col_exists := (
-    SELECT COUNT(*) 
-    FROM INFORMATION_SCHEMA.COLUMNS 
-    WHERE table_schema='drivingschool'
-      AND table_name='bookings'
-      AND column_name='has_licence'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE bookings ADD COLUMN has_licence ENUM("Yes","No") DEFAULT "No";',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- allotted_time2
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='bookings'
-      AND column_name='allotted_time2'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE bookings ADD COLUMN allotted_time2 TIME;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-
--- allotted_time3
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='bookings'
-      AND column_name='allotted_time3'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE bookings ADD COLUMN allotted_time3 TIME;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-
--- allotted_time4
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='bookings'
-      AND column_name='allotted_time4'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE bookings ADD COLUMN allotted_time4 TIME;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- apply_licence
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='bookings'
-      AND column_name='apply_licence'
-);
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE bookings ADD COLUMN apply_licence ENUM("Yes","No") DEFAULT "No";',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-
--- licence_types
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='bookings'
-      AND column_name='licence_types'
-);
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE bookings ADD COLUMN licence_types VARCHAR(50);',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-
--- licence_fee
-SET @col_exists := (
-    SELECT COUNT(*)
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='bookings'
-      AND column_name='licence_fee'
-);
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE bookings ADD COLUMN licence_fee DECIMAL(10,2) DEFAULT 0.00;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='bookings' AND index_name='idx_bookings_school');
-SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_bookings_school ON bookings (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- actor tracking (who created/edited this record)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='created_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='created_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='updated_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='bookings' AND column_name='updated_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE bookings ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- ATTENDANCE TABLE
--- =====================================
-CREATE TABLE IF NOT EXISTS attendance (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id INT NOT NULL DEFAULT 1
-);
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='booking_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN booking_id INT NOT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='date');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN date DATE NOT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='present');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN present TINYINT(1) NOT NULL DEFAULT 0;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- time: per-slot key (HH:MM); empty string for legacy records
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='time');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN time VARCHAR(10) NOT NULL DEFAULT \'\' AFTER date;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Step 1: add new 3-column key under a temp name so the FK has something to hold on to
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='uq_att_slot');
-SET @sql := IF(@idx_exists=0,'ALTER TABLE attendance ADD UNIQUE KEY uq_att_slot (booking_id, date, time);','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Step 2: now safe to drop old keys (uq_att_slot satisfies any FK)
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_attendance');
-SET @sql := IF(@idx_exists>0,'ALTER TABLE attendance DROP INDEX unique_attendance;','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_record');
-SET @col_count := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_record');
-SET @sql := IF(@col_count=2,'ALTER TABLE attendance DROP INDEX unique_record;','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Step 3: add the final key with the canonical name
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_record');
-SET @sql := IF(@idx_exists=0,'ALTER TABLE attendance ADD UNIQUE KEY unique_record (booking_id, date, time);','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Step 4: drop the temp key now that unique_record exists
-SET @r_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='unique_record');
-SET @t_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='uq_att_slot');
-SET @sql := IF(@r_exists>0 AND @t_exists>0,'ALTER TABLE attendance DROP INDEX uq_att_slot;','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- marked_at: tracks when attendance was last set/changed
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='marked_at');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER present;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='attendance' AND index_name='idx_attendance_school');
-SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_attendance_school ON attendance (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- marked_by_id / marked_by_type: who marked this record and from which table
--- marked_by_type 'admin' -> admins table; 'manager' or 'instructor' -> instructors table
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='marked_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN marked_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='marked_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN marked_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='approval_status');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN approval_status ENUM(\'pending\',\'approved\') NOT NULL DEFAULT \'approved\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='approved_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN approved_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='approved_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN approved_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='approved_at');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN approved_at DATETIME NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- SCHOOLS TABLE (multi-tenant anchor)
--- =====================================
+-- =============================================================================
+-- Dwarkesh Motor Driving School / BookMyDrive — database schema
+-- =============================================================================
+--
+-- Single source of truth for the database structure. Safe to run on an empty
+-- database AND on the live one, as often as you like (deploy.yml runs it on
+-- every push):
+--
+--   CREATE TABLE IF NOT EXISTS  → table is created only if it doesn't exist
+--   CALL ensure_column(...)     → column is added to the EXISTING table only
+--                                 if it doesn't exist (ADD COLUMN IF NOT EXISTS)
+--   CALL ensure_index(...)      → same, for indexes / unique keys
+--   CALL ensure_constraint(...) → same, for foreign keys / CHECKs
+--
+-- Nothing is ever dropped, renamed or modified, and existing data is untouched.
+--
+--   Add a column      → add one CALL ensure_column line under its table.
+--                       e.g. CALL ensure_column('cars', 'fuel_type', "VARCHAR(20) NULL");
+--   Add a table       → CREATE TABLE IF NOT EXISTS with its primary key, then
+--                       one ensure_column per column.
+--   Change / rename / drop a column, or backfill data → write a guarded
+--                       statement in sql/upgrade.sql (this file only adds).
+--
+--   Fresh install:
+--     mysql -u root -e "CREATE DATABASE drivingschool
+--                       CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+--     mysql -u root drivingschool < sql/schema.sql
+--     mysql -u root drivingschool < sql/upgrade.sql   # no-op on a fresh DB
+--
+-- Conventions:
+--   * InnoDB, utf8mb4 / utf8mb4_unicode_ci on every table. One collation for
+--     the whole database — mixing it with utf8mb4_0900_ai_ci causes
+--     "Illegal mix of collations" errors in joins and comparisons.
+--   * school_id   — tenant that owns the row (schools.id). 0 on lookup tables
+--                   means "global default shared by all schools".
+--   * *_by_id / *_by_type — who performed an action. type 'admin' points at
+--                   admins.id; 'manager' / 'instructor' point at instructors.id.
+--   * Several names (branch, car_name, instructor_name) are stored
+--     denormalized as text rather than as foreign keys; that is how the
+--     application queries them, so keep them in sync when renaming.
+-- =============================================================================
+
+SET NAMES utf8mb4;
+
+
+-- =============================================================================
+-- 0. HELPERS — "IF NOT EXISTS" for columns, indexes and constraints
+-- =============================================================================
+-- MySQL has no ADD COLUMN IF NOT EXISTS, so these check information_schema and
+-- only run the ALTER when the item is missing. Dropped again at the end.
+
+DROP PROCEDURE IF EXISTS ensure_column;
+DROP PROCEDURE IF EXISTS ensure_index;
+DROP PROCEDURE IF EXISTS ensure_constraint;
+
+DELIMITER $$
+
+CREATE PROCEDURE ensure_column(IN p_table VARCHAR(64), IN p_column VARCHAR(64), IN p_definition TEXT)
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = DATABASE() AND table_name = p_table AND column_name = p_column) THEN
+        SET @ddl = CONCAT('ALTER TABLE `', p_table, '` ADD COLUMN `', p_column, '` ', p_definition);
+        PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+    END IF;
+END$$
+
+CREATE PROCEDURE ensure_index(IN p_table VARCHAR(64), IN p_index VARCHAR(64), IN p_definition TEXT)
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.statistics
+                   WHERE table_schema = DATABASE() AND table_name = p_table AND index_name = p_index) THEN
+        SET @ddl = CONCAT('ALTER TABLE `', p_table, '` ADD ', p_definition);
+        PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+    END IF;
+END$$
+
+CREATE PROCEDURE ensure_constraint(IN p_table VARCHAR(64), IN p_constraint VARCHAR(64), IN p_definition TEXT)
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints
+                   WHERE table_schema = DATABASE() AND table_name = p_table AND constraint_name = p_constraint) THEN
+        SET @ddl = CONCAT('ALTER TABLE `', p_table, '` ADD ', p_definition);
+        PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+    END IF;
+END$$
+
+DELIMITER ;
+
+
+-- =============================================================================
+-- 1. TENANCY & ACCESS
+-- =============================================================================
+
+-- Multi-tenant anchor: one row per driving school.
 CREATE TABLE IF NOT EXISTS schools (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    name        VARCHAR(150) NOT NULL,
-    slug        VARCHAR(100) NOT NULL UNIQUE,
-    owner_email VARCHAR(150),
-    mobile_no   VARCHAR(20),
-    address     VARCHAR(255),
-    city        VARCHAR(100),
-    state       VARCHAR(100),
-    logo_url    VARCHAR(255),
-    is_active   TINYINT(1) NOT NULL DEFAULT 1,
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('schools', 'name',        "VARCHAR(150) NOT NULL");
+CALL ensure_column('schools', 'slug',        "VARCHAR(100) NOT NULL");
+CALL ensure_column('schools', 'owner_email', "VARCHAR(150) NULL");
+CALL ensure_column('schools', 'mobile_no',   "VARCHAR(20) NULL");
+CALL ensure_column('schools', 'address',     "VARCHAR(255) NULL");
+CALL ensure_column('schools', 'city',        "VARCHAR(100) NULL");
+CALL ensure_column('schools', 'state',       "VARCHAR(100) NULL");
+CALL ensure_column('schools', 'logo_url',    "VARCHAR(255) NULL");
+CALL ensure_column('schools', 'is_active',   "TINYINT(1) NOT NULL DEFAULT 1");
+CALL ensure_column('schools', 'created_at',  "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('schools', 'slug', "UNIQUE KEY slug (slug)");
 
-INSERT INTO schools (id, name, slug, is_active)
-VALUES (1, 'Dwarkesh Motor Driving School', 'dwarkesh', 1)
-ON DUPLICATE KEY UPDATE name = VALUES(name);
-
--- =====================================
--- ADMINS TABLE
--- =====================================
+-- Admin-panel accounts. Managers and instructors log in from the instructors
+-- table instead.
 CREATE TABLE IF NOT EXISTS admins (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id INT NOT NULL DEFAULT 1
-);
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('admins', 'school_id',  "INT NOT NULL DEFAULT 1");
+CALL ensure_column('admins', 'username',   "VARCHAR(100) NOT NULL");
+CALL ensure_column('admins', 'password',   "VARCHAR(255) NOT NULL");  -- bcrypt hash
+CALL ensure_column('admins', 'role',       "ENUM('admin') NOT NULL DEFAULT 'admin'");
+CALL ensure_column('admins', 'full_name',  "VARCHAR(150) NULL");
+CALL ensure_column('admins', 'email',      "VARCHAR(150) NULL");
+CALL ensure_column('admins', 'mobile_no',  "VARCHAR(20) NULL");
+CALL ensure_column('admins', 'is_active',  "TINYINT(1) NOT NULL DEFAULT 1");
+CALL ensure_column('admins', 'created_at', "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('admins', 'username', "UNIQUE KEY username (username)");
 
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='username');
-SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN username VARCHAR(100) UNIQUE NOT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='password');
-SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN password VARCHAR(255) NOT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='created_at');
-SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='role');
-SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN role ENUM("admin") NOT NULL DEFAULT "admin";','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- "superadmin" was never assigned to any account and nothing in the app
--- distinguishes it from "admin" — drop it so it can't be picked by mistake.
-ALTER TABLE admins MODIFY COLUMN role ENUM('admin') NOT NULL DEFAULT 'admin';
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='is_active');
-SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='full_name');
-SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN full_name VARCHAR(150) DEFAULT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='email');
-SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN email VARCHAR(150) DEFAULT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='admins' AND column_name='mobile_no');
-SET @sql := IF(@col_exists=0,'ALTER TABLE admins ADD COLUMN mobile_no VARCHAR(20) DEFAULT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- BRANCHES TABLE
--- =====================================
 CREATE TABLE IF NOT EXISTS branches (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id INT NOT NULL DEFAULT 1
-);
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('branches', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('branches', 'branch_name',     "VARCHAR(100) NOT NULL");
+CALL ensure_column('branches', 'address',         "VARCHAR(255) NULL");
+CALL ensure_column('branches', 'city',            "VARCHAR(100) NULL");
+CALL ensure_column('branches', 'state',           "VARCHAR(100) NULL");
+CALL ensure_column('branches', 'postal_code',     "VARCHAR(20) NULL");
+CALL ensure_column('branches', 'mobile_no',       "VARCHAR(20) NULL");
+CALL ensure_column('branches', 'email',           "VARCHAR(100) NULL");
+CALL ensure_column('branches', 'wifi_ssid',       "VARCHAR(255) NOT NULL DEFAULT ''");  -- network required for instructor clock-in/out
+CALL ensure_column('branches', 'created_at',      "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_column('branches', 'created_by_id',   "INT NULL");
+CALL ensure_column('branches', 'created_by_type', "VARCHAR(20) NULL");
+CALL ensure_column('branches', 'updated_by_id',   "INT NULL");
+CALL ensure_column('branches', 'updated_by_type', "VARCHAR(20) NULL");
+CALL ensure_index('branches', 'idx_branches_school', "KEY idx_branches_school (school_id)");
 
--- Add branch_name
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='branches' 
-                      AND column_name='branch_name');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE branches ADD COLUMN branch_name VARCHAR(100) NOT NULL;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- Add address
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='branches' 
-                      AND column_name='address');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE branches ADD COLUMN address VARCHAR(255);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Add city
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='branches' 
-                      AND column_name='city');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE branches ADD COLUMN city VARCHAR(100);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Add state
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='branches' 
-                      AND column_name='state');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE branches ADD COLUMN state VARCHAR(100);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Add postal_code
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='branches' 
-                      AND column_name='postal_code');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE branches ADD COLUMN postal_code VARCHAR(20);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Add mobile_no
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='branches' 
-                      AND column_name='mobile_no');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE branches ADD COLUMN mobile_no VARCHAR(20);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Add email
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE table_schema='drivingschool' 
-                      AND table_name='branches' 
-                      AND column_name='email');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE branches ADD COLUMN email VARCHAR(100);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Add created_at
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-                    WHERE table_schema='drivingschool'
-                      AND table_name='branches'
-                      AND column_name='created_at');
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE branches ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='branches' AND index_name='idx_branches_school');
-SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_branches_school ON branches (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- wifi_ssid (per-branch WiFi network required for instructor clock-in/out)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='wifi_ssid');
-SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN wifi_ssid VARCHAR(255) NOT NULL DEFAULT \'\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- actor tracking (who created/edited this record)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='created_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='created_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='updated_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='updated_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='branches' AND column_name='wifi_ssid');
-SET @sql := IF(@col_exists=0,'ALTER TABLE branches ADD COLUMN wifi_ssid VARCHAR(255) NOT NULL DEFAULT \'\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- TRAINING DAYS TABLE
--- =====================================
-
-CREATE TABLE IF NOT EXISTS training_days (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id INT NOT NULL DEFAULT 1
-);
-
--- Add 'days' column
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='training_days'
-      AND column_name='days'
-);
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE training_days ADD COLUMN days INT NOT NULL;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Add 'is_active'
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='training_days'
-      AND column_name='is_active'
-);
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE training_days ADD COLUMN is_active TINYINT(1) DEFAULT 1;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='training_days' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE training_days ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- actor tracking (who created/edited this record)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='training_days' AND column_name='created_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE training_days ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='training_days' AND column_name='created_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE training_days ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='training_days' AND column_name='updated_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE training_days ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='training_days' AND column_name='updated_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE training_days ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- ENQUIRIES TABLE
--- =====================================
-CREATE TABLE IF NOT EXISTS enquiries (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id INT NOT NULL DEFAULT 1
-);
-
--- full_name
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='full_name'
-);
-SET @sql := IF(@col_exists = 0,
-               'ALTER TABLE enquiries ADD COLUMN full_name VARCHAR(150) NOT NULL;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- email
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='email'
-);
-SET @sql := IF(@col_exists = 0,
-               'ALTER TABLE enquiries ADD COLUMN email VARCHAR(150) NOT NULL;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- phone
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='phone'
-);
-SET @sql := IF(@col_exists = 0,
-               'ALTER TABLE enquiries ADD COLUMN phone VARCHAR(50) NOT NULL;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- branch_id
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='branch_id'
-);
-SET @sql := IF(@col_exists = 0,
-               'ALTER TABLE enquiries ADD COLUMN branch_id INT;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- course_id
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='course_id'
-);
-SET @sql := IF(@col_exists = 0,
-               'ALTER TABLE enquiries ADD COLUMN course_id INT;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- has_licence
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='has_licence'
-);
-SET @sql := IF(@col_exists = 0,
-               'ALTER TABLE enquiries ADD COLUMN has_licence ENUM("Yes","No") NOT NULL DEFAULT "No";',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- message
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='message'
-);
-SET @sql := IF(@col_exists = 0,
-               'ALTER TABLE enquiries ADD COLUMN message TEXT;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- created_at
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='created_at'
-);
-SET @sql := IF(@col_exists = 0,
-               'ALTER TABLE enquiries ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- heard_from
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='heard_from'
-);
-SET @sql := IF(@col_exists = 0,
-               'ALTER TABLE enquiries ADD COLUMN heard_from VARCHAR(50);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- hear_about
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='hear_about'
-);
-SET @sql := IF(@col_exists = 0,
-               'ALTER TABLE enquiries ADD COLUMN hear_about VARCHAR(50);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- training_slots
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='training_slots'
-);
-SET @sql := IF(@col_exists = 0,
-               'ALTER TABLE enquiries ADD COLUMN training_slots INT;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- slots
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='slots'
-);
-SET @sql := IF(@col_exists = 0,
-               'ALTER TABLE enquiries ADD COLUMN slots INT;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- preferred_car
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='preferred_car'
-);
-SET @sql := IF(@col_exists = 0,
-               'ALTER TABLE enquiries ADD COLUMN preferred_car VARCHAR(100);',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='enquiries' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE enquiries ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='enquiries' AND index_name='idx_enquiries_school');
-SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_enquiries_school ON enquiries (school_id);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- COURSES TABLE
--- =====================================
+-- =============================================================================
+-- 2. CATALOGUE, CONTENT & SETTINGS
+-- =============================================================================
 
 CREATE TABLE IF NOT EXISTS courses (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id INT NOT NULL DEFAULT 1
-);
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('courses', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('courses', 'course_name',     "VARCHAR(100) NOT NULL");
+CALL ensure_column('courses', 'description',     "TEXT NULL");
+CALL ensure_column('courses', 'status',          "ENUM('active','inactive') DEFAULT 'active'");
+CALL ensure_column('courses', 'created_at',      "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_column('courses', 'created_by_id',   "INT NULL");
+CALL ensure_column('courses', 'created_by_type', "VARCHAR(20) NULL");
+CALL ensure_column('courses', 'updated_by_id',   "INT NULL");
+CALL ensure_column('courses', 'updated_by_type', "VARCHAR(20) NULL");
 
--- course_name
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='course_name'
-);
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE courses ADD COLUMN course_name VARCHAR(100) NOT NULL;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Course lengths offered when creating a booking (e.g. 15, 21 days).
+CREATE TABLE IF NOT EXISTS training_days (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('training_days', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('training_days', 'days',            "INT NOT NULL");
+CALL ensure_column('training_days', 'is_active',       "TINYINT(1) DEFAULT 1");
+CALL ensure_column('training_days', 'created_by_id',   "INT NULL");
+CALL ensure_column('training_days', 'created_by_type', "VARCHAR(20) NULL");
+CALL ensure_column('training_days', 'updated_by_id',   "INT NULL");
+CALL ensure_column('training_days', 'updated_by_type', "VARCHAR(20) NULL");
 
--- description
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='description'
-);
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE courses ADD COLUMN description TEXT;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Packages shown on the public website.
+CREATE TABLE IF NOT EXISTS driving_packages (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('driving_packages', 'school_id',          "INT NOT NULL DEFAULT 1");
+CALL ensure_column('driving_packages', 'badge',              "VARCHAR(100) NULL");
+CALL ensure_column('driving_packages', 'title',              "VARCHAR(255) NOT NULL");
+CALL ensure_column('driving_packages', 'description',        "TEXT NULL");
+CALL ensure_column('driving_packages', 'practical_sessions', "INT NULL");
+CALL ensure_column('driving_packages', 'session_duration',   "VARCHAR(50) NULL");
+CALL ensure_column('driving_packages', 'daily_distance',     "VARCHAR(50) NULL");
+CALL ensure_column('driving_packages', 'extra_features',     "JSON NULL");
+CALL ensure_column('driving_packages', 'created_by_id',      "INT NULL");
+CALL ensure_column('driving_packages', 'created_by_type',    "VARCHAR(20) NULL");
+CALL ensure_column('driving_packages', 'updated_by_id',      "INT NULL");
+CALL ensure_column('driving_packages', 'updated_by_type',    "VARCHAR(20) NULL");
 
--- status
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='status'
-);
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE courses ADD COLUMN status ENUM("active","inactive") DEFAULT "active";',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- CMS pages (privacy-policy, terms, faqs, support, ...), served by
+-- cms.html?slug=<slug>. A slug is unique per school.
+CREATE TABLE IF NOT EXISTS cms_pages (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('cms_pages', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('cms_pages', 'slug',            "VARCHAR(100) NOT NULL");
+CALL ensure_column('cms_pages', 'title',           "VARCHAR(255) NULL");
+CALL ensure_column('cms_pages', 'content',         "LONGTEXT NULL");
+CALL ensure_column('cms_pages', 'status',          "TINYINT(1) DEFAULT 1");
+CALL ensure_column('cms_pages', 'updated_at',      "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+CALL ensure_column('cms_pages', 'created_by_id',   "INT NULL");
+CALL ensure_column('cms_pages', 'created_by_type', "VARCHAR(20) NULL");
+CALL ensure_column('cms_pages', 'updated_by_id',   "INT NULL");
+CALL ensure_column('cms_pages', 'updated_by_type', "VARCHAR(20) NULL");
+CALL ensure_index('cms_pages', 'uq_cms_school_slug', "UNIQUE KEY uq_cms_school_slug (school_id, slug)");
+CALL ensure_index('cms_pages', 'idx_cms_slug', "KEY idx_cms_slug (slug)");
 
--- created_at
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='created_at'
-);
-SET @sql := IF(@col_exists=0,
-               'ALTER TABLE courses ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
-               'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Remote config / feature flags read by the mobile app.
+CREATE TABLE IF NOT EXISTS app_settings (
+    `key` VARCHAR(100) NOT NULL,
+    PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('app_settings', 'value',       "TEXT NOT NULL");
+CALL ensure_column('app_settings', 'label',       "VARCHAR(200) NOT NULL DEFAULT ''");
+CALL ensure_column('app_settings', 'description', "TEXT NULL");
+CALL ensure_column('app_settings', 'updated_at',  "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
 
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE courses ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- school_id = 0 → global default; > 0 → custom mode for that school.
+CREATE TABLE IF NOT EXISTS payment_modes (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('payment_modes', 'name',      "VARCHAR(100) NOT NULL");
+CALL ensure_column('payment_modes', 'is_custom', "TINYINT(1) NOT NULL DEFAULT 0");
+CALL ensure_column('payment_modes', 'school_id', "INT NOT NULL DEFAULT 0");
 
--- actor tracking (who created/edited this record)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='created_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE courses ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='created_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE courses ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='updated_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE courses ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='courses' AND column_name='updated_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE courses ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- school_id = 0 → global default; > 0 → category owned by that school.
+-- (server.js converts any school_id = 0 rows to school 1 at startup.)
+CREATE TABLE IF NOT EXISTS expense_categories (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('expense_categories', 'name',             "VARCHAR(100) NOT NULL");
+CALL ensure_column('expense_categories', 'is_car_related',   "TINYINT(1) NOT NULL DEFAULT 0");
+CALL ensure_column('expense_categories', 'extra_field',      "VARCHAR(20) NULL");  -- 'car' / 'employee': extra picker on the expense form
+CALL ensure_column('expense_categories', 'is_custom',        "TINYINT(1) NOT NULL DEFAULT 0");
+CALL ensure_column('expense_categories', 'school_id',        "INT NOT NULL DEFAULT 0");
+CALL ensure_column('expense_categories', 'show_in_earnings', "TINYINT(1) NOT NULL DEFAULT 0");  -- shown in the instructor app's Earning tab
 
--- =====================================
--- EMAIL OTPS TABLE
--- =====================================
 
-CREATE TABLE IF NOT EXISTS email_otps (
-    id INT AUTO_INCREMENT PRIMARY KEY
-);
+-- =============================================================================
+-- 3. FLEET & STAFF
+-- =============================================================================
 
--- email
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='email_otps'
-      AND column_name='email'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE email_otps ADD COLUMN email VARCHAR(255) NOT NULL;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+CREATE TABLE IF NOT EXISTS cars (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('cars', 'school_id',             "INT NOT NULL DEFAULT 1");
+CALL ensure_column('cars', 'car_name',              "VARCHAR(50) NOT NULL");
+CALL ensure_column('cars', 'tag',                   "VARCHAR(30) NULL");
+CALL ensure_column('cars', 'branch',                "VARCHAR(50) NULL");
+CALL ensure_column('cars', 'car_registration_no',   "VARCHAR(50) NULL");
+CALL ensure_column('cars', 'insurance_policy_no',   "VARCHAR(50) NULL");
+CALL ensure_column('cars', 'insurance_company',     "VARCHAR(100) NULL");
+CALL ensure_column('cars', 'insurance_issue_date',  "DATE NULL");
+CALL ensure_column('cars', 'insurance_expiry_date', "DATE NULL");
+CALL ensure_column('cars', 'puc_issue_date',        "DATE NULL");
+CALL ensure_column('cars', 'puc_expiry_date',       "DATE NULL");
+CALL ensure_column('cars', 'price_15_days',         "DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+CALL ensure_column('cars', 'price_21_days',         "DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+CALL ensure_column('cars', 'inactive',              "TINYINT(1) NOT NULL DEFAULT 0");
+CALL ensure_column('cars', 'created_by_id',         "INT NULL");
+CALL ensure_column('cars', 'created_by_type',       "VARCHAR(20) NULL");
+CALL ensure_column('cars', 'updated_by_id',         "INT NULL");
+CALL ensure_column('cars', 'updated_by_type',       "VARCHAR(20) NULL");
+CALL ensure_index('cars', 'idx_cars_school', "KEY idx_cars_school (school_id)");
 
--- otp
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='email_otps'
-      AND column_name='otp'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE email_otps ADD COLUMN otp VARCHAR(6) NOT NULL;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Admin "reset meter" log. A car's odometer floor is normally the highest
+-- reading in driver_trips; a reset row sets a new baseline, and only readings
+-- recorded after it count towards the floor.
+CREATE TABLE IF NOT EXISTS car_meter_resets (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('car_meter_resets', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('car_meter_resets', 'car_name',        "VARCHAR(100) NOT NULL");
+CALL ensure_column('car_meter_resets', 'reading',         "INT NOT NULL");
+CALL ensure_column('car_meter_resets', 'note',            "VARCHAR(255) NULL");
+CALL ensure_column('car_meter_resets', 'created_by_id',   "INT NULL");
+CALL ensure_column('car_meter_resets', 'created_by_type', "VARCHAR(20) NULL");
+CALL ensure_column('car_meter_resets', 'created_at',      "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('car_meter_resets', 'idx_car_meter_resets_car', "KEY idx_car_meter_resets_car (school_id, car_name, created_at)");
 
--- attempts
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='email_otps'
-      AND column_name='attempts'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE email_otps ADD COLUMN attempts INT DEFAULT 0;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Instructors and branch managers (role = 'Instructor' / 'manager').
+-- branch2: optional second branch the person also covers. Every
+-- "belongs to branch X" check must test branch OR branch2.
+CREATE TABLE IF NOT EXISTS instructors (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('instructors', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('instructors', 'employee_no',     "VARCHAR(10) NULL");  -- e.g. EMP001
+CALL ensure_column('instructors', 'instructor_name', "VARCHAR(100) NOT NULL");
+CALL ensure_column('instructors', 'role',            "VARCHAR(50) NOT NULL DEFAULT 'Instructor'");
+CALL ensure_column('instructors', 'email',           "VARCHAR(100) NULL");
+CALL ensure_column('instructors', 'mobile_no',       "VARCHAR(20) NULL");
+CALL ensure_column('instructors', 'branch',          "VARCHAR(50) NULL");
+CALL ensure_column('instructors', 'branch2',         "VARCHAR(50) NULL");
+CALL ensure_column('instructors', 'drivers_license', "VARCHAR(30) NULL");
+CALL ensure_column('instructors', 'adhar_no',        "VARCHAR(20) NULL");
+CALL ensure_column('instructors', 'address',         "TEXT NULL");
+CALL ensure_column('instructors', 'is_active',       "TINYINT(1) DEFAULT 1");
+CALL ensure_column('instructors', 'created_by_id',   "INT NULL");
+CALL ensure_column('instructors', 'created_by_type', "VARCHAR(20) NULL");
+CALL ensure_column('instructors', 'updated_by_id',   "INT NULL");
+CALL ensure_column('instructors', 'updated_by_type', "VARCHAR(20) NULL");
 
--- resend_count
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='email_otps'
-      AND column_name='resend_count'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE email_otps ADD COLUMN resend_count INT DEFAULT 0;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Staff clock-in/out. Several rows per person per day are allowed (breaks).
+-- person_type says which table instructor_id belongs to ('instructor' →
+-- instructors, 'admin' → admins); ids are only unique within their table.
+CREATE TABLE IF NOT EXISTS instructor_attendance (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('instructor_attendance', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('instructor_attendance', 'instructor_id',   "INT NOT NULL");
+CALL ensure_column('instructor_attendance', 'instructor_name', "VARCHAR(100) NOT NULL DEFAULT ''");
+CALL ensure_column('instructor_attendance', 'person_type',     "VARCHAR(20) NOT NULL DEFAULT 'instructor'");
+CALL ensure_column('instructor_attendance', 'date',            "DATE NOT NULL");
+CALL ensure_column('instructor_attendance', 'clock_in',        "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_column('instructor_attendance', 'clock_out',       "TIMESTAMP NULL DEFAULT NULL");
+CALL ensure_index('instructor_attendance', 'idx_inst_date', "KEY idx_inst_date (instructor_id, date)");
 
--- last_sent_at
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='email_otps'
-      AND column_name='last_sent_at'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE email_otps ADD COLUMN last_sent_at DATETIME DEFAULT CURRENT_TIMESTAMP;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+CREATE TABLE IF NOT EXISTS leave_requests (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('leave_requests', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('leave_requests', 'instructor_id',   "INT NOT NULL");
+CALL ensure_column('leave_requests', 'instructor_name', "VARCHAR(100) NULL");
+CALL ensure_column('leave_requests', 'branch',          "VARCHAR(100) NULL");
+CALL ensure_column('leave_requests', 'leave_from',      "DATE NOT NULL");
+CALL ensure_column('leave_requests', 'leave_to',        "DATE NOT NULL");
+CALL ensure_column('leave_requests', 'leave_type',      "ENUM('Full Day','Half Day') NOT NULL DEFAULT 'Full Day'");
+CALL ensure_column('leave_requests', 'reason',          "TEXT NULL");
+CALL ensure_column('leave_requests', 'status',          "ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending'");
+CALL ensure_column('leave_requests', 'created_at',      "DATETIME NOT NULL");
+CALL ensure_column('leave_requests', 'updated_by_id',   "INT NULL");  -- who approved / rejected
+CALL ensure_column('leave_requests', 'updated_by_type', "VARCHAR(20) NULL");
+CALL ensure_index('leave_requests', 'idx_leave_requests_instructor', "KEY idx_leave_requests_instructor (instructor_id)");
 
--- ip_address
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='email_otps'
-      AND column_name='ip_address'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE email_otps ADD COLUMN ip_address VARCHAR(45);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Append-only points history. Balance = SUM(points); never a mutable counter.
+CREATE TABLE IF NOT EXISTS instructor_rewards_ledger (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('instructor_rewards_ledger', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('instructor_rewards_ledger', 'instructor_id',   "INT NOT NULL");
+CALL ensure_column('instructor_rewards_ledger', 'trip_id',         "INT NULL");
+CALL ensure_column('instructor_rewards_ledger', 'type',            "ENUM('trip_earned','admin_withdraw') NOT NULL");
+CALL ensure_column('instructor_rewards_ledger', 'points',          "INT NOT NULL");
+CALL ensure_column('instructor_rewards_ledger', 'rupee_value',     "DECIMAL(10,2) NULL");
+CALL ensure_column('instructor_rewards_ledger', 'note',            "VARCHAR(255) NULL");
+CALL ensure_column('instructor_rewards_ledger', 'created_by_id',   "INT NULL");
+CALL ensure_column('instructor_rewards_ledger', 'created_by_type', "VARCHAR(20) NULL");
+CALL ensure_column('instructor_rewards_ledger', 'created_at',      "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('instructor_rewards_ledger', 'idx_rewards_instructor', "KEY idx_rewards_instructor (instructor_id)");
 
--- expires_at
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='email_otps'
-      AND column_name='expires_at'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE email_otps ADD COLUMN expires_at DATETIME NOT NULL;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- verified
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='email_otps'
-      AND column_name='verified'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE email_otps ADD COLUMN verified TINYINT(1) DEFAULT 0;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- =============================================================================
+-- 4. ENQUIRIES, BOOKINGS & LESSONS
+-- =============================================================================
 
--- created_at
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='email_otps'
-      AND column_name='created_at'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE email_otps ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+CREATE TABLE IF NOT EXISTS enquiries (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('enquiries', 'school_id',      "INT NOT NULL DEFAULT 1");
+CALL ensure_column('enquiries', 'full_name',      "VARCHAR(150) NOT NULL");
+CALL ensure_column('enquiries', 'email',          "VARCHAR(150) NOT NULL");
+CALL ensure_column('enquiries', 'phone',          "VARCHAR(50) NOT NULL");
+CALL ensure_column('enquiries', 'branch_id',      "INT NULL");
+CALL ensure_column('enquiries', 'course_id',      "INT NULL");
+CALL ensure_column('enquiries', 'has_licence',    "ENUM('Yes','No') NOT NULL DEFAULT 'No'");
+CALL ensure_column('enquiries', 'message',        "TEXT NULL");
+CALL ensure_column('enquiries', 'heard_from',     "VARCHAR(50) NULL");
+CALL ensure_column('enquiries', 'hear_about',     "VARCHAR(50) NULL");
+CALL ensure_column('enquiries', 'training_slots', "INT NULL");
+CALL ensure_column('enquiries', 'slots',          "INT NULL");
+CALL ensure_column('enquiries', 'preferred_car',  "VARCHAR(100) NULL");
+CALL ensure_column('enquiries', 'status',         "ENUM('New','Called','Interested','Not Interested','Converted','Follow Up') DEFAULT 'New'");
+CALL ensure_column('enquiries', 'created_at',     "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('enquiries', 'idx_enquiries_school', "KEY idx_enquiries_school (school_id)");
 
--- =====================================
--- INDEXES
--- =====================================
+-- Follow-up log for an enquiry (calls, notes, WhatsApp, ...).
+CREATE TABLE IF NOT EXISTS enquiry_actions (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('enquiry_actions', 'school_id',   "INT NOT NULL DEFAULT 1");
+CALL ensure_column('enquiry_actions', 'enquiry_id',  "INT NOT NULL");
+CALL ensure_column('enquiry_actions', 'action_type', "ENUM('Call','Note','Email','Meeting','WhatsApp','Other') DEFAULT 'Call'");
+CALL ensure_column('enquiry_actions', 'note',        "TEXT NOT NULL");
+CALL ensure_column('enquiry_actions', 'action_by',   "VARCHAR(100) NOT NULL");
+CALL ensure_column('enquiry_actions', 'actor_id',    "INT NULL");
+CALL ensure_column('enquiry_actions', 'actor_type',  "VARCHAR(20) NULL");
+CALL ensure_column('enquiry_actions', 'action_date', "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_column('enquiry_actions', 'created_at',  "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('enquiry_actions', 'idx_enquiry_actions_enquiry', "KEY idx_enquiry_actions_enquiry (enquiry_id)");
+CALL ensure_constraint('enquiry_actions', 'fk_enquiry_actions_enquiry', "CONSTRAINT fk_enquiry_actions_enquiry FOREIGN KEY (enquiry_id) REFERENCES enquiries (id) ON DELETE CASCADE");
 
--- email index
-SET @idx_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-    WHERE table_schema='drivingschool'
-      AND table_name='email_otps'
-      AND index_name='idx_email'
-);
-SET @sql := IF(@idx_exists=0,
-    'CREATE INDEX idx_email ON email_otps (email);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- A student's course enrolment. allotted_time .. allotted_time4 are the daily
+-- lesson slots; attendance rows are keyed by (booking_id, date, time).
+CREATE TABLE IF NOT EXISTS bookings (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('bookings', 'school_id',         "INT NOT NULL DEFAULT 1");
+CALL ensure_column('bookings', 'branch',            "VARCHAR(100) NOT NULL");
 
--- email + created_at composite index
-SET @idx_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-    WHERE table_schema='drivingschool'
-      AND table_name='email_otps'
-      AND index_name='idx_email_created'
-);
-SET @sql := IF(@idx_exists=0,
-    'CREATE INDEX idx_email_created ON email_otps (email, created_at);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- student
+CALL ensure_column('bookings', 'customer_name',     "VARCHAR(100) NULL");
+CALL ensure_column('bookings', 'sex',               "ENUM('Male','Female','Other') NULL");
+CALL ensure_column('bookings', 'birth_date',        "DATE NULL");
+CALL ensure_column('bookings', 'mobile_no',         "VARCHAR(20) NULL");
+CALL ensure_column('bookings', 'whatsapp_no',       "VARCHAR(20) NULL");
+CALL ensure_column('bookings', 'email',             "VARCHAR(100) NULL");
+CALL ensure_column('bookings', 'occupation',        "VARCHAR(100) NULL");
+CALL ensure_column('bookings', 'address',           "VARCHAR(255) NULL");
+CALL ensure_column('bookings', 'pincode',           "VARCHAR(10) NULL");
+CALL ensure_column('bookings', 'ref',               "VARCHAR(100) NULL");
 
--- school_id (multi-tenant scoping)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='email_otps' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE email_otps ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- licence
+CALL ensure_column('bookings', 'has_licence',       "ENUM('Yes','No') DEFAULT 'No'");
+CALL ensure_column('bookings', 'cov_lmv',           "TINYINT(1) DEFAULT 0");
+CALL ensure_column('bookings', 'cov_mc',            "TINYINT(1) DEFAULT 0");
+CALL ensure_column('bookings', 'dl_no',             "VARCHAR(50) NULL");
+CALL ensure_column('bookings', 'dl_from',           "VARCHAR(50) NULL");
+CALL ensure_column('bookings', 'dl_to',             "VARCHAR(50) NULL");
+CALL ensure_column('bookings', 'apply_licence',     "ENUM('Yes','No') DEFAULT 'No'");
+CALL ensure_column('bookings', 'licence_types',     "VARCHAR(50) NULL");
+CALL ensure_column('bookings', 'licence_fee',       "DECIMAL(10,2) DEFAULT 0.00");
 
--- =====================================
--- EXAM USERS TABLE
--- =====================================
+-- course & schedule
+CALL ensure_column('bookings', 'training_days',     "INT NOT NULL DEFAULT 0");
+CALL ensure_column('bookings', 'duration_minutes',  "INT NOT NULL DEFAULT 30");
+CALL ensure_column('bookings', 'car_name',          "VARCHAR(50) NULL");
+CALL ensure_column('bookings', 'instructor_name',   "VARCHAR(100) NULL");
+CALL ensure_column('bookings', 'ac_facility',       "TINYINT(1) DEFAULT 0");
+CALL ensure_column('bookings', 'pickup_drop',       "TINYINT(1) DEFAULT 0");
+CALL ensure_column('bookings', 'starting_from',     "DATE NULL");
+CALL ensure_column('bookings', 'allotted_time',     "TIME NULL");
+CALL ensure_column('bookings', 'allotted_time2',    "TIME NULL");
+CALL ensure_column('bookings', 'allotted_time3',    "TIME NULL");
+CALL ensure_column('bookings', 'allotted_time4',    "TIME NULL");
 
+-- fees
+CALL ensure_column('bookings', 'total_fees',        "DECIMAL(10,2) NULL");
+CALL ensure_column('bookings', 'advance',           "DECIMAL(10,2) NULL");
+
+-- progress
+CALL ensure_column('bookings', 'attendance_status', "ENUM('Pending','Active','Completed','Expired','Hold') DEFAULT 'Pending'");
+CALL ensure_column('bookings', 'present_days',      "INT DEFAULT 0");
+CALL ensure_column('bookings', 'extended_days',     "INT DEFAULT 0");
+CALL ensure_column('bookings', 'hold_status',       "TINYINT DEFAULT 0");
+CALL ensure_column('bookings', 'hold_from',         "DATE NULL");
+CALL ensure_column('bookings', 'resume_from',       "DATE NULL");
+CALL ensure_column('bookings', 'expiry_reason',     "TEXT NULL");
+CALL ensure_column('bookings', 'expiry_reason_at',  "DATETIME NULL");
+CALL ensure_column('bookings', 'certificate_url',   "VARCHAR(255) NULL");
+
+CALL ensure_column('bookings', 'created_at',        "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_column('bookings', 'created_by_id',     "INT NULL");
+CALL ensure_column('bookings', 'created_by_type',   "VARCHAR(20) NULL");
+CALL ensure_column('bookings', 'updated_by_id',     "INT NULL");
+CALL ensure_column('bookings', 'updated_by_type',   "VARCHAR(20) NULL");
+CALL ensure_index('bookings', 'idx_bookings_school', "KEY idx_bookings_school (school_id)");
+
+-- One row per booking per lesson slot.
+--   time            'HH:MM' slot key ('' on legacy rows)
+--   change_source   'manual', or set by an approved student cancel/replacement
+--                   so the instructor app shows "Cancelled"/"Rescheduled"
+CREATE TABLE IF NOT EXISTS attendance (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('attendance', 'school_id',         "INT NOT NULL DEFAULT 1");
+CALL ensure_column('attendance', 'booking_id',        "INT NOT NULL");
+CALL ensure_column('attendance', 'date',              "DATE NOT NULL");
+CALL ensure_column('attendance', 'time',              "VARCHAR(10) NOT NULL DEFAULT ''");
+CALL ensure_column('attendance', 'present',           "TINYINT(1) NOT NULL DEFAULT 0");
+CALL ensure_column('attendance', 'marked_at',         "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+CALL ensure_column('attendance', 'marked_by_id',      "INT NULL");
+CALL ensure_column('attendance', 'marked_by_type',    "VARCHAR(20) NULL");
+CALL ensure_column('attendance', 'approval_status',   "ENUM('pending','approved') NOT NULL DEFAULT 'approved'");
+CALL ensure_column('attendance', 'approved_by_id',    "INT NULL");
+CALL ensure_column('attendance', 'approved_by_type',  "VARCHAR(20) NULL");
+CALL ensure_column('attendance', 'approved_at',       "DATETIME NULL");
+CALL ensure_column('attendance', 'change_source',     "ENUM('manual','student_cancel','student_replacement') NOT NULL DEFAULT 'manual'");
+CALL ensure_column('attendance', 'change_request_id', "INT NULL");
+CALL ensure_index('attendance', 'unique_record', "UNIQUE KEY unique_record (booking_id, date, time)");
+CALL ensure_index('attendance', 'idx_attendance_school', "KEY idx_attendance_school (school_id)");
+
+-- Ad-hoc / make-up lessons outside a booking's regular allotted times, and
+-- slots created by an approved student replacement request.
+CREATE TABLE IF NOT EXISTS schedule_slots (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('schedule_slots', 'school_id',           "INT NOT NULL DEFAULT 1");
+CALL ensure_column('schedule_slots', 'booking_id',          "INT NOT NULL");
+CALL ensure_column('schedule_slots', 'date',                "DATE NOT NULL");
+CALL ensure_column('schedule_slots', 'time',                "VARCHAR(10) NOT NULL");
+CALL ensure_column('schedule_slots', 'car_name',            "VARCHAR(100) NULL");
+CALL ensure_column('schedule_slots', 'instructor_name',     "VARCHAR(100) NULL");
+CALL ensure_column('schedule_slots', 'present',             "TINYINT(1) DEFAULT 1");
+CALL ensure_column('schedule_slots', 'source',              "ENUM('adhoc','student_replacement') NOT NULL DEFAULT 'adhoc'");
+CALL ensure_column('schedule_slots', 'change_request_id',   "INT NULL");
+CALL ensure_column('schedule_slots', 'replaced_from_time',  "VARCHAR(10) NULL");
+CALL ensure_column('schedule_slots', 'created_by_admin_id', "INT NULL");  -- session account id of the creator
+CALL ensure_column('schedule_slots', 'created_by_name',     "VARCHAR(100) NULL");
+CALL ensure_column('schedule_slots', 'created_by_role',     "VARCHAR(20) NULL");  -- 'instructor' or 'admin'
+CALL ensure_column('schedule_slots', 'created_at',          "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('schedule_slots', 'fk_schedule_slots_booking', "KEY fk_schedule_slots_booking (booking_id)");
+CALL ensure_constraint('schedule_slots', 'fk_schedule_slots_booking', "CONSTRAINT fk_schedule_slots_booking FOREIGN KEY (booking_id) REFERENCES bookings (id) ON DELETE CASCADE");
+
+CREATE TABLE IF NOT EXISTS schedule_slots_deletions (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('schedule_slots_deletions', 'original_slot_id',    "INT NOT NULL");
+CALL ensure_column('schedule_slots_deletions', 'booking_id',          "INT NOT NULL");
+CALL ensure_column('schedule_slots_deletions', 'date',                "DATE NOT NULL");
+CALL ensure_column('schedule_slots_deletions', 'time',                "VARCHAR(10) NOT NULL");
+CALL ensure_column('schedule_slots_deletions', 'car_name',            "VARCHAR(100) NULL");
+CALL ensure_column('schedule_slots_deletions', 'instructor_name',     "VARCHAR(100) NULL");
+CALL ensure_column('schedule_slots_deletions', 'present',             "TINYINT(1) NULL");
+CALL ensure_column('schedule_slots_deletions', 'source',              "VARCHAR(30) NULL");
+CALL ensure_column('schedule_slots_deletions', 'created_by_admin_id', "INT NULL");
+CALL ensure_column('schedule_slots_deletions', 'created_by_name',     "VARCHAR(100) NULL");
+CALL ensure_column('schedule_slots_deletions', 'created_by_role',     "VARCHAR(20) NULL");
+CALL ensure_column('schedule_slots_deletions', 'created_at',          "TIMESTAMP NULL DEFAULT NULL");
+CALL ensure_column('schedule_slots_deletions', 'deleted_by_admin_id', "INT NULL");
+CALL ensure_column('schedule_slots_deletions', 'deleted_by_name',     "VARCHAR(100) NULL");
+CALL ensure_column('schedule_slots_deletions', 'deleted_by_role',     "VARCHAR(20) NULL");
+CALL ensure_column('schedule_slots_deletions', 'deleted_at',          "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_column('schedule_slots_deletions', 'school_id',           "INT NOT NULL DEFAULT 1");
+
+-- Student-initiated cancel / replacement of a single lesson occurrence.
+-- 'Reverted' = an admin undid an approved request.
+CREATE TABLE IF NOT EXISTS schedule_change_requests (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('schedule_change_requests', 'school_id',                  "INT NOT NULL DEFAULT 1");
+CALL ensure_column('schedule_change_requests', 'booking_id',                 "INT NOT NULL");
+CALL ensure_column('schedule_change_requests', 'student_email',              "VARCHAR(255) NOT NULL");
+CALL ensure_column('schedule_change_requests', 'request_type',               "ENUM('Cancel','Replacement') NOT NULL");
+CALL ensure_column('schedule_change_requests', 'occurrence_date',            "DATE NOT NULL");
+CALL ensure_column('schedule_change_requests', 'original_time',              "VARCHAR(10) NOT NULL");
+CALL ensure_column('schedule_change_requests', 'new_time',                   "VARCHAR(10) NULL");
+CALL ensure_column('schedule_change_requests', 'reason',                     "TEXT NULL");
+CALL ensure_column('schedule_change_requests', 'status',                     "ENUM('Pending','Approved','Rejected','Reverted') NOT NULL DEFAULT 'Pending'");
+CALL ensure_column('schedule_change_requests', 'admin_note',                 "TEXT NULL");
+CALL ensure_column('schedule_change_requests', 'resulting_attendance_id',    "INT NULL");
+CALL ensure_column('schedule_change_requests', 'resulting_schedule_slot_id', "INT NULL");
+CALL ensure_column('schedule_change_requests', 'created_at',                 "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_column('schedule_change_requests', 'updated_by_id',              "INT NULL");
+CALL ensure_column('schedule_change_requests', 'updated_by_type',            "VARCHAR(20) NULL");
+CALL ensure_column('schedule_change_requests', 'reverted_by_id',             "INT NULL");
+CALL ensure_column('schedule_change_requests', 'reverted_by_type',           "VARCHAR(20) NULL");
+CALL ensure_column('schedule_change_requests', 'reverted_at',                "DATETIME NULL");
+CALL ensure_index('schedule_change_requests', 'idx_scr_booking_date', "KEY idx_scr_booking_date (booking_id, occurrence_date)");
+CALL ensure_constraint('schedule_change_requests', 'fk_scr_booking', "CONSTRAINT fk_scr_booking FOREIGN KEY (booking_id) REFERENCES bookings (id) ON DELETE CASCADE");
+
+-- A lesson as actually driven, started/ended from the instructor app.
+-- Manager approval marks the student present ('rejected' marks absent).
+CREATE TABLE IF NOT EXISTS driver_trips (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('driver_trips', 'school_id',             "INT NOT NULL DEFAULT 1");
+CALL ensure_column('driver_trips', 'instructor_id',         "INT NOT NULL");
+CALL ensure_column('driver_trips', 'instructor_name',       "VARCHAR(100) NULL");
+CALL ensure_column('driver_trips', 'booking_id',            "INT NOT NULL");
+CALL ensure_column('driver_trips', 'student_name',          "VARCHAR(100) NULL");
+CALL ensure_column('driver_trips', 'car_name',              "VARCHAR(100) NULL");  -- copied from the booking at trip start
+CALL ensure_column('driver_trips', 'schedule_slot_id',      "INT NULL");  -- set when the trip is for an ad-hoc/replacement slot
+CALL ensure_column('driver_trips', 'started_at',            "DATETIME NOT NULL");
+CALL ensure_column('driver_trips', 'ended_at',              "DATETIME NULL");
+CALL ensure_column('driver_trips', 'duration_mins',         "INT NOT NULL DEFAULT 30");
+CALL ensure_column('driver_trips', 'status',                "ENUM('active','paused','completed') NOT NULL DEFAULT 'active'");
+CALL ensure_column('driver_trips', 'paused_at',             "DATETIME NULL");
+CALL ensure_column('driver_trips', 'paused_secs',           "INT NOT NULL DEFAULT 0");
+CALL ensure_column('driver_trips', 'start_odometer',        "INT NULL");
+CALL ensure_column('driver_trips', 'end_odometer',          "INT NULL");
+CALL ensure_column('driver_trips', 'approval_status',       "ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending'");
+CALL ensure_column('driver_trips', 'approved_by_id',        "INT NULL");
+CALL ensure_column('driver_trips', 'approved_by_type',      "VARCHAR(20) NULL");
+CALL ensure_column('driver_trips', 'approved_at',           "DATETIME NULL");
+CALL ensure_column('driver_trips', 'reward_points_awarded', "TINYINT(1) NOT NULL DEFAULT 0");  -- guards against double-awarding
+CALL ensure_column('driver_trips', 'created_at',            "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('driver_trips', 'idx_driver_trips_instructor', "KEY idx_driver_trips_instructor (instructor_id, status)");
+
+-- Last known GPS position per instructor (one row each). Legacy: exists in
+-- production but no longer read or written by the current code.
+CREATE TABLE IF NOT EXISTS driver_locations (
+    instructor_id INT NOT NULL,
+    PRIMARY KEY (instructor_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('driver_locations', 'lat',        "DECIMAL(10,7) NOT NULL");
+CALL ensure_column('driver_locations', 'lng',        "DECIMAL(10,7) NOT NULL");
+CALL ensure_column('driver_locations', 'accuracy',   "FLOAT NULL");
+CALL ensure_column('driver_locations', 'updated_at', "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+
+-- Student's 1–5 rating of a single lesson.
+CREATE TABLE IF NOT EXISTS session_ratings (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('session_ratings', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('session_ratings', 'exam_user_id',    "INT NOT NULL");
+CALL ensure_column('session_ratings', 'attendance_id',   "INT NOT NULL");
+CALL ensure_column('session_ratings', 'booking_id',      "INT NULL");
+CALL ensure_column('session_ratings', 'instructor_name', "VARCHAR(255) NULL");
+CALL ensure_column('session_ratings', 'rating',          "TINYINT NOT NULL");
+CALL ensure_column('session_ratings', 'comment',         "TEXT NULL");
+CALL ensure_column('session_ratings', 'rated_at',        "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('session_ratings', 'uniq_user_session', "UNIQUE KEY uniq_user_session (exam_user_id, attendance_id)");
+CALL ensure_constraint('session_ratings', 'session_ratings_chk_1', "CONSTRAINT session_ratings_chk_1 CHECK (rating BETWEEN 1 AND 5)");
+
+CREATE TABLE IF NOT EXISTS student_complaints (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('student_complaints', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('student_complaints', 'student_email',   "VARCHAR(255) NOT NULL");
+CALL ensure_column('student_complaints', 'student_name',    "VARCHAR(255) NULL");
+CALL ensure_column('student_complaints', 'booking_id',      "INT NULL");
+CALL ensure_column('student_complaints', 'subject',         "VARCHAR(255) NOT NULL");
+CALL ensure_column('student_complaints', 'message',         "TEXT NOT NULL");
+CALL ensure_column('student_complaints', 'category',        "ENUM('Instructor','Schedule','Payment','Car','App','Other') NOT NULL DEFAULT 'Other'");
+CALL ensure_column('student_complaints', 'status',          "ENUM('Open','In Review','Resolved','Closed') NOT NULL DEFAULT 'Open'");
+CALL ensure_column('student_complaints', 'admin_note',      "TEXT NULL");
+CALL ensure_column('student_complaints', 'created_at',      "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_column('student_complaints', 'updated_at',      "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+CALL ensure_column('student_complaints', 'updated_by_id',   "INT NULL");
+CALL ensure_column('student_complaints', 'updated_by_type', "VARCHAR(20) NULL");
+CALL ensure_index('student_complaints', 'idx_student_complaints_email', "KEY idx_student_complaints_email (student_email)");
+
+-- "Find Your Driver": a customer asks for a driver for their OWN car for a day
+-- or two; an admin assigns an instructor and quotes a price.
+CREATE TABLE IF NOT EXISTS driver_hire_requests (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('driver_hire_requests', 'school_id',                "INT NOT NULL DEFAULT 1");
+CALL ensure_column('driver_hire_requests', 'student_email',            "VARCHAR(255) NOT NULL");
+CALL ensure_column('driver_hire_requests', 'student_name',             "VARCHAR(255) NULL");
+CALL ensure_column('driver_hire_requests', 'contact_phone',            "VARCHAR(30) NOT NULL");
+CALL ensure_column('driver_hire_requests', 'service_date',             "DATE NOT NULL");
+CALL ensure_column('driver_hire_requests', 'num_days',                 "TINYINT NOT NULL DEFAULT 1");
+CALL ensure_column('driver_hire_requests', 'car_model',                "VARCHAR(100) NULL");
+CALL ensure_column('driver_hire_requests', 'transmission',             "ENUM('Manual','Automatic') NULL");
+CALL ensure_column('driver_hire_requests', 'pickup_address',           "TEXT NOT NULL");
+CALL ensure_column('driver_hire_requests', 'area',                     "VARCHAR(120) NULL");
+CALL ensure_column('driver_hire_requests', 'notes',                    "TEXT NULL");
+CALL ensure_column('driver_hire_requests', 'status',                   "ENUM('Requested','Assigned','In Progress','Completed','Cancelled') NOT NULL DEFAULT 'Requested'");
+CALL ensure_column('driver_hire_requests', 'assigned_instructor_id',   "INT NULL");
+CALL ensure_column('driver_hire_requests', 'assigned_instructor_name', "VARCHAR(100) NULL");
+CALL ensure_column('driver_hire_requests', 'quoted_price',             "DECIMAL(10,2) NULL");
+CALL ensure_column('driver_hire_requests', 'admin_note',               "TEXT NULL");
+CALL ensure_column('driver_hire_requests', 'created_at',               "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_column('driver_hire_requests', 'updated_at',               "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+CALL ensure_column('driver_hire_requests', 'updated_by_id',            "INT NULL");
+CALL ensure_column('driver_hire_requests', 'updated_by_type',          "VARCHAR(20) NULL");
+CALL ensure_index('driver_hire_requests', 'idx_driver_hire_school_status', "KEY idx_driver_hire_school_status (school_id, status)");
+CALL ensure_index('driver_hire_requests', 'idx_driver_hire_student', "KEY idx_driver_hire_student (student_email)");
+
+
+-- =============================================================================
+-- 5. STUDENT ACCOUNTS & ONLINE LEARNER'S-LICENCE EXAM
+-- =============================================================================
+
+-- Email-OTP verified users (students / exam takers).
 CREATE TABLE IF NOT EXISTS exam_users (
-    id INT AUTO_INCREMENT PRIMARY KEY
-);
-
--- email
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_users'
-      AND column_name='email'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_users ADD COLUMN email VARCHAR(255) NOT NULL UNIQUE;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- first_verified_at
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_users'
-      AND column_name='first_verified_at'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_users ADD COLUMN first_verified_at DATETIME;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- last_seen_at
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_users'
-      AND column_name='last_seen_at'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_users ADD COLUMN last_seen_at DATETIME;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- total_attempts
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_users'
-      AND column_name='total_attempts'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_users ADD COLUMN total_attempts INT DEFAULT 0;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- best_score
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_users'
-      AND column_name='best_score'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_users ADD COLUMN best_score DECIMAL(4,1) DEFAULT 0.0;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- last_score
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_users'
-      AND column_name='last_score'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_users ADD COLUMN last_score DECIMAL(4,1) DEFAULT 0.0;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- last_result
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_users'
-      AND column_name='last_result'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_users ADD COLUMN last_result ENUM("PASS","FAIL");',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- ip_address
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_users'
-      AND column_name='ip_address'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_users ADD COLUMN ip_address VARCHAR(45);',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- user_agent
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_users'
-      AND column_name='user_agent'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_users ADD COLUMN user_agent TEXT;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- full_name
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='exam_users' AND column_name='full_name');
-SET @sql := IF(@col_exists=0,'ALTER TABLE exam_users ADD COLUMN full_name VARCHAR(150) DEFAULT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- mobile_no
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='exam_users' AND column_name='mobile_no');
-SET @sql := IF(@col_exists=0,'ALTER TABLE exam_users ADD COLUMN mobile_no VARCHAR(20) DEFAULT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- school_id (multi-tenant scoping)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='exam_users' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE exam_users ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- EXAM ATTEMPTS TABLE
--- =====================================
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('exam_users', 'school_id',         "INT NOT NULL DEFAULT 1");
+CALL ensure_column('exam_users', 'email',             "VARCHAR(255) NOT NULL");
+CALL ensure_column('exam_users', 'full_name',         "VARCHAR(150) NULL");
+CALL ensure_column('exam_users', 'mobile_no',         "VARCHAR(20) NULL");
+CALL ensure_column('exam_users', 'first_verified_at', "DATETIME NULL");
+CALL ensure_column('exam_users', 'last_seen_at',      "DATETIME NULL");
+CALL ensure_column('exam_users', 'total_attempts',    "INT DEFAULT 0");
+CALL ensure_column('exam_users', 'best_score',        "DECIMAL(4,1) DEFAULT 0.0");
+CALL ensure_column('exam_users', 'last_score',        "DECIMAL(4,1) DEFAULT 0.0");
+CALL ensure_column('exam_users', 'last_result',       "ENUM('PASS','FAIL') NULL");
+CALL ensure_column('exam_users', 'ip_address',        "VARCHAR(45) NULL");
+CALL ensure_column('exam_users', 'user_agent',        "TEXT NULL");
+CALL ensure_index('exam_users', 'email', "UNIQUE KEY email (email)");
+CALL ensure_index('exam_users', 'idx_exam_users_email', "KEY idx_exam_users_email (email)");
 
 CREATE TABLE IF NOT EXISTS exam_attempts (
-    id INT AUTO_INCREMENT PRIMARY KEY
-);
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('exam_attempts', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('exam_attempts', 'user_id',         "INT NOT NULL");
+CALL ensure_column('exam_attempts', 'mode',            "ENUM('mock','practice') NULL");
+CALL ensure_column('exam_attempts', 'status',          "ENUM('started','completed') DEFAULT 'started'");
+CALL ensure_column('exam_attempts', 'score',           "DECIMAL(4,1) NULL");
+CALL ensure_column('exam_attempts', 'total_questions', "INT NULL");
+CALL ensure_column('exam_attempts', 'correct_answers', "INT NULL");
+CALL ensure_column('exam_attempts', 'result',          "ENUM('PASS','FAIL') NULL");
+CALL ensure_column('exam_attempts', 'answers',         "JSON NULL");
+CALL ensure_column('exam_attempts', 'started_at',      "DATETIME NULL");
+CALL ensure_column('exam_attempts', 'finished_at',     "DATETIME NULL");
+CALL ensure_column('exam_attempts', 'ip_address',      "VARCHAR(45) NULL");  -- captured at attempt start
+CALL ensure_column('exam_attempts', 'user_agent',      "TEXT NULL");
+CALL ensure_index('exam_attempts', 'idx_exam_attempts_user', "KEY idx_exam_attempts_user (user_id)");
+CALL ensure_constraint('exam_attempts', 'fk_exam_attempts_user', "CONSTRAINT fk_exam_attempts_user FOREIGN KEY (user_id) REFERENCES exam_users (id)");
 
--- user_id
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_attempts'
-      AND column_name='user_id'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_attempts ADD COLUMN user_id INT NOT NULL;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+CREATE TABLE IF NOT EXISTS practice_progress (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('practice_progress', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('practice_progress', 'user_id',         "INT NOT NULL");
+CALL ensure_column('practice_progress', 'question_number', "VARCHAR(10) NOT NULL");
+CALL ensure_column('practice_progress', 'category',        "VARCHAR(100) NOT NULL");
+CALL ensure_column('practice_progress', 'language',        "VARCHAR(5) DEFAULT 'en'");
+CALL ensure_column('practice_progress', 'selected_answer', "INT NOT NULL");
+CALL ensure_column('practice_progress', 'is_correct',      "TINYINT(1) DEFAULT 0");
+CALL ensure_column('practice_progress', 'answered_at',     "DATETIME DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('practice_progress', 'unique_user_question_lang', "UNIQUE KEY unique_user_question_lang (user_id, question_number, language)");
+CALL ensure_index('practice_progress', 'idx_practice_progress_user', "KEY idx_practice_progress_user (user_id)");
+CALL ensure_index('practice_progress', 'idx_practice_progress_category', "KEY idx_practice_progress_category (user_id, category, language)");
+CALL ensure_constraint('practice_progress', 'fk_practice_progress_user', "CONSTRAINT fk_practice_progress_user FOREIGN KEY (user_id) REFERENCES exam_users (id) ON DELETE CASCADE");
 
--- mode
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_attempts'
-      AND column_name='mode'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_attempts ADD COLUMN mode ENUM("mock","practice");',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+CREATE TABLE IF NOT EXISTS email_otps (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('email_otps', 'school_id',    "INT NOT NULL DEFAULT 1");
+CALL ensure_column('email_otps', 'email',        "VARCHAR(255) NOT NULL");
+CALL ensure_column('email_otps', 'otp',          "VARCHAR(6) NOT NULL");
+CALL ensure_column('email_otps', 'attempts',     "INT DEFAULT 0");
+CALL ensure_column('email_otps', 'resend_count', "INT DEFAULT 0");
+CALL ensure_column('email_otps', 'last_sent_at', "DATETIME DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_column('email_otps', 'ip_address',   "VARCHAR(45) NULL");
+CALL ensure_column('email_otps', 'expires_at',   "DATETIME NOT NULL");
+CALL ensure_column('email_otps', 'verified',     "TINYINT(1) DEFAULT 0");
+CALL ensure_column('email_otps', 'created_at',   "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('email_otps', 'idx_email', "KEY idx_email (email)");
+CALL ensure_index('email_otps', 'idx_email_created', "KEY idx_email_created (email, created_at)");
 
--- score
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_attempts'
-      AND column_name='score'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_attempts ADD COLUMN score DECIMAL(4,1);',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- total_questions
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_attempts'
-      AND column_name='total_questions'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_attempts ADD COLUMN total_questions INT;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- =============================================================================
+-- 6. FINANCE
+-- =============================================================================
 
--- correct_answers
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_attempts'
-      AND column_name='correct_answers'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_attempts ADD COLUMN correct_answers INT;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+CREATE TABLE IF NOT EXISTS expenses (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('expenses', 'school_id',       "INT NOT NULL DEFAULT 1");
+CALL ensure_column('expenses', 'branch',          "VARCHAR(100) NOT NULL");
+CALL ensure_column('expenses', 'debitor',         "VARCHAR(150) NOT NULL");
+CALL ensure_column('expenses', 'employee_name',   "VARCHAR(150) NULL");
+CALL ensure_column('expenses', 'category_id',     "INT NOT NULL");
+CALL ensure_column('expenses', 'car_id',          "INT NULL");
+CALL ensure_column('expenses', 'amount',          "DECIMAL(10,2) NOT NULL DEFAULT 0.00");
+CALL ensure_column('expenses', 'payment_mode_id', "INT NOT NULL");
+CALL ensure_column('expenses', 'note',            "TEXT NULL");
+CALL ensure_column('expenses', 'expense_date',    "DATE NOT NULL");
+CALL ensure_column('expenses', 'created_at',      "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_column('expenses', 'created_by_id',   "INT NULL");
+CALL ensure_column('expenses', 'created_by_type', "VARCHAR(20) NULL");
+CALL ensure_column('expenses', 'updated_by_id',   "INT NULL");
+CALL ensure_column('expenses', 'updated_by_type', "VARCHAR(20) NULL");
+CALL ensure_index('expenses', 'category_id', "KEY category_id (category_id)");
+CALL ensure_index('expenses', 'payment_mode_id', "KEY payment_mode_id (payment_mode_id)");
+CALL ensure_constraint('expenses', 'expenses_ibfk_1', "CONSTRAINT expenses_ibfk_1 FOREIGN KEY (category_id) REFERENCES expense_categories (id)");
+CALL ensure_constraint('expenses', 'expenses_ibfk_2', "CONSTRAINT expenses_ibfk_2 FOREIGN KEY (payment_mode_id) REFERENCES payment_modes (id)");
 
--- result
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_attempts'
-      AND column_name='result'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_attempts ADD COLUMN result ENUM("PASS","FAIL");',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- started_at
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_attempts'
-      AND column_name='started_at'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_attempts ADD COLUMN started_at DATETIME;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- =============================================================================
+-- 7. PLATFORM: AUDIT, ACTIVITY, PUSH, SESSIONS
+-- =============================================================================
 
--- finished_at
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_attempts'
-      AND column_name='finished_at'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_attempts ADD COLUMN finished_at DATETIME;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- "Who did what, when" for accountability-sensitive app actions (attendance,
+-- clock in/out, trips, meter resets, slots, leave). actor_name is a snapshot so
+-- the log stays readable after renames; details is free-form JSON. Written by
+-- logAudit() in server.js, which never lets a logging failure break a request.
+CREATE TABLE IF NOT EXISTS audit_log (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('audit_log', 'school_id',   "INT NOT NULL DEFAULT 1");
+CALL ensure_column('audit_log', 'actor_id',    "INT NULL");
+CALL ensure_column('audit_log', 'actor_type',  "VARCHAR(20) NULL");
+CALL ensure_column('audit_log', 'actor_name',  "VARCHAR(100) NULL");
+CALL ensure_column('audit_log', 'action',      "VARCHAR(60) NOT NULL");
+CALL ensure_column('audit_log', 'entity_type', "VARCHAR(40) NULL");
+CALL ensure_column('audit_log', 'entity_id',   "INT NULL");
+CALL ensure_column('audit_log', 'details',     "TEXT NULL");
+CALL ensure_column('audit_log', 'platform',    "VARCHAR(20) NULL");
+CALL ensure_column('audit_log', 'created_at',  "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('audit_log', 'idx_audit_log_actor', "KEY idx_audit_log_actor (school_id, actor_id, created_at)");
+CALL ensure_index('audit_log', 'idx_audit_log_entity', "KEY idx_audit_log_entity (school_id, entity_type, entity_id)");
 
--- answers
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_attempts'
-      AND column_name='answers'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_attempts ADD COLUMN answers JSON;',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Daily mobile-app usage heartbeat, one row per booking per day.
+-- (server.js also creates this on demand.)
+CREATE TABLE IF NOT EXISTS app_activity (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('app_activity', 'school_id',     "INT NOT NULL DEFAULT 1");
+CALL ensure_column('app_activity', 'booking_id',    "INT NOT NULL");
+CALL ensure_column('app_activity', 'email',         "VARCHAR(255) NULL");
+CALL ensure_column('app_activity', 'activity_date', "DATE NOT NULL");
+CALL ensure_column('app_activity', 'request_count', "INT NOT NULL DEFAULT 1");
+CALL ensure_column('app_activity', 'first_seen_at', "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_column('app_activity', 'last_seen_at',  "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('app_activity', 'uniq_booking_day', "UNIQUE KEY uniq_booking_day (booking_id, activity_date)");
+CALL ensure_index('app_activity', 'activity_date', "KEY activity_date (activity_date)");
 
--- status
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_attempts'
-      AND column_name='status'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE exam_attempts ADD COLUMN status ENUM("started","completed") DEFAULT "started";',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- FCM/APNs push tokens. person_type 'instructor' → instructors.id,
+-- 'student' → bookings. (server.js also creates this on demand.)
+CREATE TABLE IF NOT EXISTS device_push_tokens (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('device_push_tokens', 'school_id',   "INT NOT NULL DEFAULT 1");
+CALL ensure_column('device_push_tokens', 'person_id',   "INT NOT NULL");
+CALL ensure_column('device_push_tokens', 'person_type', "VARCHAR(20) NOT NULL");
+CALL ensure_column('device_push_tokens', 'platform',    "VARCHAR(10) NOT NULL");
+CALL ensure_column('device_push_tokens', 'token',       "VARCHAR(255) NOT NULL");
+CALL ensure_column('device_push_tokens', 'updated_at',  "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+CALL ensure_index('device_push_tokens', 'uniq_token', "UNIQUE KEY uniq_token (token)");
 
--- ip_address (captured when the attempt is started, for admin "who / from where" logs)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='exam_attempts' AND column_name='ip_address');
-SET @sql := IF(@col_exists=0,'ALTER TABLE exam_attempts ADD COLUMN ip_address VARCHAR(45);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Dedupe log for cron push reminders: a ref_key (e.g. per lesson slot) is
+-- claimed once, so overlapping cron ticks never send the same reminder twice.
+-- (server.js also creates this on demand.)
+CREATE TABLE IF NOT EXISTS notification_log (
+    id INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('notification_log', 'ref_key', "VARCHAR(150) NOT NULL");
+CALL ensure_column('notification_log', 'sent_at', "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+CALL ensure_index('notification_log', 'uniq_ref', "UNIQUE KEY uniq_ref (ref_key)");
 
--- user_agent (captured when the attempt is started, for admin "who / from where" logs)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='exam_attempts' AND column_name='user_agent');
-SET @sql := IF(@col_exists=0,'ALTER TABLE exam_attempts ADD COLUMN user_agent TEXT;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- express-mysql-session store (its own definition; it also creates this itself).
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id VARCHAR(128) COLLATE utf8mb4_bin NOT NULL,
+    PRIMARY KEY (session_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CALL ensure_column('sessions', 'expires', "INT UNSIGNED NOT NULL");
+CALL ensure_column('sessions', 'data',    "MEDIUMTEXT COLLATE utf8mb4_bin");
 
--- =====================================
--- FOREIGN KEY (SAFE CHECK)
--- =====================================
-SET @fk_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_attempts'
-      AND constraint_name='fk_exam_attempts_user'
-);
-SET @sql := IF(@fk_exists=0,
-    'ALTER TABLE exam_attempts ADD CONSTRAINT fk_exam_attempts_user FOREIGN KEY (user_id) REFERENCES exam_users(id);',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- school_id (multi-tenant scoping)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='exam_attempts' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE exam_attempts ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- =============================================================================
+-- 8. SEED DATA (INSERT IGNORE / upsert — never overwrites edited values)
+-- =============================================================================
 
--- =====================================
--- INDEXES
--- =====================================
+INSERT INTO schools (id, name, slug, is_active) VALUES
+    (1, 'Dwarkesh Motor Driving School', 'dwarkesh', 1)
+ON DUPLICATE KEY UPDATE name = VALUES(name);
 
--- exam_users email index
-SET @idx_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_users'
-      AND index_name='idx_exam_users_email'
-);
-SET @sql := IF(@idx_exists=0,
-    'CREATE INDEX idx_exam_users_email ON exam_users (email);',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+INSERT INTO payment_modes (id, name, is_custom, school_id) VALUES
+    (1, 'Cash',          0, 0),
+    (2, 'UPI',           0, 0),
+    (3, 'Bank Transfer', 0, 0),
+    (4, 'Cheque',        0, 0)
+ON DUPLICATE KEY UPDATE name = VALUES(name);
 
--- exam_attempts user_id index
-SET @idx_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-    WHERE table_schema='drivingschool'
-      AND table_name='exam_attempts'
-      AND index_name='idx_exam_attempts_user'
-);
-SET @sql := IF(@idx_exists=0,
-    'CREATE INDEX idx_exam_attempts_user ON exam_attempts (user_id);',
-    'SELECT "exists";'
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- Empty min_version_* = no forced update. Kept per platform so raising the
+-- Android minimum can't lock iOS reviewers behind a force-update screen.
+INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES
+    ('maintenance_mode',      'false', 'Maintenance Mode',
+        'When ON, all app users see a maintenance screen. Admin panel stays accessible.'),
+    ('maintenance_message',   'We are currently performing maintenance. Please check back soon.', 'Maintenance Message',
+        'Text shown to users during maintenance'),
+    ('feature_leave_request', 'true',  'Leave Request',
+        'Drivers can submit leave requests from the app'),
+    ('wifi_ssid',             '',      'School WiFi SSID',
+        'SSID of the school WiFi network; instructors must be connected to this network to clock in/out'),
+    ('min_version_android',   '',      'Minimum App Version (Android)',
+        'Minimum Android app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13'),
+    ('min_version_ios',       '',      'Minimum App Version (iOS)',
+        'Minimum iOS app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13');
 
--- =====================================
--- CMS PAGES TABLE
--- =====================================
-
-CREATE TABLE IF NOT EXISTS cms_pages (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id INT NOT NULL DEFAULT 1
-);
-
--- slug
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cms_pages'
-      AND column_name='slug'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cms_pages ADD COLUMN slug VARCHAR(100) NOT NULL UNIQUE;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- title
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cms_pages'
-      AND column_name='title'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cms_pages ADD COLUMN title VARCHAR(255);',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- content
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cms_pages'
-      AND column_name='content'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cms_pages ADD COLUMN content LONGTEXT;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- status
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cms_pages'
-      AND column_name='status'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cms_pages ADD COLUMN status TINYINT(1) DEFAULT 1;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- updated_at
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='cms_pages'
-      AND column_name='updated_at'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE cms_pages ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- =====================================
--- CMS INDEXES
--- =====================================
-
--- slug index (fast public fetch)
-SET @idx_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-    WHERE table_schema='drivingschool'
-      AND table_name='cms_pages'
-      AND index_name='idx_cms_slug'
-);
-
-SET @sql := IF(
-    @idx_exists = 0,
-    'CREATE INDEX idx_cms_slug ON cms_pages (slug);',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- school_id for cms_pages
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE cms_pages ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Migrate slug unique from global to (school_id, slug) for multi-tenancy
--- Drop old global unique on slug (if it still exists as a standalone constraint/index)
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND index_name='slug');
-SET @sql := IF(@idx_exists>0,'ALTER TABLE cms_pages DROP INDEX slug;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Add composite unique (school_id, slug)
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND index_name='uq_cms_school_slug');
-SET @sql := IF(@idx_exists=0,'ALTER TABLE cms_pages ADD UNIQUE KEY uq_cms_school_slug (school_id, slug);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- actor tracking (who created/edited this record)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND column_name='created_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE cms_pages ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND column_name='created_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE cms_pages ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND column_name='updated_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE cms_pages ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='cms_pages' AND column_name='updated_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE cms_pages ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Seed the Support page (used as the App Store Connect Support URL:
--- dwarkeshdrivingschool.com/cms.html?slug=support). Stored as real HTML,
--- unlike privacy-policy/terms/faqs which store escaped Markdown that cms.js
--- injects via innerHTML as-is (pre-existing issue, not fixed here).
+-- Support page: the App Store Connect Support URL
+-- (dwarkeshdrivingschool.com/cms.html?slug=support).
 INSERT IGNORE INTO cms_pages (school_id, slug, title, content, status) VALUES (
   1,
   'support',
@@ -2042,687 +915,10 @@ INSERT IGNORE INTO cms_pages (school_id, slug, title, content, status) VALUES (
   1
 );
 
--- =====================================
--- DRIVING PACKAGES TABLE
--- =====================================
 
-CREATE TABLE IF NOT EXISTS driving_packages (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id INT NOT NULL DEFAULT 1
-);
-
--- badge
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='driving_packages'
-      AND column_name='badge'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE driving_packages ADD COLUMN badge VARCHAR(100);',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- title
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='driving_packages'
-      AND column_name='title'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE driving_packages ADD COLUMN title VARCHAR(255) NOT NULL;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- description
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='driving_packages'
-      AND column_name='description'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE driving_packages ADD COLUMN description TEXT;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- practical_sessions
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='driving_packages'
-      AND column_name='practical_sessions'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE driving_packages ADD COLUMN practical_sessions INT;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- session_duration
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='driving_packages'
-      AND column_name='session_duration'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE driving_packages ADD COLUMN session_duration VARCHAR(50);',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- daily_distance
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='driving_packages'
-      AND column_name='daily_distance'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE driving_packages ADD COLUMN daily_distance VARCHAR(50);',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
--- extra_features
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='driving_packages'
-      AND column_name='extra_features'
-);
-
-SET @sql := IF(
-    @col_exists = 0,
-    'ALTER TABLE driving_packages ADD COLUMN extra_features JSON;',
-    'SELECT "exists";'
-);
-
-PREPARE stmt FROM @sql;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driving_packages' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driving_packages ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- actor tracking (who created/edited this record)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driving_packages' AND column_name='created_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driving_packages ADD COLUMN created_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driving_packages' AND column_name='created_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driving_packages ADD COLUMN created_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driving_packages' AND column_name='updated_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driving_packages ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driving_packages' AND column_name='updated_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driving_packages ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- PRACTICE PROGRESS TABLE
--- =====================================
-
-CREATE TABLE IF NOT EXISTS practice_progress (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    question_number VARCHAR(10) NOT NULL,
-    category VARCHAR(100) NOT NULL,
-    language VARCHAR(5) DEFAULT 'en',
-    selected_answer INT NOT NULL,
-    is_correct TINYINT(1) DEFAULT 0,
-    answered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_user_question_lang (user_id, question_number, language),
-    CONSTRAINT fk_practice_progress_user FOREIGN KEY (user_id) REFERENCES exam_users(id) ON DELETE CASCADE
-);
-
--- practice_progress indexes
-SET @idx_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-    WHERE table_schema='drivingschool'
-      AND table_name='practice_progress'
-      AND index_name='idx_practice_progress_user'
-);
-SET @sql := IF(@idx_exists=0,
-    'CREATE INDEX idx_practice_progress_user ON practice_progress (user_id);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @idx_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-    WHERE table_schema='drivingschool'
-      AND table_name='practice_progress'
-      AND index_name='idx_practice_progress_category'
-);
-SET @sql := IF(@idx_exists=0,
-    'CREATE INDEX idx_practice_progress_category ON practice_progress (user_id, category, language);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- school_id (multi-tenant scoping)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='practice_progress' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE practice_progress ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- SCHEDULE AD-HOC SLOTS TABLE
--- =====================================
-CREATE TABLE IF NOT EXISTS schedule_slots (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    booking_id INT NOT NULL,
-    date DATE NOT NULL,
-    time VARCHAR(10) NOT NULL,
-    car_name VARCHAR(100),
-    instructor_name VARCHAR(100),
-    present TINYINT(1) DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    school_id INT NOT NULL DEFAULT 1,
-    CONSTRAINT fk_schedule_slots_booking FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
-);
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- ENQUIRY STATUS COLUMN
--- =====================================
-SET @col_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiries'
-      AND column_name='status'
-);
-SET @sql := IF(@col_exists=0,
-    'ALTER TABLE enquiries ADD COLUMN status ENUM("New","Called","Interested","Not Interested","Converted","Follow Up") DEFAULT "New";',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- ENQUIRY ACTIONS TABLE
--- =====================================
-CREATE TABLE IF NOT EXISTS enquiry_actions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    enquiry_id INT NOT NULL,
-    action_type ENUM('Call','Note','Email','Meeting','WhatsApp','Other') DEFAULT 'Call',
-    note TEXT NOT NULL,
-    action_by VARCHAR(100) NOT NULL,
-    action_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    school_id INT NOT NULL DEFAULT 1,
-    CONSTRAINT fk_enquiry_actions_enquiry FOREIGN KEY (enquiry_id) REFERENCES enquiries(id) ON DELETE CASCADE
-);
-
--- Index for fast lookup by enquiry
-SET @idx_exists := (
-    SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
-    WHERE table_schema='drivingschool'
-      AND table_name='enquiry_actions'
-      AND index_name='idx_enquiry_actions_enquiry'
-);
-SET @sql := IF(@idx_exists=0,
-    'CREATE INDEX idx_enquiry_actions_enquiry ON enquiry_actions (enquiry_id);',
-    'SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='enquiry_actions' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE enquiry_actions ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='enquiry_actions' AND column_name='actor_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE enquiry_actions ADD COLUMN actor_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='enquiry_actions' AND column_name='actor_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE enquiry_actions ADD COLUMN actor_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- LEAVE REQUESTS TABLE
--- =====================================
-CREATE TABLE IF NOT EXISTS leave_requests (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    instructor_id   INT NOT NULL,
-    instructor_name VARCHAR(100),
-    branch          VARCHAR(100),
-    leave_from      DATE NOT NULL,
-    leave_to        DATE NOT NULL,
-    leave_type      ENUM('Full Day','Half Day') NOT NULL DEFAULT 'Full Day',
-    reason          TEXT,
-    status          ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
-    created_at      DATETIME NOT NULL
-);
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='leave_requests' AND index_name='idx_leave_requests_instructor');
-SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_leave_requests_instructor ON leave_requests (instructor_id);','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- school_id (multi-tenant scoping)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='leave_requests' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE leave_requests ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- actor tracking (which admin approved/rejected this request)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='leave_requests' AND column_name='updated_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE leave_requests ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='leave_requests' AND column_name='updated_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE leave_requests ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- DRIVER HIRE REQUESTS TABLE
--- "Find Your Driver" — a logged-in customer asks the school for a driver to
--- drive their OWN car for a day or two within the city. Admin assigns an
--- instructor and quotes a price from the admin panel.
--- =====================================
-CREATE TABLE IF NOT EXISTS driver_hire_requests (
-    id                       INT AUTO_INCREMENT PRIMARY KEY,
-    student_email            VARCHAR(255) NOT NULL,
-    student_name             VARCHAR(255),
-    contact_phone            VARCHAR(30) NOT NULL,
-    service_date             DATE NOT NULL,
-    num_days                 TINYINT NOT NULL DEFAULT 1,
-    car_model                VARCHAR(100),
-    transmission             ENUM('Manual','Automatic') NULL,
-    pickup_address           TEXT NOT NULL,
-    area                     VARCHAR(120),
-    notes                    TEXT,
-    status                   ENUM('Requested','Assigned','In Progress','Completed','Cancelled') NOT NULL DEFAULT 'Requested',
-    assigned_instructor_id   INT NULL,
-    assigned_instructor_name VARCHAR(100) NULL,
-    quoted_price             DECIMAL(10,2) NULL,
-    admin_note               TEXT NULL,
-    created_at               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    school_id                INT NOT NULL DEFAULT 1,
-    updated_by_id            INT NULL,
-    updated_by_type          VARCHAR(20) NULL
-);
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='driver_hire_requests' AND index_name='idx_driver_hire_school_status');
-SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_driver_hire_school_status ON driver_hire_requests (school_id, status);','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='driver_hire_requests' AND index_name='idx_driver_hire_student');
-SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_driver_hire_student ON driver_hire_requests (student_email);','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- DRIVER TRIPS TABLE
--- =====================================
-CREATE TABLE IF NOT EXISTS driver_trips (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    instructor_id   INT NOT NULL,
-    instructor_name VARCHAR(100),
-    booking_id      INT NOT NULL,
-    student_name    VARCHAR(100),
-    started_at      DATETIME NOT NULL,
-    ended_at        DATETIME NULL,
-    duration_mins   INT NOT NULL DEFAULT 30,
-    status          ENUM('active','paused','completed') NOT NULL DEFAULT 'active',
-    paused_at       DATETIME NULL,
-    paused_secs     INT NOT NULL DEFAULT 0,
-    start_odometer  INT NULL,
-    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND index_name='idx_driver_trips_instructor');
-SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_driver_trips_instructor ON driver_trips (instructor_id, status);','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- school_id (multi-tenant scoping)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- pause/resume support
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='paused_at');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN paused_at DATETIME NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='paused_secs');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN paused_secs INT NOT NULL DEFAULT 0;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @enum_ok := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='status' AND COLUMN_TYPE LIKE '%paused%');
-SET @sql := IF(@enum_ok=0,'ALTER TABLE driver_trips MODIFY COLUMN status ENUM(\'active\',\'paused\',\'completed\') NOT NULL DEFAULT \'active\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- car odometer (meter) reading entered by the instructor at the start of each lesson
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='start_odometer');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN start_odometer INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- car odometer (meter) reading entered by the instructor at the end of each lesson
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='end_odometer');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN end_odometer INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- manager approval of completed trips (approving marks the student present for that lesson)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='approval_status');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN approval_status ENUM(\'pending\',\'approved\') NOT NULL DEFAULT \'pending\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='approved_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN approved_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='approved_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN approved_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='approved_at');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN approved_at DATETIME NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- widen approval_status to allow rejecting a completed trip (marks the student absent instead)
-SET @enum_ok := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='driver_trips' AND column_name='approval_status' AND COLUMN_TYPE LIKE '%rejected%');
-SET @sql := IF(@enum_ok=0,'ALTER TABLE driver_trips MODIFY COLUMN approval_status ENUM(\'pending\',\'approved\',\'rejected\') NOT NULL DEFAULT \'pending\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- car_name (denormalized from booking at trip-start; back-filled for existing rows)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema=DATABASE() AND table_name='driver_trips' AND column_name='car_name');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN car_name VARCHAR(100) NULL','SELECT "exists"');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
--- Back-fill existing rows that have no car_name stored
-UPDATE driver_trips dt JOIN bookings bk ON bk.id = dt.booking_id SET dt.car_name = bk.car_name WHERE (dt.car_name IS NULL OR dt.car_name = '') AND (bk.car_name IS NOT NULL AND bk.car_name != '');
-
--- schedule_slot_id: set when a trip is started for an ad-hoc/makeup or student-
--- replacement lesson instead of a booking's regular allotted_time, so completing/
--- approving the trip marks the right schedule_slots row present.
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema=DATABASE() AND table_name='driver_trips' AND column_name='schedule_slot_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN schedule_slot_id INT NULL','SELECT "exists"');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- reward_points_awarded: flags a trip whose reward points have already been
--- granted, so approval logic never double-awards it.
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema=DATABASE() AND table_name='driver_trips' AND column_name='reward_points_awarded');
-SET @sql := IF(@col_exists=0,'ALTER TABLE driver_trips ADD COLUMN reward_points_awarded TINYINT(1) NOT NULL DEFAULT 0','SELECT "exists"');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- CAR METER RESETS
--- =====================================
--- Audit log of admin "reset meter" actions for a car. A car's odometer floor is
--- normally the highest start/end reading ever recorded in driver_trips; a reset
--- row sets a new baseline (e.g. a wrong reading was entered, or the odometer
--- cluster was physically replaced). After a reset, only that reset's reading and
--- trip readings recorded AFTER it count towards the floor.
-CREATE TABLE IF NOT EXISTS car_meter_resets (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    school_id       INT NOT NULL DEFAULT 1,
-    car_name        VARCHAR(100) NOT NULL,
-    reading         INT NOT NULL,
-    note            VARCHAR(255) NULL,
-    created_by_id   INT NULL,
-    created_by_type VARCHAR(20) NULL,
-    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='car_meter_resets' AND index_name='idx_car_meter_resets_car');
-SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_car_meter_resets_car ON car_meter_resets (school_id, car_name, created_at);','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- INSTRUCTOR REWARDS LEDGER
--- =====================================
--- Append-only history of every point an instructor earns (approved qualifying
--- trip) or an admin withdraws/cashes out. Balance = SUM(points); never a
--- mutable counter, so full history is always reconstructable.
-CREATE TABLE IF NOT EXISTS instructor_rewards_ledger (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    instructor_id   INT NOT NULL,
-    school_id       INT NOT NULL DEFAULT 1,
-    trip_id         INT NULL,
-    type            ENUM('trip_earned','admin_withdraw') NOT NULL,
-    points          INT NOT NULL,
-    rupee_value     DECIMAL(10,2) NULL,
-    note            VARCHAR(255) NULL,
-    created_by_id   INT NULL,
-    created_by_type VARCHAR(20) NULL,
-    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='instructor_rewards_ledger' AND index_name='idx_rewards_instructor');
-SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_rewards_instructor ON instructor_rewards_ledger (instructor_id);','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- APP SETTINGS (Remote Config / Feature Flags)
--- =====================================
-CREATE TABLE IF NOT EXISTS app_settings (
-    `key`       VARCHAR(100) NOT NULL,
-    value       TEXT         NOT NULL,
-    label       VARCHAR(200) NOT NULL DEFAULT '',
-    description TEXT,
-    updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`key`)
-);
-
--- Seed default settings (INSERT IGNORE preserves any existing values)
-INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES
-    ('maintenance_mode',      'false', 'Maintenance Mode',  'When ON, all app users see a maintenance screen. Admin panel stays accessible.'),
-    ('maintenance_message',   'We are currently performing maintenance. Please check back soon.', 'Maintenance Message', 'Text shown to users during maintenance'),
-    ('feature_leave_request', 'true',  'Leave Request',     'Drivers can submit leave requests from the app');
-
--- =====================================
--- STUDENT COMPLAINTS TABLE
--- =====================================
-CREATE TABLE IF NOT EXISTS student_complaints (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    student_email   VARCHAR(255) NOT NULL,
-    student_name    VARCHAR(255),
-    booking_id      INT,
-    subject         VARCHAR(255) NOT NULL,
-    message         TEXT NOT NULL,
-    category        ENUM('Instructor','Schedule','Payment','Car','App','Other') NOT NULL DEFAULT 'Other',
-    status          ENUM('Open','In Review','Resolved','Closed') NOT NULL DEFAULT 'Open',
-    admin_note      TEXT,
-    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='student_complaints' AND index_name='idx_student_complaints_email');
-SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_student_complaints_email ON student_complaints (student_email);','SELECT "exists";');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- school_id (multi-tenant scoping)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='student_complaints' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE student_complaints ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- actor tracking (which admin updated status/added a note)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='student_complaints' AND column_name='updated_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE student_complaints ADD COLUMN updated_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='student_complaints' AND column_name='updated_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE student_complaints ADD COLUMN updated_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- SESSION RATINGS TABLE
--- =====================================
-CREATE TABLE IF NOT EXISTS session_ratings (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    exam_user_id    INT NOT NULL,
-    attendance_id   INT NOT NULL,
-    booking_id      INT,
-    instructor_name VARCHAR(255),
-    rating          TINYINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
-    comment         TEXT,
-    rated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uniq_user_session (exam_user_id, attendance_id)
-);
-
--- school_id (multi-tenant scoping)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='session_ratings' AND column_name='school_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE session_ratings ADD COLUMN school_id INT NOT NULL DEFAULT 1;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- instructor_name was created under the database's utf8mb4_0900_ai_ci default
--- (set at some point after instructors/bookings were created under
--- utf8mb4_unicode_ci), so comparing it against instructors.instructor_name
--- or bookings.instructor_name throws "Illegal mix of collations". Align it
--- with the rest of the schema.
-ALTER TABLE session_ratings MODIFY instructor_name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- =====================================
--- INSTRUCTOR ATTENDANCE TABLE
--- =====================================
-CREATE TABLE IF NOT EXISTS instructor_attendance (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    instructor_id   INT NOT NULL,
-    date            DATE NOT NULL,
-    clock_in        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    clock_out       TIMESTAMP NULL DEFAULT NULL,
-    school_id       INT NOT NULL DEFAULT 1,
-    INDEX idx_inst_date (instructor_id, date)
-);
-
--- instructor_name (denormalized, matches leave_requests/driver_trips convention)
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructor_attendance' AND column_name='instructor_name');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructor_attendance ADD COLUMN instructor_name VARCHAR(100) NOT NULL DEFAULT \'\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- person_type disambiguates instructor_id, which is only unique *within* its
--- source table (instructors vs admins) — without it, an admin/manager clocking
--- in could collide with an unrelated instructor sharing the same id.
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='instructor_attendance' AND column_name='person_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE instructor_attendance ADD COLUMN person_type VARCHAR(20) NOT NULL DEFAULT \'instructor\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Drop unique-per-day constraint on instructor_attendance — drivers may clock in
--- multiple times per day (e.g. after clocking out for a break).
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema=DATABASE() AND table_name='instructor_attendance' AND index_name='uniq_instructor_date');
-SET @sql := IF(@idx_exists>0, 'ALTER TABLE instructor_attendance DROP INDEX uniq_instructor_date', 'SELECT "index not present"');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Seed wifi_ssid into app_settings if not already present
-INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES
-    ('wifi_ssid', '', 'School WiFi SSID', 'SSID of the school WiFi network; instructors must be connected to this network to clock in/out');
-
--- Seed min_version_android / min_version_ios for force-update gate (empty = no
--- minimum enforced). Split per-platform: a single shared min_version key used
--- to gate both platforms caused Apple's reviewer to get stuck behind a
--- force-update screen on the very first iOS submission, since Android's
--- threshold had already been raised ahead of iOS's build.
-INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES
-    ('min_version_android', '', 'Minimum App Version (Android)', 'Minimum Android app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13'),
-    ('min_version_ios', '', 'Minimum App Version (iOS)', 'Minimum iOS app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13');
-
--- Migrate legacy shared min_version value to Android (the platform that was
--- actually live) and leave iOS unset.
-UPDATE app_settings a, (SELECT value FROM app_settings WHERE `key` = 'min_version') legacy
-    SET a.value = legacy.value
-    WHERE a.`key` = 'min_version_android' AND a.value = '' AND legacy.value <> '';
-DELETE FROM app_settings WHERE `key` = 'min_version';
-
--- =====================================
--- SCHEDULE CHANGE REQUESTS TABLE (student-initiated cancel/replacement)
--- =====================================
-CREATE TABLE IF NOT EXISTS schedule_change_requests (
-    id                          INT AUTO_INCREMENT PRIMARY KEY,
-    booking_id                  INT NOT NULL,
-    student_email               VARCHAR(255) NOT NULL,
-    request_type                ENUM('Cancel','Replacement') NOT NULL,
-    occurrence_date             DATE NOT NULL,
-    original_time               VARCHAR(10) NOT NULL,
-    new_time                    VARCHAR(10) NULL,
-    reason                      TEXT,
-    status                      ENUM('Pending','Approved','Rejected','Reverted') NOT NULL DEFAULT 'Pending',
-    admin_note                  TEXT,
-    resulting_attendance_id     INT NULL,
-    resulting_schedule_slot_id  INT NULL,
-    created_at                  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_by_id               INT NULL,
-    updated_by_type             VARCHAR(20) NULL,
-    reverted_by_id              INT NULL,
-    reverted_by_type            VARCHAR(20) NULL,
-    reverted_at                 DATETIME NULL,
-    school_id                   INT NOT NULL DEFAULT 1,
-    CONSTRAINT fk_scr_booking FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
-);
-
-SET @idx_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema='drivingschool' AND table_name='schedule_change_requests' AND index_name='idx_scr_booking_date');
-SET @sql := IF(@idx_exists=0,'CREATE INDEX idx_scr_booking_date ON schedule_change_requests (booking_id, occurrence_date);','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Reverted: an admin can undo an approved cancel/replacement, restoring the
--- occurrence to its pre-approval state (see server.js revert endpoint).
-SET @enum_ok := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_change_requests' AND column_name='status' AND COLUMN_TYPE LIKE '%Reverted%');
-SET @sql := IF(@enum_ok=0,'ALTER TABLE schedule_change_requests MODIFY COLUMN status ENUM(\'Pending\',\'Approved\',\'Rejected\',\'Reverted\') NOT NULL DEFAULT \'Pending\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_change_requests' AND column_name='reverted_by_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_change_requests ADD COLUMN reverted_by_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_change_requests' AND column_name='reverted_by_type');
-SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_change_requests ADD COLUMN reverted_by_type VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_change_requests' AND column_name='reverted_at');
-SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_change_requests ADD COLUMN reverted_at DATETIME NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- change_source: distinguishes a student-approved cancel/replacement from an
--- ordinary manually-marked attendance record, so the instructor app can show
--- a "Cancelled"/"Rescheduled" label instead of a plain Absent toggle.
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='change_source');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN change_source ENUM(\'manual\',\'student_cancel\',\'student_replacement\') NOT NULL DEFAULT \'manual\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='attendance' AND column_name='change_request_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE attendance ADD COLUMN change_request_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- schedule_slots: mark a slot inserted by an approved student replacement,
--- and remember which time it replaced (shown in the instructor app).
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='source');
-SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN source ENUM(\'adhoc\',\'student_replacement\') NOT NULL DEFAULT \'adhoc\';','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='change_request_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN change_request_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='replaced_from_time');
-SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN replaced_from_time VARCHAR(10) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- created_by_admin_id/created_by_name/created_by_role: who created this ad-hoc/
--- replacement slot (session account id, resolved display name, and whether they
--- were logged in as an instructor or an admin), so it's answerable with a direct
--- query instead of guesswork from instructor_name alone. Added after a case
--- where an ad-hoc slot (booking 1383, Dipa Patel, 2026-09-07) had no traceable
--- creator and also silently disappeared from the office Schedule grid because
--- it collided, unnoticed, with an existing regular booking in the same car/time
--- — see also the conflict check added in POST /api/schedule-slots and
--- POST /api/driver/schedule-slots (findScheduleSlotConflict in server.js).
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='created_by_admin_id');
-SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN created_by_admin_id INT NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='created_by_name');
-SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN created_by_name VARCHAR(100) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema='drivingschool' AND table_name='schedule_slots' AND column_name='created_by_role');
-SET @sql := IF(@col_exists=0,'ALTER TABLE schedule_slots ADD COLUMN created_by_role VARCHAR(20) NULL;','SELECT "exists";'); PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- =====================================
--- AUDIT LOG
--- =====================================
--- Generic "who did what, when" log for accountability-sensitive mobile-app
--- actions (attendance mark, clock in/out, trip start/end, meter reset,
--- schedule-slot create, leave request/decide). actor_name is a snapshot at
--- the time of the action, so the log stays readable even if the person is
--- later renamed or deleted. details is a free-form JSON blob with whatever
--- context that action's handler chose to record. See logAudit() in server.js
--- — every one of these call sites awaits it after the action already
--- succeeded, and logAudit itself swallows its own errors so a logging
--- failure can never break the request that triggered it.
-CREATE TABLE IF NOT EXISTS audit_log (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    school_id   INT NOT NULL DEFAULT 1,
-    actor_id    INT NULL,
-    actor_type  VARCHAR(20) NULL,
-    actor_name  VARCHAR(100) NULL,
-    action      VARCHAR(60) NOT NULL,
-    entity_type VARCHAR(40) NULL,
-    entity_id   INT NULL,
-    details     TEXT NULL,
-    platform    VARCHAR(20) NULL,
-    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_audit_log_actor (school_id, actor_id, created_at),
-    INDEX idx_audit_log_entity (school_id, entity_type, entity_id)
-);
+-- =============================================================================
+-- Clean up helpers
+-- =============================================================================
+DROP PROCEDURE IF EXISTS ensure_column;
+DROP PROCEDURE IF EXISTS ensure_index;
+DROP PROCEDURE IF EXISTS ensure_constraint;

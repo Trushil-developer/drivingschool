@@ -20,5 +20,6 @@ jobs:
             cd drivingschool/
             git pull
             MYSQL_PWD=${{ secrets.MYSQL_PASSWORD }} mysql -u root drivingschool < sql/schema.sql
+            MYSQL_PWD=${{ secrets.MYSQL_PASSWORD }} mysql -u root drivingschool < sql/upgrade.sql
             pm2 restart all
             sudo systemctl reload nginx
