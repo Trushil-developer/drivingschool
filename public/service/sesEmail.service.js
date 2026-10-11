@@ -1,14 +1,14 @@
-import AWS from "aws-sdk";
+import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import dotenv from "dotenv";
 dotenv.config();
 
-AWS.config.update({
+const ses = new SESClient({
   region: "ap-south-1",
-  accessKeyId: process.env.AWS_SES_ACCESS_KEY,
-  secretAccessKey: process.env.AWS_SES_SECRET_KEY
+  credentials: {
+    accessKeyId: process.env.AWS_SES_ACCESS_KEY,
+    secretAccessKey: process.env.AWS_SES_SECRET_KEY,
+  },
 });
-
-const ses = new AWS.SES({ apiVersion: "2010-12-01" });
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -146,7 +146,7 @@ export async function sendOtpEmail(email, otp, expiresAt = null) {
     }
   };
 
-  return ses.sendEmail(params).promise();
+  return ses.send(new SendEmailCommand(params));
 }
 
 function buildCredentialsEmailHtml({ introHtml, bookingId }) {
@@ -251,7 +251,7 @@ function sendCredentialsEmail(email, subject, introHtml, bookingId) {
     }
   };
 
-  return ses.sendEmail(params).promise();
+  return ses.send(new SendEmailCommand(params));
 }
 
 export async function sendWelcomeCredentialsEmail(email, { bookingId, customerName }) {

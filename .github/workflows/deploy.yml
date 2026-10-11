@@ -33,7 +33,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 18 # same major version as the EC2 server
+          node-version: 24 # same major version as the EC2 server
 
       - name: Install dependencies exactly as the server will
         run: |

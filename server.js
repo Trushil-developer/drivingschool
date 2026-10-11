@@ -26,7 +26,8 @@ import dashboardRoutes from "./routes/dashboardRoutes.js";
 import examUsersRoutes from "./routes/examUsersRoutes.js";
 import cmsRoutes from "./routes/cmsRoutes.js";
 import examRoutes from "./routes/examRoutes.js";
-import AWS from "aws-sdk";
+import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import fs from "fs";
 import packagesRoutes from './routes/packagesRoutes.js';
 import expensesRoutes from './routes/expensesRoutes.js';
@@ -48,10 +49,12 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 4000;
 
-const s3 = new AWS.S3({
-    accessKeyId: process.env.S3_ACCESS_KEY,
-    secretAccessKey: process.env.S3_SECRET_KEY,
-    region: process.env.S3_REGION 
+const s3 = new S3Client({
+    region: process.env.S3_REGION,
+    credentials: {
+        accessKeyId: process.env.S3_ACCESS_KEY,
+        secretAccessKey: process.env.S3_SECRET_KEY,
+    },
 });
 
 // ---------- Startup env validation ----------
@@ -1649,21 +1652,21 @@ app.post("/api/bookings/:id/certificate", requireAdmin, upload.single("file"), a
 
         // Delete old file if exists
         if (oldKey) {
-            await s3.deleteObject({
+            await s3.send(new DeleteObjectCommand({
                 Bucket: process.env.S3_BUCKET,
                 Key: oldKey
-            }).promise();
+            }));
         }
 
         // Upload new file
         const ext = req.file.originalname.split(".").pop();
         const s3Key = `certificates/${process.env.ENV}/${bookingId}_${Date.now()}.${ext}`;
-        await s3.upload({
+        await s3.send(new PutObjectCommand({
             Bucket: process.env.S3_BUCKET,
             Key: s3Key,
             Body: req.file.buffer,
             ContentType: req.file.mimetype
-        }).promise();
+        }));
 
         // Update DB
         await dbPool.query("UPDATE bookings SET certificate_url = ? WHERE id = ? AND school_id = ?", [s3Key, bookingId, req.schoolId]);
@@ -1688,11 +1691,11 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
 
         const key = rows[0].certificate_url; 
 
-        const presignedUrl = s3.getSignedUrl('getObject', {
-            Bucket: process.env.S3_BUCKET,
-            Key: key,
-            Expires: 60 
-        });
+        const presignedUrl = await getSignedUrl(
+            s3,
+            new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }),
+            { expiresIn: 60 }
+        );
 
         res.json({ success: true, url: presignedUrl });
     } catch (err) {
@@ -2370,7 +2373,7 @@ app.get("/api/public/certificates", async (req, res) => {
       Prefix: prefix
     };
 
-    const data = await s3.listObjectsV2(params).promise();
+    const data = await s3.send(new ListObjectsV2Command(params));
 
     const images = [];
 
@@ -2918,12 +2921,12 @@ app.get('/api/translations/:lang', async (req, res) => {
     return res.status(404).json({ success: false, error: 'Unknown language' });
   }
   try {
-    const obj = await s3.getObject({ Bucket: process.env.S3_BUCKET, Key: `translations/${lang}.json` }).promise();
-    const data = JSON.parse(obj.Body.toString('utf-8'));
+    const obj = await s3.send(new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: `translations/${lang}.json` }));
+    const data = JSON.parse(await obj.Body.transformToString('utf-8'));
     res.set('Cache-Control', 'public, max-age=300');
     res.json({ success: true, lang, namespaces: data });
   } catch (err) {
-    if (err.code === 'NoSuchKey') return res.status(404).json({ success: false, error: 'Not uploaded yet' });
+    if (err.name === 'NoSuchKey') return res.status(404).json({ success: false, error: 'Not uploaded yet' });
     console.error('[translations] fetch failed:', err.message);
     res.status(500).json({ success: false, error: 'Internal error' });
   }
