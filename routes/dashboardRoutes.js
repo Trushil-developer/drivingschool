@@ -600,31 +600,19 @@ router.get("/attendance-trends", requireAdmin, async (req, res) => {
     let rows;
 
     if (granularity === 'day') {
+      // Same definitions as the dashboard's Attendance card (/today-slots), so
+      // every bar matches that card for its date: present/absent from
+      // attendance records, plus "not yet marked" = slots computeMissingSlots
+      // reports as due with no trip and no attendance (the Trip Logs rule).
+      // Previously only today got a not-yet-marked count, so unmarked lessons
+      // on every earlier day silently disappeared from the chart.
       const nums = Array.from({length: 30}, (_, i) => `SELECT ${i} AS seq`).join(' UNION ALL ');
-
-      const untrackedParams = [req.schoolId, ...branchParam];
-      const [untrackedRows] = await dbPool.query(`
-        SELECT COUNT(*) AS cnt
-        FROM bookings b
-        WHERE b.school_id = ? AND b.attendance_status = 'Active'
-          AND b.starting_from IS NOT NULL
-          AND b.starting_from <= CURDATE()
-          ${branchFilter}
-          AND NOT EXISTS (
-            SELECT 1 FROM attendance a
-            WHERE a.booking_id = b.id AND DATE(a.date) = CURDATE()
-          )
-      `, untrackedParams);
-      const untrackedToday = Number(untrackedRows[0].cnt);
-      const _istNow = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-      const todayStr = _istNow.toISOString().slice(0, 10);
 
       const [r] = await dbPool.query(`
         SELECT
           DATE_FORMAT(cal.dt, '%Y-%m-%d') AS period,
           COALESCE(att.present_count, 0) AS present_count,
-          COALESCE(att.absent_count,  0) AS absent_count,
-          COALESCE(att.present_count, 0) + COALESCE(att.absent_count, 0) AS total
+          COALESCE(att.absent_count,  0) AS absent_count
         FROM (SELECT CURDATE() - INTERVAL seq DAY AS dt FROM (${nums}) n) cal
         LEFT JOIN (
           SELECT DATE_FORMAT(DATE(a.date), '%Y-%m-%d') AS dt,
@@ -632,19 +620,28 @@ router.get("/attendance-trends", requireAdmin, async (req, res) => {
             SUM(CASE WHEN a.present = 0  THEN 1 ELSE 0 END) AS absent_count
           FROM attendance a
           JOIN bookings b ON a.booking_id = b.id
-          WHERE b.school_id = ? AND b.attendance_status IN ('Active','Completed','Expired','Hold')
+          WHERE b.school_id = ? AND a.date >= CURDATE() - INTERVAL 29 DAY
             ${branchFilter}
           GROUP BY DATE_FORMAT(DATE(a.date), '%Y-%m-%d')
         ) att ON att.dt = DATE_FORMAT(cal.dt, '%Y-%m-%d')
         ORDER BY cal.dt ASC
       `, [req.schoolId, ...branchParam]);
 
+      const fromStr = r[0].period;
+      const toStr = r[r.length - 1].period;
+      const missingEntries = await computeMissingSlots(req.schoolId, fromStr, toStr, undefined, undefined, undefined);
+      const missingByDate = {};
+      missingEntries.forEach(m => {
+        if (branch && (m.branch || '').trim().toLowerCase() !== branch.toLowerCase()) return;
+        const dateStr = m.started_at.slice(0, 10);
+        missingByDate[dateStr] = (missingByDate[dateStr] || 0) + 1;
+      });
+
       rows = r.map(row => {
-        const isToday = String(row.period) === todayStr;
-        return {
-          ...row,
-          total: isToday ? Number(row.total) + untrackedToday : Number(row.total)
-        };
+        const present = Number(row.present_count);
+        const absent = Number(row.absent_count);
+        const missing = missingByDate[row.period] || 0;
+        return { ...row, missing_count: missing, total: present + absent + missing };
       });
     } else {
       const periodExpr = granularity === 'year' ? 'YEAR(a.date)'

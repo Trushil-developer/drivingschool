@@ -621,7 +621,7 @@ async function loadAttendanceChart() {
     ];
     if (showBlue) {
       datasets.push({
-        label: 'Not Yet Marked',
+        label: 'Missing (not marked)',
         data: untracked,
         backgroundColor: 'rgba(59,130,246,0.55)',
         stack: 'att'
