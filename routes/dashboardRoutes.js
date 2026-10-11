@@ -552,7 +552,10 @@ router.get("/enrollment-trends", requireAdmin, async (req, res) => {
   try {
     const { branch, granularity = 'day' } = req.query;
 
-    let whereClause = "WHERE school_id = ? AND attendance_status != 'Pending'";
+    // An enrollment counts on the day the booking was created, whatever its
+    // status — same rule as the "Joined" card. Excluding 'Pending' (course not
+    // started yet) made recent days undercount and past days grow over time.
+    let whereClause = "WHERE school_id = ?";
     let params = [req.schoolId];
 
     if (branch) {
@@ -568,7 +571,8 @@ router.get("/enrollment-trends", requireAdmin, async (req, res) => {
 
     const [rows] = await dbPool.query(`
       SELECT ${periodExpr} AS period, COUNT(*) AS count,
-             COALESCE(SUM(total_fees + COALESCE(licence_fee,0)), 0) AS revenue
+             COALESCE(SUM(CASE WHEN attendance_status != 'Pending'
+                               THEN total_fees + COALESCE(licence_fee,0) END), 0) AS revenue
       FROM bookings
       ${whereClause}
       GROUP BY period
