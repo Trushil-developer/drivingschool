@@ -2368,43 +2368,52 @@ app.get("/api/public/certificates", async (req, res) => {
   try {
     const prefix = "certificates/production/";
 
-    const params = {
-      Bucket: process.env.S3_BUCKET,
-      Prefix: prefix
-    };
+    // S3 returns at most 1,000 keys per call — follow the continuation token
+    // so certificates past the first 1,000 aren't silently dropped.
+    const files = [];
+    let ContinuationToken;
+    do {
+      const data = await s3.send(new ListObjectsV2Command({
+        Bucket: process.env.S3_BUCKET,
+        Prefix: prefix,
+        ContinuationToken,
+      }));
+      for (const obj of data.Contents || []) {
+        // Filename is "<bookingId>_<uploadedAtMillis>.<ext>", e.g. "100_1765062519993.png"
+        const match = obj.Key.match(/certificates\/production\/(\d+)_(\d+)\.(jpg|jpeg|png|webp)$/i);
+        if (match) files.push({ key: obj.Key, bookingId: Number(match[1]), uploadedAt: Number(match[2]) });
+      }
+      ContinuationToken = data.IsTruncated ? data.NextContinuationToken : undefined;
+    } while (ContinuationToken);
 
-    const data = await s3.send(new ListObjectsV2Command(params));
-
-    const images = [];
-
-    for (const obj of data.Contents || []) {
-      if (!/\.(jpg|jpeg|png|webp)$/i.test(obj.Key)) continue;
-
-      // Extract booking id from filename: "100_1765062519993.png"
-      const match = obj.Key.match(/certificates\/production\/(\d+)_\d+\.(jpg|jpeg|png|webp)$/i);
-      if (!match) continue;
-      const bookingId = match[1];
-
-      // Fetch booking details
+    // One query for every booking instead of one per certificate.
+    const bookingsById = new Map();
+    if (files.length) {
       const [rows] = await dbPool.query(
-        `SELECT customer_name, car_name, starting_from FROM bookings WHERE id = ? AND school_id = 1 LIMIT 1`,
-        [bookingId]
+        `SELECT id, customer_name, car_name, DATE_FORMAT(starting_from, '%Y-%m-%d') AS starting_from
+         FROM bookings WHERE school_id = 1 AND id IN (?)`,
+        [[...new Set(files.map(f => f.bookingId))]]
       );
-
-      if (!rows.length) continue;
-      const booking = rows[0];
-
-      images.push({
-        bookingId,
-        studentName: booking.customer_name,
-        course: booking.car_name,
-        date: booking.starting_from ? (() => { const d = new Date(booking.starting_from); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })() : null,
-        url: `https://${process.env.S3_BUCKET}.s3.${process.env.S3_REGION}.amazonaws.com/${obj.Key}`
-      });
+      rows.forEach(r => bookingsById.set(r.id, r));
     }
 
-    // Reverse to show newest first
-    images.reverse();
+    // Newest certificate first. S3 lists keys in text order ("9_…" after
+    // "899_…"), so sorting on the upload timestamp in the filename is what
+    // keeps pages in real date order.
+    files.sort((a, b) => b.uploadedAt - a.uploadedAt);
+
+    const images = [];
+    for (const f of files) {
+      const booking = bookingsById.get(f.bookingId);
+      if (!booking) continue;
+      images.push({
+        bookingId: String(f.bookingId),
+        studentName: booking.customer_name,
+        course: booking.car_name,
+        date: booking.starting_from || null,
+        url: `https://${process.env.S3_BUCKET}.s3.${process.env.S3_REGION}.amazonaws.com/${f.key}`
+      });
+    }
 
     res.json({ success: true, images });
 

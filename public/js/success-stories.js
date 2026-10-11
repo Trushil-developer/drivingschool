@@ -1,3 +1,19 @@
+// Page numbers to show: always first and last, the current page with one
+// neighbour each side, and "…" for the gaps — e.g. 1 … 4 5 6 … 59.
+function pageNumbers(current, total) {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const pages = new Set([1, total, current - 1, current, current + 1]);
+    if (current <= 3) [2, 3, 4].forEach(p => pages.add(p));
+    if (current >= total - 2) [total - 3, total - 2, total - 1].forEach(p => pages.add(p));
+    const sorted = [...pages].filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
+    const out = [];
+    sorted.forEach((p, i) => {
+        if (i > 0 && p - sorted[i - 1] > 1) out.push(p - sorted[i - 1] === 2 ? p - 1 : "…");
+        out.push(p);
+    });
+    return out;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 
     // ====================
@@ -26,8 +42,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const images = data.images;
             const perPage = 9;
-            let currentPage = 1;
             const totalPages = Math.ceil(images.length / perPage);
+
+            // The page lives in the URL (?page=N) so refresh, shared links and
+            // the browser Back button land on the same page.
+            function pageFromUrl() {
+                const n = parseInt(new URLSearchParams(location.search).get("page"), 10);
+                return Number.isInteger(n) ? Math.min(Math.max(n, 1), totalPages) : 1;
+            }
+            let currentPage = pageFromUrl();
+
+            function goToPage(page) {
+                currentPage = page;
+                const url = new URL(location.href);
+                if (page === 1) url.searchParams.delete("page");
+                else url.searchParams.set("page", page);
+                history.pushState({ page }, "", url);
+                renderPage(currentPage);
+                window.scrollTo({ top: gallery.offsetTop - 50, behavior: 'smooth' });
+            }
+
+            window.addEventListener("popstate", () => {
+                currentPage = pageFromUrl();
+                renderPage(currentPage);
+            });
 
             // --------------------
             // Render page
@@ -77,32 +115,57 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (totalPages <= 1) return;
 
-                const pagination = document.createElement("div");
+                const pagination = document.createElement("nav");
                 pagination.id = "certPagination";
-                pagination.style.textAlign = "center";
+                pagination.setAttribute("aria-label", "Certificate pages");
                 pagination.style.marginTop = "25px";
                 pagination.style.display = "flex";
+                pagination.style.flexWrap = "wrap";
                 pagination.style.justifyContent = "center";
-                pagination.style.gap = "10px";
+                pagination.style.alignItems = "center";
+                pagination.style.gap = "8px";
 
-                for (let i = 1; i <= totalPages; i++) {
+                function addButton(label, page, { active = false, disabled = false, ariaLabel } = {}) {
                     const btn = document.createElement("button");
-                    btn.textContent = i;
+                    btn.type = "button";
+                    btn.textContent = label;
+                    if (ariaLabel) btn.setAttribute("aria-label", ariaLabel);
+                    if (active) btn.setAttribute("aria-current", "page");
+                    btn.disabled = disabled;
+                    btn.style.minWidth = "40px";
                     btn.style.padding = "6px 12px";
                     btn.style.border = "1px solid #1565c0";
                     btn.style.borderRadius = "4px";
-                    btn.style.backgroundColor = i === currentPage ? "#1565c0" : "#fff";
-                    btn.style.color = i === currentPage ? "#fff" : "#1565c0";
-                    btn.style.cursor = "pointer";
-
-                    btn.addEventListener("click", () => {
-                        currentPage = i;
-                        renderPage(currentPage);
-                        window.scrollTo({ top: gallery.offsetTop - 50, behavior: 'smooth' });
-                    });
-
+                    btn.style.backgroundColor = active ? "#1565c0" : "#fff";
+                    btn.style.color = active ? "#fff" : "#1565c0";
+                    btn.style.cursor = disabled || active ? "default" : "pointer";
+                    btn.style.opacity = disabled ? "0.4" : "1";
+                    if (!disabled && !active) btn.addEventListener("click", () => goToPage(page));
                     pagination.appendChild(btn);
                 }
+
+                addButton("‹ Prev", currentPage - 1, { disabled: currentPage === 1, ariaLabel: "Previous page" });
+                pageNumbers(currentPage, totalPages).forEach(p => {
+                    if (p === "…") {
+                        const gap = document.createElement("span");
+                        gap.textContent = "…";
+                        gap.style.color = "#1565c0";
+                        pagination.appendChild(gap);
+                    } else {
+                        addButton(String(p), p, { active: p === currentPage, ariaLabel: `Page ${p}` });
+                    }
+                });
+                addButton("Next ›", currentPage + 1, { disabled: currentPage === totalPages, ariaLabel: "Next page" });
+
+                const info = document.createElement("div");
+                info.style.flexBasis = "100%";
+                info.style.textAlign = "center";
+                info.style.color = "#555";
+                info.style.fontSize = "14px";
+                const from = (currentPage - 1) * perPage + 1;
+                const to = Math.min(currentPage * perPage, images.length);
+                info.textContent = `Showing ${from}–${to} of ${images.length} certificates`;
+                pagination.appendChild(info);
 
                 gallery.parentNode.appendChild(pagination);
             }
