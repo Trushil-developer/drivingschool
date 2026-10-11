@@ -4,9 +4,59 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
+  # Runs on every push and PR. Deploy only starts if this passes, so a syntax
+  # error or a broken schema change never reaches the server.
+  check:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0.45 # same version as production
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: drivingschool
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: JavaScript syntax check
+        run: |
+          for f in server.js routes/*.js scripts/*.js $(find public/js -name '*.js' -not -name '*.min.js'); do
+            node --check "$f"
+          done
+
+      - name: Shell script syntax check
+        run: bash -n scripts/backup-db.sh
+
+      - name: Schema builds on an empty database and re-runs cleanly
+        run: |
+          db() { mysql -h 127.0.0.1 -u root drivingschool "$@"; }
+          db < sql/schema.sql
+          db < sql/upgrade.sql > /dev/null
+          # second run = what every later deploy does to an existing database
+          db < sql/schema.sql
+          db < sql/upgrade.sql > /dev/null
+          db -N -e "SELECT CONCAT(COUNT(*), ' tables') FROM information_schema.tables WHERE table_schema = DATABASE()"
+
   deploy:
+    needs: check
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
@@ -17,9 +67,13 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # Stop at the first failing step and mark the deploy as failed,
+            # instead of carrying on and reporting success.
+            set -euo pipefail
             cd drivingschool/
             git pull
+            bash scripts/backup-db.sh predeploy
             MYSQL_PWD=${{ secrets.MYSQL_PASSWORD }} mysql -u root drivingschool < sql/schema.sql
-            MYSQL_PWD=${{ secrets.MYSQL_PASSWORD }} mysql -u root drivingschool < sql/upgrade.sql
+            MYSQL_PWD=${{ secrets.MYSQL_PASSWORD }} mysql -u root drivingschool < sql/upgrade.sql > /dev/null
             pm2 restart all
             sudo systemctl reload nginx
