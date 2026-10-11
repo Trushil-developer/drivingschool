@@ -467,6 +467,14 @@ CALL ensure_column('bookings', 'expiry_reason',     "TEXT NULL");
 CALL ensure_column('bookings', 'expiry_reason_at',  "DATETIME NULL");
 CALL ensure_column('bookings', 'certificate_url',   "VARCHAR(255) NULL");
 
+-- An admin marked the course Completed even though attendance records show
+-- fewer sessions than training_days (reason required). While set, the
+-- booking stays Completed whatever attendance recalculations say.
+CALL ensure_column('bookings', 'manually_completed_at',      "DATETIME NULL");
+CALL ensure_column('bookings', 'manual_completion_reason',   "TEXT NULL");
+CALL ensure_column('bookings', 'manually_completed_by_id',   "INT NULL");
+CALL ensure_column('bookings', 'manually_completed_by_type', "VARCHAR(20) NULL");
+
 CALL ensure_column('bookings', 'created_at',        "TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
 CALL ensure_column('bookings', 'created_by_id',     "INT NULL");
 CALL ensure_column('bookings', 'created_by_type',   "VARCHAR(20) NULL");

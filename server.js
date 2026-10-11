@@ -277,6 +277,10 @@ export function computeAttendanceStatus(booking) {
   const startDate = booking.starting_from ? new Date(booking.starting_from) : null;
   const today = new Date();
 
+  // An admin marked this course complete despite missing attendance records
+  // (POST /api/bookings/:id/manual-complete) — that decision outranks
+  // anything recomputed from attendance.
+  if (booking.manually_completed_at) return 'Completed';
   if (hold) return 'Hold';
   if (presentDays >= trainingDays) return 'Completed';
   if (!startDate) return 'Pending';
@@ -292,7 +296,7 @@ export function computeAttendanceStatus(booking) {
 
 async function fetchBookingMinimal(id) {
   const [rows] = await dbPool.query(
-    `SELECT id, starting_from, training_days, present_days, hold_status FROM bookings WHERE id = ? LIMIT 1`,
+    `SELECT id, starting_from, training_days, present_days, hold_status, extended_days, manually_completed_at FROM bookings WHERE id = ? LIMIT 1`,
     [id]
   );
   return rows.length ? rows[0] : null;
@@ -1319,7 +1323,27 @@ app.get('/api/bookings/:id', requireAdmin, async (req, res, next) => {
   try {
     const [rows] = await dbPool.query(`SELECT * FROM bookings WHERE id = ? AND school_id = ?`, [req.params.id, req.schoolId]);
     if (!rows.length) return res.json({ success: false, error: 'Booking not found' });
-    res.json({ success: true, booking: rows[0] });
+    const booking = rows[0];
+    // Sessions actually proven by attendance records (regular + ad-hoc), so
+    // the details page can show how far short a manual completion falls.
+    const [[proven]] = await dbPool.query(
+      `SELECT (SELECT COUNT(*) FROM attendance WHERE booking_id = ? AND present >= 1)
+            + (SELECT COUNT(*) FROM schedule_slots WHERE booking_id = ? AND present = 1) AS sessions`,
+      [booking.id, booking.id]
+    );
+    if (booking.manually_completed_by_id) {
+      const [[by]] = await dbPool.query(
+        'SELECT COALESCE(full_name, username) AS name FROM admins WHERE id = ? LIMIT 1',
+        [booking.manually_completed_by_id]
+      );
+      booking.manually_completed_by_name = by?.name || null;
+    }
+    res.json({
+      success: true,
+      booking,
+      provenSessions: Number(proven.sessions),
+      viewerRole: req.session.adminRole || 'instructor',
+    });
   } catch (err) {
     console.error('GET BOOKING ERROR:', err);
     next(err);
@@ -1530,6 +1554,87 @@ app.post('/api/bookings/:id/expiry-reason', requireAdmin, async (req, res, next)
   }
 });
 
+// Mark a course Completed when attendance records don't prove every session
+// (e.g. lessons that were taught but never marked). Admins only, and a reason
+// is mandatory; it's stored on the booking and in the audit log. While set,
+// computeAttendanceStatus keeps the booking Completed.
+app.post('/api/bookings/:id/manual-complete', requireAdmin, async (req, res, next) => {
+  if (req.session.adminRole !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Only an admin can mark a course as completed' });
+  }
+  const reason = (req.body?.reason || '').trim();
+  if (reason.length < 5) {
+    return res.json({ success: false, error: 'Please give a reason (at least 5 characters)' });
+  }
+  try {
+    const [[booking]] = await dbPool.query(
+      'SELECT id, attendance_status, present_days, training_days FROM bookings WHERE id = ? AND school_id = ? LIMIT 1',
+      [req.params.id, req.schoolId]
+    );
+    if (!booking) return res.json({ success: false, error: 'Booking not found' });
+    if (booking.attendance_status === 'Completed') {
+      return res.json({ success: false, error: 'This course is already completed' });
+    }
+    await dbPool.query(
+      `UPDATE bookings
+       SET manually_completed_at = NOW(), manual_completion_reason = ?,
+           manually_completed_by_id = ?, manually_completed_by_type = 'admin',
+           attendance_status = 'Completed', hold_status = 0,
+           expiry_reason = NULL, expiry_reason_at = NULL
+       WHERE id = ? AND school_id = ?`,
+      [reason, req.session.adminId, booking.id, req.schoolId]
+    );
+    await logAudit(req, {
+      action: 'booking.manual_complete',
+      entityType: 'booking',
+      entityId: booking.id,
+      details: {
+        reason,
+        previous_status: booking.attendance_status,
+        present_days: booking.present_days,
+        training_days: booking.training_days,
+      },
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('MANUAL COMPLETE ERROR:', err);
+    next(err);
+  }
+});
+
+// Undo a manual completion (e.g. done on the wrong student): the status goes
+// back to whatever attendance says.
+app.delete('/api/bookings/:id/manual-complete', requireAdmin, async (req, res, next) => {
+  if (req.session.adminRole !== 'admin') {
+    return res.status(403).json({ success: false, error: 'Only an admin can undo a manual completion' });
+  }
+  try {
+    const [[booking]] = await dbPool.query(
+      'SELECT id, manual_completion_reason FROM bookings WHERE id = ? AND school_id = ? AND manually_completed_at IS NOT NULL LIMIT 1',
+      [req.params.id, req.schoolId]
+    );
+    if (!booking) return res.json({ success: false, error: 'This course was not manually completed' });
+    await dbPool.query(
+      `UPDATE bookings
+       SET manually_completed_at = NULL, manual_completion_reason = NULL,
+           manually_completed_by_id = NULL, manually_completed_by_type = NULL
+       WHERE id = ? AND school_id = ?`,
+      [booking.id, req.schoolId]
+    );
+    await recomputeAndStoreAttendanceStatus(booking.id);
+    await logAudit(req, {
+      action: 'booking.manual_complete_undo',
+      entityType: 'booking',
+      entityId: booking.id,
+      details: { previous_reason: booking.manual_completion_reason },
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('MANUAL COMPLETE UNDO ERROR:', err);
+    next(err);
+  }
+});
+
 // =====================
 // UPLOAD CERTIFICATE
 // =====================
@@ -1724,7 +1829,7 @@ app.post('/api/attendance/:booking_id', requireAdmin, async (req, res, next) => 
             );
 
             const [bookingRows] = await conn.query(
-                `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?`,
+                `SELECT present_days, training_days, hold_status, starting_from, extended_days, manually_completed_at FROM bookings WHERE id = ?`,
                 [booking_id]
             );
             if (!bookingRows.length) throw new Error(`Booking ${booking_id} not found`);
@@ -1809,7 +1914,7 @@ app.delete('/api/attendance/:booking_id/:attendance_id', requireAdmin, async (re
         await conn.query(`UPDATE bookings SET present_days = ? WHERE id = ?`, [totalPresent, booking_id]);
 
         const [bookingRows] = await conn.query(
-            `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?`,
+            `SELECT present_days, training_days, hold_status, starting_from, extended_days, manually_completed_at FROM bookings WHERE id = ?`,
             [booking_id]
         );
         const newStatus = computeAttendanceStatus(bookingRows[0]);
@@ -1934,7 +2039,7 @@ app.post('/api/schedule-slots', requireAdmin, async (req, res, next) => {
     );
 
     const [[bookingRow]] = await conn.query(
-      `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?`,
+      `SELECT present_days, training_days, hold_status, starting_from, extended_days, manually_completed_at FROM bookings WHERE id = ?`,
       [booking_id]
     );
     const newStatus = computeAttendanceStatus(bookingRow);
@@ -1997,7 +2102,7 @@ app.delete('/api/schedule-slots/:id', requireAdmin, async (req, res, next) => {
     );
 
     const [[bookingRow]] = await conn.query(
-      `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?`,
+      `SELECT present_days, training_days, hold_status, starting_from, extended_days, manually_completed_at FROM bookings WHERE id = ?`,
       [slot.booking_id]
     );
     const newStatus = computeAttendanceStatus(bookingRow);
@@ -2037,7 +2142,7 @@ app.patch('/api/schedule-slots/:id/present', requireAdmin, async (req, res, next
     await conn.query(`UPDATE bookings SET present_days = ? WHERE id = ?`, [totalPresent, slot.booking_id]);
 
     const [[bookingRow]] = await conn.query(
-      `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?`,
+      `SELECT present_days, training_days, hold_status, starting_from, extended_days, manually_completed_at FROM bookings WHERE id = ?`,
       [slot.booking_id]
     );
     const newStatus = computeAttendanceStatus(bookingRow);
@@ -3319,7 +3424,7 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
       await mConn.query(`UPDATE bookings SET present_days=? WHERE id=?`, [totalPresent, bookingId]);
 
       const [bookingRows] = await mConn.query(
-        `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id=?`,
+        `SELECT present_days, training_days, hold_status, starting_from, extended_days, manually_completed_at FROM bookings WHERE id=?`,
         [bookingId]
       );
       const newStatus = computeAttendanceStatus(bookingRows[0]);
@@ -3411,7 +3516,7 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
     await conn.query(`UPDATE bookings SET present_days = ? WHERE id = ?`, [totalPresent, trip.booking_id]);
 
     const [bookingRows] = await conn.query(
-      `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?`,
+      `SELECT present_days, training_days, hold_status, starting_from, extended_days, manually_completed_at FROM bookings WHERE id = ?`,
       [trip.booking_id]
     );
     const newStatus = computeAttendanceStatus(bookingRows[0]);
@@ -3547,7 +3652,7 @@ app.patch('/api/admin/trip-logs/:id/reject', requireAdmin, async (req, res, next
     await conn.query(`UPDATE bookings SET present_days = ? WHERE id = ?`, [totalPresent, trip.booking_id]);
 
     const [bookingRows] = await conn.query(
-      `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?`,
+      `SELECT present_days, training_days, hold_status, starting_from, extended_days, manually_completed_at FROM bookings WHERE id = ?`,
       [trip.booking_id]
     );
     const newStatus = computeAttendanceStatus(bookingRows[0]);
@@ -3810,7 +3915,7 @@ app.post('/api/driver/schedule-slots', requireAdmin, async (req, res, next) => {
       [Number(attSum.total) + Number(adhocSum.total), booking_id]
     );
     const [[bookingRow]] = await conn.query(
-      'SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id = ?',
+      'SELECT present_days, training_days, hold_status, starting_from, extended_days, manually_completed_at FROM bookings WHERE id = ?',
       [booking_id]
     );
     await conn.query(
@@ -4321,7 +4426,7 @@ app.patch('/api/admin/schedule-requests/:id', requireAdmin, async (req, res, nex
     await conn.query(`UPDATE bookings SET present_days=? WHERE id=?`, [totalPresent, reqRow.booking_id]);
 
     const [[bookingRow]] = await conn.query(
-      `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id=?`,
+      `SELECT present_days, training_days, hold_status, starting_from, extended_days, manually_completed_at FROM bookings WHERE id=?`,
       [reqRow.booking_id]
     );
     const newStatus = computeAttendanceStatus(bookingRow);
@@ -4379,7 +4484,7 @@ app.patch('/api/admin/schedule-requests/:id/revert', requireAdmin, async (req, r
     await conn.query(`UPDATE bookings SET present_days=? WHERE id=?`, [totalPresent, reqRow.booking_id]);
 
     const [[bookingRow]] = await conn.query(
-      `SELECT present_days, training_days, hold_status, starting_from, extended_days FROM bookings WHERE id=?`,
+      `SELECT present_days, training_days, hold_status, starting_from, extended_days, manually_completed_at FROM bookings WHERE id=?`,
       [reqRow.booking_id]
     );
     const newStatus = computeAttendanceStatus(bookingRow);

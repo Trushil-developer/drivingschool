@@ -7,7 +7,7 @@ export default async function updateBookingsStatus() {
   try {
     // Fetch all bookings
     const [bookings] = await dbPool.query(
-      `SELECT id, starting_from, training_days, present_days, hold_status FROM bookings`
+      `SELECT id, starting_from, training_days, present_days, hold_status, extended_days, manually_completed_at FROM bookings`
     );
 
     // Loop through each booking and recompute attendance_status

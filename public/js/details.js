@@ -55,7 +55,15 @@ import { openSlotPicker } from "./globals/slotPicker.js";
 
     backBtn.addEventListener('click', () => window.location.href = 'admin.html');
 
+    function escapeHtml(str) {
+        return String(str ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
     let booking = null;
+    let provenSessions = 0;
+    let viewerRole = '';
 
     // =========================
     // LOAD BOOKING
@@ -65,6 +73,8 @@ import { openSlotPicker } from "./globals/slotPicker.js";
             const res = await window.api(`/api/bookings/${id}`);
             if (!res.success) throw new Error(res.error || 'Failed to fetch booking');
             booking = res.booking;
+            provenSessions = Number(res.provenSessions) || 0;
+            viewerRole = res.viewerRole || '';
             if (!booking) {
                 detailsTable.innerHTML = `<tr><td colspan="2" class="error">Booking not found.</td></tr>`;
                 return;
@@ -91,6 +101,7 @@ import { openSlotPicker } from "./globals/slotPicker.js";
                     <th>Slots</th>
                     <td>${booking.present_days} / ${booking.training_days}</td>
                 </tr>
+                ${completionRowHtml()}
                 <tr>
                     <th>Hold Status</th>
                     <td data-key="hold_status" class="${booking.hold_status ? 'status-hold' : ''}">
@@ -127,6 +138,11 @@ import { openSlotPicker } from "./globals/slotPicker.js";
                     'extended_days',
                     'created_at',
                     'certificate_url',
+                    'manually_completed_at',
+                    'manual_completion_reason',
+                    'manually_completed_by_id',
+                    'manually_completed_by_type',
+                    'manually_completed_by_name',
                     'allotted_time',
                     'allotted_time2',
                     'allotted_time3',
@@ -225,6 +241,7 @@ import { openSlotPicker } from "./globals/slotPicker.js";
 
 
             attendanceBtn.onclick = () => openAttendanceHistory(booking);
+            wireCompletionButtons();
 
             // ------------------- Certificate Row -------------------
             detailsTable.insertAdjacentHTML("beforeend", `
@@ -255,6 +272,68 @@ import { openSlotPicker } from "./globals/slotPicker.js";
             console.error(err);
             detailsTable.innerHTML = `<tr><td colspan="2" class="error">Failed to load booking details.</td></tr>`;
         }
+    }
+
+    // =============================================
+    // MANUAL COMPLETION (admin only, reason required)
+    // =============================================
+    // For a student who finished the course but whose attendance records show
+    // fewer sessions than training_days. The server re-checks the admin role.
+    function completionRowHtml() {
+        if (booking.manually_completed_at) {
+            const by = booking.manually_completed_by_name ? ` by ${escapeHtml(booking.manually_completed_by_name)}` : '';
+            const undo = viewerRole === 'admin'
+                ? `<button id="undoManualCompleteBtn" class="btn btn-warning" style="margin-left:8px;">Undo</button>`
+                : '';
+            return `
+                <tr>
+                    <th>Completion</th>
+                    <td>
+                        Marked completed manually${by} on ${formatDateTime(booking.manually_completed_at)}
+                        (attendance shows ${provenSessions} of ${booking.training_days} sessions)${undo}
+                        <div style="color:#6b7280;margin-top:4px;">Reason: ${escapeHtml(booking.manual_completion_reason)}</div>
+                    </td>
+                </tr>`;
+        }
+        if (viewerRole === 'admin' && booking.attendance_status !== 'Completed') {
+            return `
+                <tr>
+                    <th>Completion</th>
+                    <td>
+                        Attendance shows ${provenSessions} of ${booking.training_days} sessions.
+                        <button id="manualCompleteBtn" class="btn btn-success" style="margin-left:8px;">Mark as Completed</button>
+                    </td>
+                </tr>`;
+        }
+        return '';
+    }
+
+    function wireCompletionButtons() {
+        document.getElementById('manualCompleteBtn')?.addEventListener('click', async () => {
+            const reason = prompt(
+                `Mark ${booking.customer_name || 'this student'}'s course as Completed?\n\n` +
+                `Attendance only shows ${provenSessions} of ${booking.training_days} sessions. ` +
+                `Enter the reason (required) — it is saved with your name:`
+            );
+            if (reason === null) return;
+            if (reason.trim().length < 5) {
+                alert('Please give a reason (at least 5 characters).');
+                return;
+            }
+            const res = await window.api(`/api/bookings/${id}/manual-complete`, {
+                method: 'POST',
+                body: JSON.stringify({ reason: reason.trim() })
+            });
+            if (!res.success) return alert(res.error || 'Failed to mark as completed');
+            await loadBooking();
+        });
+
+        document.getElementById('undoManualCompleteBtn')?.addEventListener('click', async () => {
+            if (!confirm('Undo the manual completion? The status will go back to what attendance shows.')) return;
+            const res = await window.api(`/api/bookings/${id}/manual-complete`, { method: 'DELETE' });
+            if (!res.success) return alert(res.error || 'Failed to undo');
+            await loadBooking();
+        });
     }
 
     await loadBooking();
