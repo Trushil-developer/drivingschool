@@ -126,7 +126,7 @@ header {
 }
 
 .enquiry-btn {
-    background: #43a047;
+    background: #2e7d32;
     color: #fff !important;
     padding: 0.55rem 1.2rem;
     border-radius: 25px;
@@ -293,7 +293,7 @@ header {
     }
 
     .header-nav .enquiry-btn {
-        background: #43a047;
+        background: #2e7d32;
     }
 
     .header-nav .login-btn {
