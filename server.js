@@ -248,23 +248,8 @@ app.use(
 // a heartbeat on every request made under an app-authenticated session (identified
 // by `login_booking_id`, which only /api/student-login sets — web OTP sessions
 // don't have it), upserted once per booking per calendar day.
-const ensureAppActivityTable = () => dbPool.query(`
-  CREATE TABLE IF NOT EXISTS app_activity (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    booking_id INT NOT NULL,
-    email VARCHAR(255) NULL,
-    school_id INT NOT NULL DEFAULT 1,
-    activity_date DATE NOT NULL,
-    request_count INT NOT NULL DEFAULT 1,
-    first_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uniq_booking_day (booking_id, activity_date),
-    INDEX (activity_date)
-  )
-`);
-
+// (Table structure for this and every other table lives in sql/schema.sql.)
 async function trackAppActivity(bookingId, schoolId, email) {
-  await ensureAppActivityTable();
   await dbPool.query(
     `INSERT INTO app_activity (booking_id, email, school_id, activity_date, request_count, first_seen_at, last_seen_at)
      VALUES (?, ?, ?, CURDATE(), 1, NOW(), NOW())
@@ -807,23 +792,6 @@ app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
   const instructorId = req.session.adminId;
   if (!leave_from || !leave_to || !leave_type) return res.json({ success: false, error: 'From date, to date and type required' });
   if (leave_to < leave_from) return res.json({ success: false, error: 'To date must be on or after from date' });
-  const ensureTable = () => dbPool.query(`
-    CREATE TABLE IF NOT EXISTS leave_requests (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      instructor_id INT NOT NULL,
-      instructor_name VARCHAR(100),
-      branch VARCHAR(100),
-      leave_from DATE NOT NULL,
-      leave_to DATE NOT NULL,
-      leave_type ENUM('Full Day','Half Day') NOT NULL DEFAULT 'Full Day',
-      reason TEXT,
-      status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
-      created_at DATETIME NOT NULL,
-      school_id INT NOT NULL DEFAULT 1,
-      updated_by_id INT NULL,
-      updated_by_type VARCHAR(20) NULL
-    )
-  `);
   try {
     const [rows] = await dbPool.query(
       'SELECT instructor_name, branch FROM instructors WHERE id = ? LIMIT 1', [instructorId]
@@ -843,24 +811,6 @@ app.post('/api/driver-leave', requireAdmin, async (req, res, next) => {
       data: { screen: 'LeaveRequests', leaveId: String(result.insertId) },
     }).catch(err => console.error('[driver-leave] manager notify failed:', err.message));
   } catch (err) {
-    if (err.code === 'ER_NO_SUCH_TABLE') {
-      await ensureTable();
-      const [rows] = await dbPool.query('SELECT instructor_name, branch FROM instructors WHERE id = ? LIMIT 1', [instructorId]);
-      const name = rows[0]?.instructor_name ?? ''; const branch = rows[0]?.branch ?? '';
-      const [result] = await dbPool.query(
-        `INSERT INTO leave_requests (instructor_id, instructor_name, branch, leave_from, leave_to, leave_type, reason, status, created_at, school_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', NOW(), ?)`,
-        [instructorId, name, branch, leave_from, leave_to, leave_type, reason || null, req.schoolId]
-      );
-      await logAudit(req, { action: 'leave.request', entityType: 'leave_requests', entityId: result.insertId, details: { leave_from, leave_to, leave_type } });
-      res.json({ success: true, id: result.insertId });
-      notifyBranchManagers(req.schoolId, branch, `leavepending|${result.insertId}`, {
-        title: 'Leave Request Pending',
-        body: `${name} requested leave from ${leave_from} to ${leave_to}.`,
-        data: { screen: 'LeaveRequests', leaveId: String(result.insertId) },
-      }).catch(err => console.error('[driver-leave] manager notify failed:', err.message));
-      return;
-    }
     next(err);
   }
 });
@@ -1019,19 +969,6 @@ app.post('/api/student-login', async (req, res, next) => {
   }
 });
 
-const ensureDevicePushTokensTable = () => dbPool.query(`
-  CREATE TABLE IF NOT EXISTS device_push_tokens (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    person_id INT NOT NULL,
-    person_type VARCHAR(20) NOT NULL,
-    platform VARCHAR(10) NOT NULL,
-    token VARCHAR(255) NOT NULL,
-    school_id INT NOT NULL DEFAULT 1,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uniq_token (token)
-  )
-`);
-
 // Register/update a device's push token. Accepts an instructor OR manager
 // session (driver-login/manager-login: adminLoggedIn + adminRole is unset or
 // 'manager') or a student session (student-login: examUser.login_booking_id).
@@ -1060,7 +997,6 @@ app.post('/api/device-token', async (req, res, next) => {
       return res.json({ success: true }); // admin or no session — nothing to register
     }
 
-    await ensureDevicePushTokensTable();
     await dbPool.query(
       `INSERT INTO device_push_tokens (person_id, person_type, platform, token, school_id)
        VALUES (?, ?, ?, ?, ?)
@@ -1079,8 +1015,6 @@ app.post('/api/device-token', async (req, res, next) => {
 app.get('/api/admin/app-usage', requireAdmin, async (req, res, next) => {
   const schoolId = req.schoolId || req.session?.schoolId || 1;
   try {
-    await ensureAppActivityTable();
-    await ensureDevicePushTokensTable();
 
     const [[eligibleRow]] = await dbPool.query(
       `SELECT COUNT(*) AS c FROM bookings WHERE school_id = ? AND attendance_status = 'Active' AND email IS NOT NULL AND email != ''`,
@@ -1661,205 +1595,6 @@ app.get("/api/bookings/:id/certificate/download", requireAdmin, async (req, res)
         res.status(500).json({ success: false, error: 'Failed to generate download link' });
     }
 });
-
-// ---------- EXPENSE CATEGORIES MIGRATION ----------
-(async () => {
-  try {
-    const [cols] = await dbPool.query(
-      `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'expense_categories' AND COLUMN_NAME = 'extra_field'`
-    );
-    if (cols[0].cnt === 0) {
-      await dbPool.query(`ALTER TABLE expense_categories ADD COLUMN extra_field VARCHAR(20) DEFAULT NULL`);
-    }
-    // Migrate any old global defaults (school_id=0) to school-owned so they are editable
-    await dbPool.query(`UPDATE expense_categories SET school_id = 1, is_custom = 1 WHERE school_id = 0`);
-    // Ensure extra_field is set for any rows missing it
-    await dbPool.query(`UPDATE expense_categories SET extra_field = 'car' WHERE is_car_related = 1 AND (extra_field IS NULL OR extra_field = '')`);
-
-    // show_in_earnings: which categories' expenses surface in the instructor app's
-    // Earning tab (distinct from extra_field='employee', which only controls
-    // whether the admin form shows an employee picker).
-    const [earnCols] = await dbPool.query(
-      `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'expense_categories' AND COLUMN_NAME = 'show_in_earnings'`
-    );
-    if (earnCols[0].cnt === 0) {
-      await dbPool.query(`ALTER TABLE expense_categories ADD COLUMN show_in_earnings TINYINT(1) NOT NULL DEFAULT 0`);
-      // One-time seed: salary + overtime are the only categories instructors should see as earnings
-      await dbPool.query(
-        `UPDATE expense_categories SET show_in_earnings = 1 WHERE name IN ('Salary Withdrawal Slip', 'OVER TIME')`
-      );
-    }
-    // expense_categories ready
-  } catch (err) {
-    console.error('expense_categories migration error:', err);
-  }
-})();
-
-// ---------- ATTENDANCE TABLE ----------
-(async () => {
-  try {
-    await dbPool.query(`
-      CREATE TABLE IF NOT EXISTS attendance (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        booking_id INT NOT NULL,
-        date DATE NOT NULL,
-        present TINYINT(1) DEFAULT 0,
-        UNIQUE KEY unique_record (booking_id, date),
-        FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
-      )
-    `);
-  } catch (err) {
-    console.error('CREATE attendance TABLE ERROR:', err);
-  }
-})();
-
-// Migration: add present column to schedule_slots
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE schedule_slots ADD COLUMN present TINYINT(1) DEFAULT 1`);
-    // migration: schedule_slots.present added
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_slots.present:', e.message); }
-})();
-
-// Migration: schedule_slots audit columns — who created each ad-hoc/replacement
-// slot (account id, resolved display name, and whether they were logged in as
-// an instructor or an admin), so "who created this?" is a direct query instead
-// of guesswork from instructor_name alone.
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE schedule_slots ADD COLUMN created_by_admin_id INT NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_slots.created_by_admin_id:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE schedule_slots ADD COLUMN created_by_name VARCHAR(100) NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_slots.created_by_name:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE schedule_slots ADD COLUMN created_by_role VARCHAR(20) NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_slots.created_by_role:', e.message); }
-})();
-
-// Migration: exam_attempts.ip_address/user_agent — captured on attempt start
-// (routes/examRoutes.js POST /attempt/start) and surfaced in the admin Exam
-// History tab and its CSV export. Lives here rather than in examRoutes.js
-// because examRoutes.js imports dbPool from this file, so a top-level
-// migration there would run before dbPool finishes initializing.
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE exam_attempts ADD COLUMN ip_address VARCHAR(45) NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] exam_attempts.ip_address:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE exam_attempts ADD COLUMN user_agent TEXT NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] exam_attempts.user_agent:', e.message); }
-})();
-
-// Migration: instructors.branch2 — an optional second branch an instructor
-// also teaches at (routes/instructorsRoutes.js). Lives here rather than
-// there for the same dbPool-not-yet-initialized reason as the migration
-// above. One instructor covering two branches (e.g. Malabar and
-// Vandematram) previously had to pick a single `branch`, which silently
-// broke them everywhere that matched on it: the school-WiFi SSID they're
-// required to clock in from (GET /api/app-config), and the instructor
-// dropdowns in the New Training form, the public registration wizard, and
-// the admin Schedule tab (GET /api/instructors?branch=).
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE instructors ADD COLUMN branch2 VARCHAR(50) NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] instructors.branch2:', e.message); }
-})();
-
-// Migration: schedule_slots_deletions — a full snapshot of every ad-hoc/
-// replacement slot at the moment it's deleted, plus who deleted it and when.
-// Deleting a schedule_slots row is allowed again, but it must never be a
-// clean erase: this is what keeps "who created it and what happened to it"
-// answerable even after the row itself is gone.
-(async () => {
-  try {
-    await dbPool.query(`
-      CREATE TABLE IF NOT EXISTS schedule_slots_deletions (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        original_slot_id INT NOT NULL,
-        booking_id INT NOT NULL,
-        date DATE NOT NULL,
-        time VARCHAR(10) NOT NULL,
-        car_name VARCHAR(100),
-        instructor_name VARCHAR(100),
-        present TINYINT(1),
-        source VARCHAR(30),
-        created_by_admin_id INT NULL,
-        created_by_name VARCHAR(100) NULL,
-        created_by_role VARCHAR(20) NULL,
-        created_at TIMESTAMP NULL,
-        deleted_by_admin_id INT NULL,
-        deleted_by_name VARCHAR(100) NULL,
-        deleted_by_role VARCHAR(20) NULL,
-        deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        school_id INT NOT NULL DEFAULT 1
-      )
-    `);
-  } catch (e) { console.error('[Migration] schedule_slots_deletions:', e.message); }
-})();
-
-// Migration: add time column to attendance + update unique key to (booking_id, date, time)
-// Existing rows keep time='' so old display behavior is preserved via frontend fallback
-(async () => {
-  try {
-    try { await dbPool.query(`ALTER TABLE attendance ADD COLUMN time VARCHAR(10) NOT NULL DEFAULT '' AFTER date`); }
-    catch (e) { if (e.errno !== 1060) throw e; }
-    // Add new key under a temp name first so FK has an index to hold on to during drops
-    try { await dbPool.query(`ALTER TABLE attendance ADD UNIQUE KEY uq_att_slot (booking_id, date, time)`); }
-    catch (e) { if (e.errno !== 1061) throw e; }
-    // Now safe to drop old keys
-    try { await dbPool.query(`ALTER TABLE attendance DROP INDEX unique_attendance`); } catch (_) {}
-    try { await dbPool.query(`ALTER TABLE attendance DROP INDEX unique_record`); } catch (_) {}
-    // Add canonical key name
-    try { await dbPool.query(`ALTER TABLE attendance ADD UNIQUE KEY unique_record (booking_id, date, time)`); }
-    catch (e) { if (e.errno !== 1061) throw e; }
-    // Drop temp key
-    try { await dbPool.query(`ALTER TABLE attendance DROP INDEX uq_att_slot`); } catch (_) {}
-    // migration: attendance per-slot ready
-  } catch (err) {
-    console.error('[Migration] attendance per-slot:', err.message);
-  }
-})();
-
-// Migration: add marked_by_id + marked_by_type to attendance
-// marked_by_type: 'admin' = admins table, 'manager'/'instructor' = instructors table
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE attendance ADD COLUMN marked_by_id INT NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.marked_by_id:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE attendance ADD COLUMN marked_by_type VARCHAR(20) NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.marked_by_type:', e.message); }
-})();
-
-// Migration: manager-approval fields for attendance, mirroring driver_trips —
-// when an instructor marks a student absent from the driver app, a manager
-// reviews and approves it in Trip Logs before it's considered final. Defaults
-// to 'approved' (not 'pending' like driver_trips) so the ~17k existing
-// attendance rows aren't all retroactively flagged as needing review; only
-// new instructor-marked absences are inserted as 'pending' going forward.
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE attendance ADD COLUMN approval_status ENUM('pending','approved') NOT NULL DEFAULT 'approved'`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.approval_status:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE attendance ADD COLUMN approved_by_id INT NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.approved_by_id:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE attendance ADD COLUMN approved_by_type VARCHAR(20) NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.approved_by_type:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE attendance ADD COLUMN approved_at DATETIME NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.approved_at:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE attendance ADD COLUMN change_source ENUM('manual','student_cancel','student_replacement') NOT NULL DEFAULT 'manual'`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.change_source:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE attendance ADD COLUMN change_request_id INT NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] attendance.change_request_id:', e.message); }
-})();
 
 app.get('/api/attendance-all', requireAdmin, async (req, res, next) => {
   try {
@@ -2616,71 +2351,6 @@ app.use('/api/rewards', rewardsRoutes);
 
 // ── Driver Trips ──────────────────────────────────────────────────────────────
 
-const ensureTripsTable = () => dbPool.query(`
-  CREATE TABLE IF NOT EXISTS driver_trips (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    instructor_id INT NOT NULL,
-    instructor_name VARCHAR(100),
-    booking_id INT NOT NULL,
-    student_name VARCHAR(100),
-    started_at DATETIME NOT NULL,
-    ended_at DATETIME NULL,
-    duration_mins INT NOT NULL DEFAULT 30,
-    status ENUM('active','paused','completed') NOT NULL DEFAULT 'active',
-    paused_at DATETIME NULL,
-    paused_secs INT NOT NULL DEFAULT 0,
-    start_odometer INT NULL,
-    end_odometer INT NULL,
-    approval_status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
-    approved_by_id INT NULL,
-    approved_by_type VARCHAR(20) NULL,
-    approved_at DATETIME NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    school_id INT NOT NULL DEFAULT 1,
-    schedule_slot_id INT NULL
-  )
-`);
-
-// Audit log of admin "reset meter" actions for a car — see maxPastOdometer().
-export const ensureMeterResetsTable = () => dbPool.query(`
-  CREATE TABLE IF NOT EXISTS car_meter_resets (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id INT NOT NULL DEFAULT 1,
-    car_name VARCHAR(100) NOT NULL,
-    reading INT NOT NULL,
-    note VARCHAR(255) NULL,
-    created_by_id INT NULL,
-    created_by_type VARCHAR(20) NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_car_meter_resets_car (school_id, car_name, created_at)
-  )
-`);
-
-// Migration: add car_name to driver_trips (denormalized from booking at trip-start time)
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN car_name VARCHAR(100) NULL`);
-    // Back-fill existing rows from their linked booking
-    await dbPool.query(`UPDATE driver_trips dt JOIN bookings bk ON bk.id = dt.booking_id SET dt.car_name = bk.car_name WHERE dt.car_name IS NULL OR dt.car_name = ''`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.car_name:', e.message); }
-})();
-
-// Migration: add start_odometer column to driver_trips (car meter reading entered by
-// the instructor at the start of each lesson)
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN start_odometer INT NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.start_odometer:', e.message); }
-})();
-
-// Migration: add end_odometer column to driver_trips (car meter reading entered by
-// the instructor when completing each lesson)
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN end_odometer INT NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.end_odometer:', e.message); }
-})();
-
 // The odometer only ever counts up for a given car, regardless of which instructor
 // or trip recorded it — so every new reading (start or end) must be >= the highest
 // reading ever recorded for that car. Returns 0 if the car has no prior readings.
@@ -2691,7 +2361,6 @@ export const ensureMeterResetsTable = () => dbPool.query(`
 // whichever is greater — trip readings from before the reset are ignored.
 export async function maxPastOdometer(carName, schoolId, excludeTripId) {
   if (!carName) return 0;
-  await ensureMeterResetsTable();
   const [[reset]] = await dbPool.query(
     `SELECT reading, created_at FROM car_meter_resets
      WHERE car_name=? AND school_id=? ORDER BY created_at DESC, id DESC LIMIT 1`,
@@ -2710,27 +2379,8 @@ export async function maxPastOdometer(carName, schoolId, excludeTripId) {
 // actions (attendance, trips, clock in/out, meter resets, schedule changes,
 // leave). Call after the action has already succeeded — logging failures
 // are swallowed here so they can never break the request that triggered them.
-export const ensureAuditLogTable = () => dbPool.query(`
-  CREATE TABLE IF NOT EXISTS audit_log (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    school_id INT NOT NULL DEFAULT 1,
-    actor_id INT NULL,
-    actor_type VARCHAR(20) NULL,
-    actor_name VARCHAR(100) NULL,
-    action VARCHAR(60) NOT NULL,
-    entity_type VARCHAR(40) NULL,
-    entity_id INT NULL,
-    details TEXT NULL,
-    platform VARCHAR(20) NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_audit_log_actor (school_id, actor_id, created_at),
-    INDEX idx_audit_log_entity (school_id, entity_type, entity_id)
-  )
-`);
-
 export async function logAudit(req, { action, entityType = null, entityId = null, details = null }) {
   try {
-    await ensureAuditLogTable();
     const actorId = req.session?.adminId ?? null;
     const actorType = req.session?.adminRole || (req.session?.adminLoggedIn ? 'instructor' : null);
     let actorName = null;
@@ -2754,58 +2404,6 @@ export async function logAudit(req, { action, entityType = null, entityId = null
   }
 }
 
-// Migration: add school_id to driver_trips (multi-tenant scoping — trip start/insert
-// writes this column, so a fresh install must have it even before this table pre-dates
-// the school_id rollout)
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN school_id INT NOT NULL DEFAULT 1`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.school_id:', e.message); }
-})();
-
-// Migration: add schedule_slot_id to driver_trips — set when a trip is started for
-// an ad-hoc/makeup or student-replacement lesson instead of a booking's regular
-// allotted_time, so completing/approving the trip marks the right schedule_slots
-// row present instead of guessing via the booking's normal time.
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN schedule_slot_id INT NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.schedule_slot_id:', e.message); }
-})();
-
-// Migration: add manager-approval fields to driver_trips (a manager reviews each
-// completed trip and approves it, which marks the student present for that lesson)
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN approval_status ENUM('pending','approved') NOT NULL DEFAULT 'pending'`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.approval_status:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN approved_by_id INT NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.approved_by_id:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN approved_by_type VARCHAR(20) NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.approved_by_type:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN approved_at DATETIME NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.approved_at:', e.message); }
-  try {
-    const [[col]] = await dbPool.query(
-      `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE table_schema=DATABASE() AND table_name='driver_trips' AND column_name='approval_status'`
-    );
-    if (col && !col.COLUMN_TYPE.includes('rejected')) {
-      await dbPool.query(`ALTER TABLE driver_trips MODIFY COLUMN approval_status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending'`);
-    }
-  } catch (e) { console.error('[Migration] driver_trips.approval_status rejected:', e.message); }
-})();
-
-// Migration: flag on driver_trips so a trip's reward points are only ever
-// granted once, even if the approval logic somehow runs twice for it.
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE driver_trips ADD COLUMN reward_points_awarded TINYINT(1) NOT NULL DEFAULT 0`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] driver_trips.reward_points_awarded:', e.message); }
-})();
-
 // ── Instructor Rewards ──────────────────────────────────────────────────────
 // An instructor earns points for a trip once it's approved by a manager/admin,
 // provided the trip ran long enough and covered a plausible lesson distance —
@@ -2819,23 +2417,6 @@ const REWARD_MIN_DURATION_MINS = 25;
 const REWARD_MIN_DISTANCE_KM = 5;
 const REWARD_MAX_DISTANCE_KM = 18;
 export const REWARD_RUPEES_PER_POINT = 0.1; // 10 points = ₹1
-
-export const ensureRewardsLedgerTable = () => dbPool.query(`
-  CREATE TABLE IF NOT EXISTS instructor_rewards_ledger (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    instructor_id INT NOT NULL,
-    school_id INT NOT NULL DEFAULT 1,
-    trip_id INT NULL,
-    type ENUM('trip_earned','admin_withdraw') NOT NULL,
-    points INT NOT NULL,
-    rupee_value DECIMAL(10,2) NULL,
-    note VARCHAR(255) NULL,
-    created_by_id INT NULL,
-    created_by_type VARCHAR(20) NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_rewards_instructor (instructor_id)
-  )
-`);
 
 // Single source of truth for an instructor's points balance — always derived
 // from the ledger, never a stored counter, so this is the only place the
@@ -2873,8 +2454,6 @@ app.post('/api/driver/trip/start', requireAdmin, async (req, res, next) => {
     return res.json({ success: false, error: 'Please enter the current car meter (odometer) reading.' });
   }
   try {
-    await ensureTripsTable();
-    await ensureInstructorAttendanceTable();
     const [[attendance]] = await dbPool.query(
       'SELECT id FROM instructor_attendance WHERE instructor_id=? AND person_type=? AND date=CURDATE() AND clock_out IS NULL AND school_id=? LIMIT 1',
       [instructorId, req.session.adminRole || 'instructor', req.schoolId]
@@ -3102,7 +2681,6 @@ app.get('/api/driver/trip/active', requireAdmin, async (req, res, next) => {
 app.get('/api/driver/rewards', requireAdmin, async (req, res, next) => {
   const instructorId = req.session.adminId;
   try {
-    await ensureRewardsLedgerTable();
     const [history] = await dbPool.query(
       `SELECT id, trip_id, type, points, rupee_value, note, created_at
        FROM instructor_rewards_ledger WHERE instructor_id=? ORDER BY created_at DESC`,
@@ -3171,55 +2749,10 @@ app.get('/api/driver-status-by-name', async (req, res, next) => {
 
 // ── App Settings (Remote Config + Feature Flags) ─────────────────────────────
 
-const ensureAppSettingsTable = async () => {
-  await dbPool.query(`
-    CREATE TABLE IF NOT EXISTS app_settings (
-      \`key\`       VARCHAR(100) NOT NULL,
-      value       TEXT         NOT NULL,
-      label       VARCHAR(200) NOT NULL DEFAULT '',
-      description TEXT,
-      updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (\`key\`)
-    )
-  `);
-  const defaults = [
-    { key: 'maintenance_mode',      value: 'false', label: 'Maintenance Mode',  description: 'When ON, all app users see a maintenance screen. Admin panel stays accessible.' },
-    { key: 'maintenance_message',   value: 'We are currently performing maintenance. Please check back soon.', label: 'Maintenance Message', description: 'Text shown to users during maintenance' },
-    { key: 'feature_leave_request', value: 'true',  label: 'Leave Request',     description: 'Drivers can submit leave requests from the app' },
-    { key: 'feature_find_driver',   value: 'false', label: 'Find a Driver',     description: 'Customers can request a hired driver for their own car from the app. Off by default — turn on when ready to launch.' },
-    { key: 'wifi_ssid',             value: '',      label: 'School WiFi SSID',  description: 'Instructors must be on this WiFi to clock in/out. Leave empty to disable WiFi check.' },
-    { key: 'min_version_android',   value: '',      label: 'Minimum App Version (Android)', description: 'Minimum Android app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13' },
-    { key: 'min_version_ios',       value: '',      label: 'Minimum App Version (iOS)', description: 'Minimum iOS app version required. Users on older versions see a forced-update screen. Leave empty to disable. Format: 1.0.13' },
-  ];
-  for (const d of defaults) {
-    await dbPool.query(
-      'INSERT IGNORE INTO app_settings (`key`, value, label, description) VALUES (?, ?, ?, ?)',
-      [d.key, d.value, d.label, d.description]
-    );
-  }
-
-  // One-time migration: a single shared `min_version` key used to gate both
-  // platforms, which is what caused Apple's reviewer to get stuck behind a
-  // force-update screen on the very first iOS submission — Android's threshold
-  // had already been raised ahead of iOS's build. Carry the value over to
-  // Android (the platform that was actually live) and leave iOS unset.
-  const [[legacy]] = await dbPool.query("SELECT value FROM app_settings WHERE `key` = 'min_version'");
-  if (legacy) {
-    if (legacy.value) {
-      await dbPool.query(
-        "UPDATE app_settings SET value = ? WHERE `key` = 'min_version_android' AND value = ''",
-        [legacy.value]
-      );
-    }
-    await dbPool.query("DELETE FROM app_settings WHERE `key` = 'min_version'");
-  }
-};
-
 // Reads a boolean feature flag from app_settings. Missing row => `fallback`
 // (features default ON so a not-yet-seeded flag doesn't hide working UI).
 async function isAppFeatureEnabled(key, fallback = true) {
   try {
-    await ensureAppSettingsTable();
     const [[row]] = await dbPool.query('SELECT value FROM app_settings WHERE `key` = ?', [key]);
     if (!row) return fallback;
     return row.value === 'true';
@@ -3231,7 +2764,6 @@ async function isAppFeatureEnabled(key, fallback = true) {
 // Public — mobile app fetches this on every startup (no auth required)
 app.get('/api/app-config', async (req, res, next) => {
   try {
-    await ensureAppSettingsTable();
     const [rows] = await dbPool.query('SELECT `key`, value FROM app_settings');
     const config = {};
     for (const row of rows) {
@@ -3295,7 +2827,6 @@ app.get('/api/translations/:lang', async (req, res) => {
 // Admin — list all settings
 app.get('/api/admin/app-settings', requireAdmin, async (req, res, next) => {
   try {
-    await ensureAppSettingsTable();
     const [rows] = await dbPool.query('SELECT * FROM app_settings ORDER BY `key`');
     res.json({ success: true, settings: rows });
   } catch (err) {
@@ -3310,7 +2841,6 @@ app.patch('/api/admin/app-settings/:key', requireAdmin, async (req, res, next) =
   const { value } = req.body;
   if (value === undefined || value === null) return res.json({ success: false, error: 'value required' });
   try {
-    await ensureAppSettingsTable();
     await dbPool.query(
       'INSERT INTO app_settings (`key`, value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE value = ?, updated_at = NOW()',
       [key, String(value), String(value)]
@@ -3387,20 +2917,10 @@ app.get('/api/driver-status/:instructor_id', async (req, res, next) => {
 
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-const ensureNotificationLogTable = () => dbPool.query(`
-  CREATE TABLE IF NOT EXISTS notification_log (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    ref_key VARCHAR(150) NOT NULL,
-    sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uniq_ref (ref_key)
-  )
-`);
-
 // True only the first time `refKey` is claimed — dedupes the per-slot cron
 // reminders (trip-start, pre-lesson) so overlapping cron ticks or a server
 // restart never send the same reminder twice.
 async function claimNotificationOnce(refKey) {
-  await ensureNotificationLogTable();
   try {
     await dbPool.query(`INSERT INTO notification_log (ref_key) VALUES (?)`, [refKey]);
     return true;
@@ -3656,7 +3176,6 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
   const schoolId = req.schoolId || req.session?.schoolId || 1;
   const { date_from, date_to, instructor_id, status, car_name, branch } = req.query;
   try {
-    await ensureTripsTable();
     // Auto-complete any trip that has been active/paused for more than 2 hours
     await dbPool.query(
       `UPDATE driver_trips
@@ -3905,14 +3424,13 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
 
     // Award reward points once, only for trips that actually cover a real
     // lesson (long enough + a plausible lesson distance) — see the constants
-    // defined near ensureRewardsLedgerTable above.
+    // defined near REWARD_POINTS_PER_TRIP above.
     const distanceKm = (trip.start_odometer != null && trip.end_odometer != null)
       ? trip.end_odometer - trip.start_odometer
       : null;
     if (!trip.reward_points_awarded
       && Number(trip.duration_mins) >= REWARD_MIN_DURATION_MINS
       && distanceKm != null && distanceKm > REWARD_MIN_DISTANCE_KM && distanceKm < REWARD_MAX_DISTANCE_KM) {
-      await ensureRewardsLedgerTable();
       // Flip the flag with the qualifying condition in the WHERE clause — this
       // acquires the row lock and the CAS in one statement, so if two approve
       // requests for the same trip race each other, only the first one's
@@ -4059,7 +3577,6 @@ app.get('/api/admin/car-reports', requireAdmin, async (req, res, next) => {
   const schoolId = req.schoolId || req.session?.schoolId || 1;
   const { date_from, date_to, car_name, branch } = req.query;
   try {
-    await ensureTripsTable();
     const conditions = ['dt.school_id = ?', 'dt.start_odometer IS NOT NULL', "dt.status IN ('completed','active')"];
     const params = [schoolId];
 
@@ -4110,44 +3627,6 @@ app.get('/api/admin/car-reports', requireAdmin, async (req, res, next) => {
 
 // ── Instructor Attendance (Clock In / Clock Out) ──────────────────────────────
 
-// Table creation is cheap and idempotent, safe to call per-request. The
-// column/index migrations below are NOT — they used to run unconditionally
-// inside this function, which was called on every clock-in/clock-out/trip-start
-// request. Under concurrent traffic, repeated ALTER TABLE attempts queue up
-// waiting for MySQL's exclusive metadata lock, and every other query on this
-// table (and eventually every pool connection app-wide) queues up behind them —
-// this once froze the entire site. They now run exactly once at startup instead.
-const ensureInstructorAttendanceTable = async () => {
-  await dbPool.query(`
-    CREATE TABLE IF NOT EXISTS instructor_attendance (
-      id           INT AUTO_INCREMENT PRIMARY KEY,
-      instructor_id INT NOT NULL,
-      instructor_name VARCHAR(100) NOT NULL DEFAULT '',
-      clock_in     DATETIME NOT NULL,
-      clock_out    DATETIME NULL,
-      date         DATE NOT NULL,
-      school_id    INT NOT NULL DEFAULT 1,
-      person_type  VARCHAR(20) NOT NULL DEFAULT 'instructor',
-      INDEX idx_inst_date (instructor_id, date)
-    )
-  `);
-};
-
-// Migration: person_type + drop legacy unique-per-day constraint on
-// instructor_attendance. Runs once at startup — see comment above.
-(async () => {
-  // person_type disambiguates instructor_id, which is only unique *within*
-  // its source table (instructors vs admins) — without it, an admin/manager
-  // clocking in could collide with an unrelated instructor sharing the same id.
-  try {
-    await dbPool.query(`ALTER TABLE instructor_attendance ADD COLUMN person_type VARCHAR(20) NOT NULL DEFAULT 'instructor'`);
-  } catch (e) { if (e.errno !== 1060 && e.errno !== 1146) console.error('[Migration] instructor_attendance.person_type:', e.message); }
-  // Drop the unique-per-day constraint so drivers can clock in multiple times per day.
-  try {
-    await dbPool.query(`ALTER TABLE instructor_attendance DROP INDEX uniq_instructor_date`);
-  } catch (e) { /* 1091 = key not found (already dropped/never existed), 1146 = table not yet created */ }
-})();
-
 // Force clock-out anyone who forgot to clock out on a previous day — nobody's
 // shift should still show as "Clocked In" once that calendar day has ended.
 // Caps clock_out at 23:59:59 of the day they clocked in, so the still-open
@@ -4175,7 +3654,6 @@ app.post('/api/driver/attendance/clock-in', requireAdmin, async (req, res, next)
   const instructorId = req.session.adminId;
   const personType = req.session.adminRole || 'instructor';
   try {
-    await ensureInstructorAttendanceTable();
     await closeStaleInstructorAttendance(req.schoolId);
     const clockName = await resolveClockPersonName(req);
     // Use the DB's IST-forced CURDATE(), not Node's UTC date — avoids the
@@ -4199,7 +3677,6 @@ app.post('/api/driver/attendance/clock-out', requireAdmin, async (req, res, next
   const instructorId = req.session.adminId;
   const personType = req.session.adminRole || 'instructor';
   try {
-    await ensureInstructorAttendanceTable();
     const [[record]] = await dbPool.query(
       'SELECT id FROM instructor_attendance WHERE instructor_id=? AND person_type=? AND date=CURDATE() AND clock_out IS NULL AND school_id=? LIMIT 1',
       [instructorId, personType, req.schoolId]
@@ -4219,7 +3696,6 @@ app.get('/api/driver/attendance/today', requireAdmin, async (req, res, next) => 
   const instructorId = req.session.adminId;
   const personType = req.session.adminRole || 'instructor';
   try {
-    await ensureInstructorAttendanceTable();
     // Multiple clock-in/out cycles are allowed per day — prefer the currently
     // open session (clock_out IS NULL) if any, else the most recently closed one.
     const [[record]] = await dbPool.query(
@@ -4363,7 +3839,6 @@ app.post('/api/driver/schedule-slots', requireAdmin, async (req, res, next) => {
 app.get('/api/admin/instructor-attendance', requireAdmin, async (req, res, next) => {
   const { date_from, date_to, instructor_id } = req.query;
   try {
-    await ensureInstructorAttendanceTable();
     await closeStaleInstructorAttendance(req.schoolId);
     const conditions = ['ia.school_id = ?'];
     const params = [req.schoolId];
@@ -4386,7 +3861,6 @@ app.get('/api/admin/instructor-attendance', requireAdmin, async (req, res, next)
 app.get('/api/admin/attendance-roster', requireAdmin, async (req, res, next) => {
   const role = (req.query.role || 'manager').toLowerCase();
   try {
-    await ensureInstructorAttendanceTable();
     const [rows] = await dbPool.query(
       `SELECT i.id AS instructor_id, i.instructor_name, i.branch,
               ia.clock_in, ia.clock_out
@@ -4497,36 +3971,6 @@ app.get('/driver-status/:instructor_id', (req, res) => {
 
 // ── Student Complaints ────────────────────────────────────────────────────────
 
-const ensureComplaintsTable = () => dbPool.query(`
-  CREATE TABLE IF NOT EXISTS student_complaints (
-    id              INT AUTO_INCREMENT PRIMARY KEY,
-    student_email   VARCHAR(255) NOT NULL,
-    student_name    VARCHAR(255),
-    booking_id      INT,
-    subject         VARCHAR(255) NOT NULL,
-    message         TEXT NOT NULL,
-    category        ENUM('Instructor','Schedule','Payment','Car','App','Other') NOT NULL DEFAULT 'Other',
-    status          ENUM('Open','In Review','Resolved','Closed') NOT NULL DEFAULT 'Open',
-    admin_note      TEXT,
-    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    school_id       INT NOT NULL DEFAULT 1,
-    updated_by_id   INT NULL,
-    updated_by_type VARCHAR(20) NULL
-  )
-`);
-
-// Migration: add updated_by_id/updated_by_type to student_complaints (who last
-// changed the complaint's status/note)
-(async () => {
-  try {
-    await dbPool.query(`ALTER TABLE student_complaints ADD COLUMN updated_by_id INT NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] student_complaints.updated_by_id:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE student_complaints ADD COLUMN updated_by_type VARCHAR(20) NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] student_complaints.updated_by_type:', e.message); }
-})();
-
 // Public: delete account — verifies OTP then removes exam_users record
 app.post('/api/student/delete-account', async (req, res, next) => {
   const { email, otp } = req.body;
@@ -4555,7 +3999,6 @@ app.post('/api/student/complaints', requireExamUser, async (req, res, next) => {
   const validCategories = ['Instructor', 'Schedule', 'Payment', 'Car', 'App', 'Other'];
   const cat = validCategories.includes(category) ? category : 'Other';
   try {
-    await ensureComplaintsTable();
     const [result] = await dbPool.query(
       `INSERT INTO student_complaints (student_email, student_name, booking_id, subject, message, category, school_id)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -4569,7 +4012,6 @@ app.post('/api/student/complaints', requireExamUser, async (req, res, next) => {
 app.get('/api/student/complaints', requireExamUser, async (req, res, next) => {
   const { email } = req.session.examUser;
   try {
-    await ensureComplaintsTable();
     const [rows] = await dbPool.query(
       `SELECT id, subject, message, category, status, admin_note, created_at, updated_at
        FROM student_complaints WHERE student_email = ? AND school_id = ? ORDER BY created_at DESC`,
@@ -4583,7 +4025,6 @@ app.get('/api/student/complaints', requireExamUser, async (req, res, next) => {
 app.get('/api/admin/complaints', requireAdmin, async (req, res, next) => {
   const { status, category } = req.query;
   try {
-    await ensureComplaintsTable();
     const conditions = ['sc.school_id = ?'];
     const params = [req.schoolId];
     if (status)   { conditions.push('status = ?');   params.push(status); }
@@ -4605,7 +4046,6 @@ app.get('/api/admin/complaints', requireAdmin, async (req, res, next) => {
 // Admin: count of open/in-review complaints (for the sidebar badge)
 app.get('/api/admin/complaints/pending-count', requireAdmin, async (req, res, next) => {
   try {
-    await ensureComplaintsTable();
     const [[row]] = await dbPool.query(
       `SELECT COUNT(*) AS count FROM student_complaints
        WHERE school_id = ? AND status IN ('Open','In Review')`,
@@ -4638,54 +4078,6 @@ app.patch('/api/admin/complaints/:id', requireAdmin, async (req, res, next) => {
 });
 
 // ── Schedule Change Requests (student-initiated cancel/replacement) ────────────
-
-const ensureScheduleRequestsTable = () => dbPool.query(`
-  CREATE TABLE IF NOT EXISTS schedule_change_requests (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    booking_id INT NOT NULL,
-    student_email VARCHAR(255) NOT NULL,
-    request_type ENUM('Cancel','Replacement') NOT NULL,
-    occurrence_date DATE NOT NULL,
-    original_time VARCHAR(10) NOT NULL,
-    new_time VARCHAR(10) NULL,
-    reason TEXT,
-    status ENUM('Pending','Approved','Rejected','Reverted') NOT NULL DEFAULT 'Pending',
-    admin_note TEXT,
-    resulting_attendance_id INT NULL,
-    resulting_schedule_slot_id INT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_by_id INT NULL,
-    updated_by_type VARCHAR(20) NULL,
-    reverted_by_id INT NULL,
-    reverted_by_type VARCHAR(20) NULL,
-    reverted_at DATETIME NULL,
-    school_id INT NOT NULL DEFAULT 1
-  )
-`);
-
-// Migration: allow an admin to revert an approved schedule change request
-// back to its pre-approval state — widen status ENUM and add revert audit
-// columns, for installs that already had this table before 'Reverted' existed.
-(async () => {
-  try {
-    const [[col]] = await dbPool.query(
-      `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schedule_change_requests' AND COLUMN_NAME = 'status'`
-    );
-    if (col && !col.COLUMN_TYPE.includes('Reverted')) {
-      await dbPool.query(`ALTER TABLE schedule_change_requests MODIFY COLUMN status ENUM('Pending','Approved','Rejected','Reverted') NOT NULL DEFAULT 'Pending'`);
-    }
-  } catch (e) { console.error('[Migration] schedule_change_requests.status Reverted:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE schedule_change_requests ADD COLUMN reverted_by_id INT NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_change_requests.reverted_by_id:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE schedule_change_requests ADD COLUMN reverted_by_type VARCHAR(20) NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_change_requests.reverted_by_type:', e.message); }
-  try {
-    await dbPool.query(`ALTER TABLE schedule_change_requests ADD COLUMN reverted_at DATETIME NULL`);
-  } catch (e) { if (e.errno !== 1060) console.error('[Migration] schedule_change_requests.reverted_at:', e.message); }
-})();
 
 // Server-side port of register.js's fetchBookedSlots() date-overlap logic
 // (public/js/Register/register.js), plus a check against schedule_slots so
@@ -4753,7 +4145,6 @@ app.post('/api/student/schedule-requests', requireExamUser, async (req, res, nex
   }
 
   try {
-    await ensureScheduleRequestsTable();
 
     const [[booking]] = await dbPool.query(
       `SELECT id, allotted_time, branch, car_name, instructor_name
@@ -4797,7 +4188,6 @@ app.post('/api/student/schedule-requests', requireExamUser, async (req, res, nex
 app.get('/api/student/schedule-requests', requireExamUser, async (req, res, next) => {
   const { email } = req.session.examUser;
   try {
-    await ensureScheduleRequestsTable();
     const [rows] = await dbPool.query(
       `SELECT id, booking_id, request_type, DATE_FORMAT(occurrence_date, '%Y-%m-%d') AS occurrence_date,
               original_time, new_time, reason, status, admin_note, created_at
@@ -4833,7 +4223,6 @@ app.get('/api/student/day-availability', requireExamUser, async (req, res, next)
 app.get('/api/admin/schedule-requests', requireAdmin, async (req, res, next) => {
   const { status } = req.query;
   try {
-    await ensureScheduleRequestsTable();
     const conditions = ['b.school_id = ?'];
     const params = [req.schoolId];
     if (status) { conditions.push('scr.status = ?'); params.push(status); }
@@ -5101,34 +4490,6 @@ app.post('/api/student/notify-arrival', requireExamUser, async (req, res, next) 
 // assigns an instructor and quotes a price. No pricing logic lives here — the
 // admin fills in quoted_price by hand after talking to the customer.
 
-const ensureDriverHireRequestsTable = () => dbPool.query(`
-  CREATE TABLE IF NOT EXISTS driver_hire_requests (
-    id                       INT AUTO_INCREMENT PRIMARY KEY,
-    student_email            VARCHAR(255) NOT NULL,
-    student_name             VARCHAR(255),
-    contact_phone            VARCHAR(30) NOT NULL,
-    service_date             DATE NOT NULL,
-    num_days                 TINYINT NOT NULL DEFAULT 1,
-    car_model                VARCHAR(100),
-    transmission             ENUM('Manual','Automatic') NULL,
-    pickup_address           TEXT NOT NULL,
-    area                     VARCHAR(120),
-    notes                    TEXT,
-    status                   ENUM('Requested','Assigned','In Progress','Completed','Cancelled') NOT NULL DEFAULT 'Requested',
-    assigned_instructor_id   INT NULL,
-    assigned_instructor_name VARCHAR(100) NULL,
-    quoted_price             DECIMAL(10,2) NULL,
-    admin_note               TEXT NULL,
-    created_at               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    school_id                INT NOT NULL DEFAULT 1,
-    updated_by_id            INT NULL,
-    updated_by_type          VARCHAR(20) NULL,
-    INDEX idx_driver_hire_school_status (school_id, status),
-    INDEX idx_driver_hire_student (student_email)
-  )
-`);
-
 const DRIVER_HIRE_STATUSES = ['Requested', 'Assigned', 'In Progress', 'Completed', 'Cancelled'];
 
 // Student: create a driver-hire request
@@ -5152,7 +4513,6 @@ app.post('/api/student/driver-hire-requests', requireExamUser, async (req, res, 
     if (!(await isAppFeatureEnabled('feature_find_driver', false))) {
       return res.status(403).json({ success: false, error: 'This feature is currently unavailable' });
     }
-    await ensureDriverHireRequestsTable();
     const [result] = await dbPool.query(
       `INSERT INTO driver_hire_requests
          (student_email, student_name, contact_phone, service_date, num_days, car_model, transmission, pickup_address, area, notes, school_id)
@@ -5169,7 +4529,6 @@ app.post('/api/student/driver-hire-requests', requireExamUser, async (req, res, 
 app.get('/api/student/driver-hire-requests', requireExamUser, async (req, res, next) => {
   const { email } = req.session.examUser;
   try {
-    await ensureDriverHireRequestsTable();
     const [rows] = await dbPool.query(
       `SELECT id, contact_phone, DATE_FORMAT(service_date, '%Y-%m-%d') AS service_date, num_days,
               car_model, transmission, pickup_address, area, notes, status,
@@ -5190,7 +4549,6 @@ app.get('/api/student/driver-hire-requests', requireExamUser, async (req, res, n
 app.patch('/api/student/driver-hire-requests/:id/cancel', requireExamUser, async (req, res, next) => {
   const { email } = req.session.examUser;
   try {
-    await ensureDriverHireRequestsTable();
     const [result] = await dbPool.query(
       `UPDATE driver_hire_requests SET status = 'Cancelled'
        WHERE id = ? AND student_email = ? AND school_id = ? AND status IN ('Requested','Assigned')`,
@@ -5205,7 +4563,6 @@ app.patch('/api/student/driver-hire-requests/:id/cancel', requireExamUser, async
 app.get('/api/admin/driver-hire-requests', requireAdmin, async (req, res, next) => {
   const { status } = req.query;
   try {
-    await ensureDriverHireRequestsTable();
     const conditions = ['school_id = ?'];
     const params = [req.schoolId];
     if (status) { conditions.push('status = ?'); params.push(status); }
@@ -5230,7 +4587,6 @@ app.get('/api/admin/driver-hire-requests', requireAdmin, async (req, res, next) 
 // Admin: count of requests still needing attention (for the sidebar badge)
 app.get('/api/admin/driver-hire-requests/pending-count', requireAdmin, async (req, res, next) => {
   try {
-    await ensureDriverHireRequestsTable();
     const [[row]] = await dbPool.query(
       `SELECT COUNT(*) AS count FROM driver_hire_requests
        WHERE school_id = ? AND status IN ('Requested','Assigned','In Progress')`,
@@ -5260,7 +4616,6 @@ app.patch('/api/admin/driver-hire-requests/:id', requireAdmin, async (req, res, 
   }
 
   try {
-    await ensureDriverHireRequestsTable();
 
     const [[reqRow]] = await dbPool.query(
       `SELECT id, status FROM driver_hire_requests WHERE id = ? AND school_id = ?`,
@@ -5307,26 +4662,10 @@ app.patch('/api/admin/driver-hire-requests/:id', requireAdmin, async (req, res, 
 
 // ── Session Ratings ───────────────────────────────────────────────────────────
 
-const ensureRatingsTable = () => dbPool.query(`
-  CREATE TABLE IF NOT EXISTS session_ratings (
-    id             INT AUTO_INCREMENT PRIMARY KEY,
-    exam_user_id   INT NOT NULL,
-    attendance_id  INT NOT NULL,
-    booking_id     INT,
-    instructor_name VARCHAR(255),
-    rating         TINYINT NOT NULL,
-    comment        TEXT,
-    rated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    school_id      INT NOT NULL DEFAULT 1,
-    UNIQUE KEY uniq_user_session (exam_user_id, attendance_id)
-  )
-`);
-
 // GET /api/student/pending-rating — returns last attended session not yet rated
 app.get('/api/student/pending-rating', requireExamUser, async (req, res, next) => {
   const { id: examUserId, login_booking_id } = req.session.examUser;
   try {
-    await ensureRatingsTable();
     if (!login_booking_id) return res.json({ success: true, pending: null });
     const [[anchor]] = await dbPool.query(
       'SELECT customer_name, mobile_no FROM bookings WHERE id = ? LIMIT 1',
@@ -5364,7 +4703,6 @@ app.post('/api/student/rate-session', requireExamUser, async (req, res, next) =>
     return res.status(400).json({ success: false, error: 'attendance_id and rating (1–5) are required' });
   }
   try {
-    await ensureRatingsTable();
     await dbPool.query(
       `INSERT INTO session_ratings (exam_user_id, attendance_id, booking_id, instructor_name, rating, comment, school_id)
        VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -5378,7 +4716,6 @@ app.post('/api/student/rate-session', requireExamUser, async (req, res, next) =>
 // Admin: view all session ratings
 app.get('/api/admin/session-ratings', requireAdmin, async (req, res, next) => {
   try {
-    await ensureRatingsTable();
     const [rows] = await dbPool.query(
       `SELECT sr.id, sr.exam_user_id, COALESCE(eu.full_name, b.customer_name) AS student_name, eu.email AS student_email,
               sr.attendance_id, sr.booking_id, sr.instructor_name,

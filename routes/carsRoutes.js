@@ -1,6 +1,6 @@
 import express from 'express';
 import { dbPool } from '../server.js';
-import { requireAdmin, toMySQLDate, maxPastOdometer, ensureMeterResetsTable, logAudit } from '../server.js';
+import { requireAdmin, toMySQLDate, maxPastOdometer, logAudit } from '../server.js';
 
 const router = express.Router();
 
@@ -156,7 +156,6 @@ router.get('/:id/meter', requireAdmin, async (req, res, next) => {
     );
     if (!car || !car.car_name) return res.json({ success: false, error: 'Car not found' });
 
-    await ensureMeterResetsTable();
     const current = await maxPastOdometer(car.car_name, req.schoolId, 0);
     // Resolve created_by_id -> an actual name, from whichever table matches
     // created_by_type, so the history shows who reset it, not just a role.
@@ -198,7 +197,6 @@ router.post('/:id/meter/reset', requireAdmin, async (req, res, next) => {
     );
     if (!car || !car.car_name) return res.json({ success: false, error: 'Car not found' });
 
-    await ensureMeterResetsTable();
     await dbPool.query(
       `INSERT INTO car_meter_resets
        (school_id, car_name, reading, note, created_by_id, created_by_type)

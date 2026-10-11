@@ -2736,3 +2736,51 @@ CREATE TABLE IF NOT EXISTS audit_log (
     INDEX idx_audit_log_actor (school_id, actor_id, created_at),
     INDEX idx_audit_log_entity (school_id, entity_type, entity_id)
 );
+
+-- =====================================
+-- EXPENSE CATEGORIES data fixes (moved from server.js startup code)
+-- =====================================
+-- Old global defaults (school_id = 0) become school-owned so they're editable.
+UPDATE expense_categories SET school_id = 1, is_custom = 1 WHERE school_id = 0;
+-- Car-related categories need the car picker on the expense form.
+UPDATE expense_categories SET extra_field = 'car'
+WHERE is_car_related = 1 AND (extra_field IS NULL OR extra_field = '');
+
+-- =====================================
+-- ONE COLLATION FOR EVERY TABLE
+-- =====================================
+-- Tables created over the years ended up on two collations (utf8mb4_unicode_ci
+-- and the server default utf8mb4_0900_ai_ci). Comparing text across them fails
+-- with "Illegal mix of collations", which is why some queries needed explicit
+-- COLLATE casts. Converge everything on utf8mb4_unicode_ci (the same as
+-- schema.sql). `sessions` is skipped on purpose: express-mysql-session keeps
+-- its columns utf8mb4_bin so session ids stay case-sensitive.
+ALTER DATABASE CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+DROP PROCEDURE IF EXISTS convert_table_collations;
+DELIMITER $$
+CREATE PROCEDURE convert_table_collations()
+BEGIN
+    DECLARE done INT DEFAULT 0;
+    DECLARE tbl VARCHAR(64);
+    DECLARE cur CURSOR FOR
+        SELECT table_name FROM information_schema.tables
+        WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'
+          AND table_name <> 'sessions'
+          AND (table_collation <> 'utf8mb4_unicode_ci'
+               OR table_name IN (SELECT DISTINCT table_name FROM information_schema.columns
+                                 WHERE table_schema = DATABASE() AND collation_name IS NOT NULL
+                                   AND collation_name <> 'utf8mb4_unicode_ci'));
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO tbl;
+        IF done THEN LEAVE read_loop; END IF;
+        SET @ddl = CONCAT('ALTER TABLE `', tbl, '` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+        PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+    END LOOP;
+    CLOSE cur;
+END$$
+DELIMITER ;
+CALL convert_table_collations();
+DROP PROCEDURE IF EXISTS convert_table_collations;

@@ -1,5 +1,5 @@
 import express from 'express';
-import { dbPool, requireAdmin, ensureRewardsLedgerTable, getInstructorRewardsBalance, REWARD_RUPEES_PER_POINT } from '../server.js';
+import { dbPool, requireAdmin, getInstructorRewardsBalance, REWARD_RUPEES_PER_POINT } from '../server.js';
 
 const router = express.Router();
 
@@ -8,7 +8,6 @@ const router = express.Router();
 */
 router.get('/summary', requireAdmin, async (req, res) => {
   try {
-    await ensureRewardsLedgerTable();
     const [rows] = await dbPool.query(
       `SELECT i.id AS instructor_id, i.employee_no, i.instructor_name,
               COALESCE(SUM(r.points), 0) AS balance
@@ -37,7 +36,6 @@ router.get('/summary', requireAdmin, async (req, res) => {
 router.get('/:instructorId', requireAdmin, async (req, res) => {
   const { instructorId } = req.params;
   try {
-    await ensureRewardsLedgerTable();
     const [[instructor]] = await dbPool.query(
       `SELECT id, employee_no, instructor_name FROM instructors WHERE id=? AND school_id=? LIMIT 1`,
       [instructorId, req.schoolId]
@@ -83,7 +81,6 @@ router.post('/:instructorId/withdraw', requireAdmin, async (req, res) => {
 
   let conn;
   try {
-    await ensureRewardsLedgerTable();
     const [[instructor]] = await dbPool.query(
       `SELECT id FROM instructors WHERE id=? AND school_id=? LIMIT 1`,
       [instructorId, req.schoolId]
