@@ -1754,7 +1754,7 @@ app.get('/api/attendance-by-date', requireAdmin, async (req, res, next) => {
       SELECT a.booking_id, DATE_FORMAT(a.date, '%Y-%m-%d') AS date, a.time, a.present, a.change_source
       FROM attendance a
       JOIN bookings b ON a.booking_id = b.id
-      WHERE b.school_id = ? AND DATE(a.date) = ?
+      WHERE b.school_id = ? AND a.date = ?
     `;
     const params = [req.schoolId, date];
     if (branch) {
@@ -3148,7 +3148,7 @@ export async function computeMissingSlots(schoolId, dateFrom, dateTo, instructor
   });
 
   const [tripRows] = await dbPool.query(
-    `SELECT booking_id, started_at FROM driver_trips WHERE booking_id IN (?) AND DATE(started_at) BETWEEN ? AND ?`,
+    `SELECT booking_id, started_at FROM driver_trips WHERE booking_id IN (?) AND started_at >= ? AND started_at < DATE(?) + INTERVAL 1 DAY`,
     [bookingIds, dateFrom, dateTo]
   );
   const tripMap = new Map();
@@ -3292,8 +3292,8 @@ app.get('/api/admin/trip-logs', requireAdmin, async (req, res, next) => {
     const conditions = ['i.school_id = ?'];
     const params = [schoolId];
 
-    if (date_from) { conditions.push('DATE(dt.started_at) >= ?'); params.push(date_from); }
-    if (date_to)   { conditions.push('DATE(dt.started_at) <= ?'); params.push(date_to); }
+    if (date_from) { conditions.push('dt.started_at >= ?'); params.push(date_from); }
+    if (date_to)   { conditions.push('dt.started_at < DATE(?) + INTERVAL 1 DAY'); params.push(date_to); }
     if (instructor_id) { conditions.push('dt.instructor_id = ?'); params.push(instructor_id); }
     if (status && ['active','paused','completed'].includes(status)) { conditions.push('dt.status = ?'); params.push(status); }
     if (branch)   { conditions.push('TRIM(i.branch) = ?'); params.push(branch); }
@@ -3685,8 +3685,8 @@ app.get('/api/admin/car-reports', requireAdmin, async (req, res, next) => {
     const conditions = ['dt.school_id = ?', 'dt.start_odometer IS NOT NULL', "dt.status IN ('completed','active')"];
     const params = [schoolId];
 
-    if (date_from) { conditions.push('DATE(dt.started_at) >= ?'); params.push(date_from); }
-    if (date_to)   { conditions.push('DATE(dt.started_at) <= ?'); params.push(date_to); }
+    if (date_from) { conditions.push('dt.started_at >= ?'); params.push(date_from); }
+    if (date_to)   { conditions.push('dt.started_at < DATE(?) + INTERVAL 1 DAY'); params.push(date_to); }
     // Same cross-collation COALESCE as the Trip Logs car filter above.
     if (car_name)  { conditions.push("COALESCE(NULLIF(dt.car_name,''), bk.car_name) COLLATE utf8mb4_unicode_ci = ?"); params.push(car_name); }
 

@@ -15,12 +15,14 @@ router.get("/stats", requireAdmin, async (req, res) => {
     let whereClause = "WHERE school_id = ?";
     let params = [req.schoolId];
 
+    // Range conditions on the bare column (not DATE(created_at)) so MySQL can
+    // use the (school_id, created_at) index.
     if (from && to) {
-      whereClause += " AND DATE(created_at) BETWEEN ? AND ?";
+      whereClause += " AND created_at >= ? AND created_at < DATE(?) + INTERVAL 1 DAY";
       params.push(from, to);
     } else if (month) {
-      whereClause += " AND DATE_FORMAT(created_at, '%Y-%m') = ?";
-      params.push(month);
+      whereClause += " AND created_at >= CONCAT(?, '-01') AND created_at < CONCAT(?, '-01') + INTERVAL 1 MONTH";
+      params.push(month, month);
     }
 
     if (branch) {
@@ -46,8 +48,8 @@ router.get("/stats", requireAdmin, async (req, res) => {
 
     const _jn = new Date();
     const joinDateStr = joinDate || `${_jn.getFullYear()}-${String(_jn.getMonth()+1).padStart(2,'0')}-${String(_jn.getDate()).padStart(2,'0')}`;
-    let todayQuery = "SELECT COUNT(*) AS count FROM bookings WHERE school_id = ? AND DATE(created_at)=?";
-    let todayParams = [req.schoolId, joinDateStr];
+    let todayQuery = "SELECT COUNT(*) AS count FROM bookings WHERE school_id = ? AND created_at >= ? AND created_at < DATE(?) + INTERVAL 1 DAY";
+    let todayParams = [req.schoolId, joinDateStr, joinDateStr];
     if (branch) {
       todayQuery += " AND TRIM(LOWER(branch)) = ?";
       todayParams.push(branch.toLowerCase());
@@ -87,11 +89,11 @@ router.get("/bookings-by-branch", requireAdmin, async (req, res) => {
     let params = [req.schoolId];
 
     if (from && to) {
-      dateFilter += " AND DATE(b.created_at) BETWEEN ? AND ?";
+      dateFilter += " AND b.created_at >= ? AND b.created_at < DATE(?) + INTERVAL 1 DAY";
       params.push(from, to);
     } else if (month) {
-      dateFilter += " AND DATE_FORMAT(b.created_at, '%Y-%m') = ?";
-      params.push(month);
+      dateFilter += " AND b.created_at >= CONCAT(?, '-01') AND b.created_at < CONCAT(?, '-01') + INTERVAL 1 MONTH";
+      params.push(month, month);
     }
 
     const [rows] = await dbPool.query(`
@@ -128,12 +130,14 @@ router.post("/unlock-revenue", requireAdmin, async (req, res) => {
     let whereClause = "WHERE school_id = ?";
     let params = [req.schoolId];
 
+    // Range conditions on the bare column (not DATE(created_at)) so MySQL can
+    // use the (school_id, created_at) index.
     if (from && to) {
-      whereClause += " AND DATE(created_at) BETWEEN ? AND ?";
+      whereClause += " AND created_at >= ? AND created_at < DATE(?) + INTERVAL 1 DAY";
       params.push(from, to);
     } else if (month) {
-      whereClause += " AND DATE_FORMAT(created_at, '%Y-%m') = ?";
-      params.push(month);
+      whereClause += " AND created_at >= CONCAT(?, '-01') AND created_at < CONCAT(?, '-01') + INTERVAL 1 MONTH";
+      params.push(month, month);
     }
 
     if (branch) {
@@ -173,8 +177,8 @@ router.get("/expense-summary", requireAdmin, async (req, res) => {
       conditions.push('e.expense_date BETWEEN ? AND ?');
       params.push(from, to);
     } else if (month) {
-      conditions.push("DATE_FORMAT(e.expense_date, '%Y-%m') = ?");
-      params.push(month);
+      conditions.push("e.expense_date >= CONCAT(?, '-01') AND e.expense_date < CONCAT(?, '-01') + INTERVAL 1 MONTH");
+      params.push(month, month);
     }
     if (branch) { conditions.push('e.branch = ?'); params.push(branch); }
 
@@ -264,14 +268,14 @@ router.get("/today-slots", requireAdmin, async (req, res) => {
     const [presentRows] = await dbPool.query(`
       SELECT TRIM(b.branch) AS branch, COUNT(a.id) AS cnt
       FROM attendance a JOIN bookings b ON a.booking_id = b.id
-      WHERE b.school_id = ? AND DATE(a.date) = ? AND a.present >= 1 ${branchFilter}
+      WHERE b.school_id = ? AND a.date = ? AND a.present >= 1 ${branchFilter}
       GROUP BY TRIM(b.branch)
     `, attParams);
 
     const [absentRows] = await dbPool.query(`
       SELECT TRIM(b.branch) AS branch, COUNT(a.id) AS cnt
       FROM attendance a JOIN bookings b ON a.booking_id = b.id
-      WHERE b.school_id = ? AND DATE(a.date) = ? AND a.present = 0 ${branchFilter}
+      WHERE b.school_id = ? AND a.date = ? AND a.present = 0 ${branchFilter}
       GROUP BY TRIM(b.branch)
     `, attParams);
 

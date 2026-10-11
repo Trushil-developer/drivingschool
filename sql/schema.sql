@@ -481,6 +481,7 @@ CALL ensure_column('bookings', 'created_by_type',   "VARCHAR(20) NULL");
 CALL ensure_column('bookings', 'updated_by_id',     "INT NULL");
 CALL ensure_column('bookings', 'updated_by_type',   "VARCHAR(20) NULL");
 CALL ensure_index('bookings', 'idx_bookings_school', "KEY idx_bookings_school (school_id)");
+CALL ensure_index('bookings', 'idx_bookings_school_created', "KEY idx_bookings_school_created (school_id, created_at)"); -- dashboard date filters
 
 -- One row per booking per lesson slot.
 --   time            'HH:MM' slot key ('' on legacy rows)
@@ -506,6 +507,7 @@ CALL ensure_column('attendance', 'change_source',     "ENUM('manual','student_ca
 CALL ensure_column('attendance', 'change_request_id', "INT NULL");
 CALL ensure_index('attendance', 'unique_record', "UNIQUE KEY unique_record (booking_id, date, time)");
 CALL ensure_index('attendance', 'idx_attendance_school', "KEY idx_attendance_school (school_id)");
+CALL ensure_index('attendance', 'idx_attendance_date', "KEY idx_attendance_date (date)"); -- per-day attendance lookups
 
 -- Ad-hoc / make-up lessons outside a booking's regular allotted times, and
 -- slots created by an approved student replacement request.
@@ -607,6 +609,8 @@ CALL ensure_column('driver_trips', 'approved_at',           "DATETIME NULL");
 CALL ensure_column('driver_trips', 'reward_points_awarded', "TINYINT(1) NOT NULL DEFAULT 0");  -- guards against double-awarding
 CALL ensure_column('driver_trips', 'created_at',            "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
 CALL ensure_index('driver_trips', 'idx_driver_trips_instructor', "KEY idx_driver_trips_instructor (instructor_id, status)");
+CALL ensure_index('driver_trips', 'idx_driver_trips_school_started', "KEY idx_driver_trips_school_started (school_id, started_at)"); -- trip logs / car reports date range
+CALL ensure_index('driver_trips', 'idx_driver_trips_booking_started', "KEY idx_driver_trips_booking_started (booking_id, started_at)"); -- missing-slot matching
 
 -- Last known GPS position per instructor (one row each). Legacy: exists in
 -- production but no longer read or written by the current code.
@@ -790,6 +794,7 @@ CALL ensure_index('expenses', 'category_id', "KEY category_id (category_id)");
 CALL ensure_index('expenses', 'payment_mode_id', "KEY payment_mode_id (payment_mode_id)");
 CALL ensure_constraint('expenses', 'expenses_ibfk_1', "CONSTRAINT expenses_ibfk_1 FOREIGN KEY (category_id) REFERENCES expense_categories (id)");
 CALL ensure_constraint('expenses', 'expenses_ibfk_2', "CONSTRAINT expenses_ibfk_2 FOREIGN KEY (payment_mode_id) REFERENCES payment_modes (id)");
+CALL ensure_index('expenses', 'idx_expenses_school_date', "KEY idx_expenses_school_date (school_id, expense_date)"); -- expense month/range filters
 
 
 -- =============================================================================

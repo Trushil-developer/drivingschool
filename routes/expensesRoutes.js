@@ -159,7 +159,7 @@ router.get("/", requireAdmin, async (req, res, next) => {
             if (from) { conditions.push('e.expense_date >= ?'); params.push(from); }
             if (to) { conditions.push('e.expense_date <= ?'); params.push(to); }
         } else if (month) {
-            conditions.push('DATE_FORMAT(e.expense_date, \'%Y-%m\') = ?'); params.push(month);
+            conditions.push("e.expense_date >= CONCAT(?, '-01') AND e.expense_date < CONCAT(?, '-01') + INTERVAL 1 MONTH"); params.push(month, month);
         }
 
         const where = 'WHERE ' + conditions.join(' AND ');
