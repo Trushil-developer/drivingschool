@@ -76,6 +76,10 @@ jobs:
             # instead of carrying on and reporting success.
             set -euo pipefail
             cd drivingschool/
+            # node_modules used to be partly committed to git; npm ci rewrites
+            # it, which git would see as local edits blocking the pull. Put any
+            # such files back first (a no-op once node_modules is untracked).
+            git checkout -- node_modules 2>/dev/null || true
             git pull
             # Install exactly what package-lock.json pins (adds new packages,
             # removes dropped ones) before the app restarts on the new code.
