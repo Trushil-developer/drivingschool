@@ -629,7 +629,11 @@ app.get('/api/student/bookings', requireExamUser, async (req, res, next) => {
               b.starting_from, b.total_fees, b.advance,
               b.car_name, b.instructor_name, b.duration_minutes,
               b.attendance_status, b.certificate_url, b.created_at,
-              b.present_days, b.hold_status, b.hold_from, b.resume_from, b.extended_days
+              b.present_days, b.hold_status, b.hold_from, b.resume_from, b.extended_days,
+              -- assigned instructor's number, for the app's "Call instructor" button
+              (SELECT i.mobile_no FROM instructors i
+               WHERE i.school_id = b.school_id AND i.instructor_name = b.instructor_name AND i.is_active = 1
+               ORDER BY i.id LIMIT 1) AS instructor_mobile
        FROM bookings b
        WHERE b.customer_name = ? AND b.mobile_no = ? AND b.school_id = ?
        ORDER BY b.created_at DESC`,
@@ -2321,7 +2325,7 @@ cron.schedule('*/5 * * * 1-6', async () => {
         if (!(await claimNotificationOnce(refKey))) continue;
 
         const [[instructor]] = await dbPool.query(
-          `SELECT id FROM instructors WHERE instructor_name = ? AND school_id = ? LIMIT 1`,
+          `SELECT id FROM instructors WHERE instructor_name = ? AND school_id = ? AND is_active = 1 LIMIT 1`,
           [occ.instructorName, schoolId]
         );
         if (!instructor) continue;
@@ -2529,9 +2533,9 @@ export async function logAudit(req, { action, entityType = null, entityId = null
 
 // ── Instructor Rewards ──────────────────────────────────────────────────────
 // An instructor earns points for a trip once it's approved by a manager/admin,
-// provided the trip ran long enough and covered a plausible lesson distance —
-// too short/close doesn't count as a real lesson, and too long/far (e.g. an
-// odometer entry error, or a trip that isn't really a lesson) is excluded too.
+// provided the trip EITHER ran long enough OR covered a plausible lesson
+// distance (more than 5 km and less than 18 km — the upper bound screens out
+// odometer entry errors). Either condition on its own is enough.
 // Points are only ever recorded as ledger entries (never a mutable counter),
 // so an instructor's balance = SUM(points) and the full earn/withdraw history
 // is always available.
@@ -3124,7 +3128,47 @@ async function getTodaysActiveSlotOccurrences(schoolId) {
     });
   });
 
-  return occurrences;
+  // Today's ad-hoc / makeup / replacement slots. These can be assigned to a
+  // different instructor than the booking's own, and replace a regular slot
+  // at the same time if one exists.
+  const [adhoc] = await dbPool.query(
+    `SELECT ss.booking_id, ss.time, ss.instructor_name, b.customer_name, b.instructor_name AS booking_instructor,
+            TRIM(b.branch) AS branch, b.email
+     FROM schedule_slots ss JOIN bookings b ON b.id = ss.booking_id
+     WHERE ss.school_id = ? AND ss.date = ? AND b.attendance_status IN ('Active','Pending')`,
+    [schoolId, todayStr]
+  );
+  adhoc.forEach(r => {
+    if (!r.time) return;
+    const hhmm = String(r.time).slice(0, 5);
+    const [h, m] = hhmm.split(':').map(Number);
+    const occ = {
+      bookingId: r.booking_id,
+      studentName: r.customer_name,
+      instructorName: r.instructor_name || r.booking_instructor,
+      branch: r.branch,
+      email: r.email,
+      date: todayStr,
+      time: hhmm,
+      slotMinutes: h * 60 + m,
+      adhoc: true,
+    };
+    const i = occurrences.findIndex(o => o.bookingId === occ.bookingId && o.time === hhmm);
+    if (i >= 0) occurrences[i] = occ; else occurrences.push(occ);
+  });
+
+  // Drop regular slots cancelled / moved for today (attendance present=0; a
+  // row with no time is a whole-day mark). Ad-hoc slots aren't tracked in
+  // attendance, so they're kept.
+  const [cancelled] = await dbPool.query(
+    `SELECT a.booking_id, a.time FROM attendance a JOIN bookings b ON b.id = a.booking_id
+     WHERE b.school_id = ? AND a.date = ? AND a.present = 0`,
+    [schoolId, todayStr]
+  );
+  const isCancelled = occ => !occ.adhoc && cancelled.some(c =>
+    c.booking_id === occ.bookingId && (!c.time || String(c.time).slice(0, 5) === occ.time));
+
+  return occurrences.filter(occ => !isCancelled(occ));
 }
 
 // Synthesize "missing" trip-log rows: scheduled lesson slots (from each booking's
@@ -3545,15 +3589,15 @@ app.patch('/api/admin/trip-logs/:id/approve', requireAdmin, async (req, res, nex
       [markedById, markedByType, trip.id]
     );
 
-    // Award reward points once, only for trips that actually cover a real
-    // lesson (long enough + a plausible lesson distance) — see the constants
-    // defined near REWARD_POINTS_PER_TRIP above.
+    // Award reward points once, for trips that were long enough OR covered a
+    // plausible lesson distance — see the constants defined near
+    // REWARD_POINTS_PER_TRIP above.
     const distanceKm = (trip.start_odometer != null && trip.end_odometer != null)
       ? trip.end_odometer - trip.start_odometer
       : null;
-    if (!trip.reward_points_awarded
-      && Number(trip.duration_mins) >= REWARD_MIN_DURATION_MINS
-      && distanceKm != null && distanceKm > REWARD_MIN_DISTANCE_KM && distanceKm < REWARD_MAX_DISTANCE_KM) {
+    const longEnough = Number(trip.duration_mins) >= REWARD_MIN_DURATION_MINS;
+    const farEnough = distanceKm != null && distanceKm > REWARD_MIN_DISTANCE_KM && distanceKm < REWARD_MAX_DISTANCE_KM;
+    if (!trip.reward_points_awarded && (longEnough || farEnough)) {
       // Flip the flag with the qualifying condition in the WHERE clause — this
       // acquires the row lock and the CAS in one statement, so if two approve
       // requests for the same trip race each other, only the first one's
@@ -4553,40 +4597,51 @@ app.post('/api/student/notify-arrival', requireExamUser, async (req, res, next) 
     const nowMins = now.getHours() * 60 + now.getMinutes();
 
     // Today's scheduled times for this booking: its regular slots plus any
-    // admin-added / replacement slot sitting in schedule_slots for today.
-    const slotHhmm = [booking.allotted_time, booking.allotted_time2, booking.allotted_time3, booking.allotted_time4]
-      .filter(Boolean).map(t => String(t).slice(0, 5));
+    // admin-added / replacement slot sitting in schedule_slots for today. An
+    // ad-hoc slot can be assigned to a different instructor than the booking's
+    // own, so each slot carries the instructor who is actually taking it.
+    const toMins = hhmm => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+    const slots = [booking.allotted_time, booking.allotted_time2, booking.allotted_time3, booking.allotted_time4]
+      .filter(Boolean).map(t => ({ hhmm: String(t).slice(0, 5), instructorName: booking.instructor_name, adhoc: false }));
     const [adhoc] = await dbPool.query(
-      `SELECT time FROM schedule_slots WHERE booking_id = ? AND date = ? AND school_id = ?`,
+      `SELECT time, instructor_name FROM schedule_slots WHERE booking_id = ? AND date = ? AND school_id = ?`,
       [booking.id, todayStr, req.schoolId]
     );
-    adhoc.forEach(r => { if (r.time) slotHhmm.push(String(r.time).slice(0, 5)); });
+    adhoc.forEach(r => {
+      if (!r.time) return;
+      const slot = { hhmm: String(r.time).slice(0, 5), instructorName: r.instructor_name || booking.instructor_name, adhoc: true };
+      const i = slots.findIndex(s => s.hhmm === slot.hhmm);
+      if (i >= 0) slots[i] = slot; else slots.push(slot);
+    });
 
-    // The slot closest to "now".
+    // Regular slots cancelled / moved for today (attendance present=0; a row
+    // with no time is a whole-day mark). Ad-hoc slots aren't tracked there.
+    const [cancelledRows] = await dbPool.query(
+      `SELECT time FROM attendance WHERE booking_id = ? AND date = ? AND present = 0`,
+      [booking.id, todayStr]
+    );
+    const isCancelled = s => !s.adhoc && cancelledRows.some(c => !c.time || String(c.time).slice(0, 5) === s.hhmm);
+    const inWindow = s => Math.abs(toMins(s.hhmm) - nowMins) <= 30;
+
+    // The still-on slot closest to "now".
     let nearest = null;
-    for (const hhmm of slotHhmm) {
-      const [h, m] = hhmm.split(':').map(Number);
-      const slotMins = h * 60 + m;
+    for (const s of slots.filter(s => !isCancelled(s))) {
+      const slotMins = toMins(s.hhmm);
       if (!nearest || Math.abs(slotMins - nowMins) < Math.abs(nearest.slotMins - nowMins)) {
-        nearest = { hhmm, slotMins };
+        nearest = { hhmm: s.hhmm, slotMins, instructorName: s.instructorName };
       }
     }
-    if (!nearest) return res.json({ success: false, error: 'noClassToday' });
+    const cancelledNow = slots.some(s => isCancelled(s) && inWindow(s));
+    if (!nearest) return res.json({ success: false, error: slots.length ? 'cancelled' : 'noClassToday' });
 
     const minsUntil = nearest.slotMins - nowMins;
+    if (Math.abs(minsUntil) > 30 && cancelledNow) return res.json({ success: false, error: 'cancelled' });
     if (minsUntil > 30) return res.json({ success: false, error: 'tooEarly', mins_until: minsUntil });
     if (minsUntil < -30) return res.json({ success: false, error: 'tooLate' });
 
-    // Class cancelled for today?
-    const [[cancelled]] = await dbPool.query(
-      `SELECT id FROM attendance WHERE booking_id = ? AND date = ? AND present = 0 LIMIT 1`,
-      [booking.id, todayStr]
-    );
-    if (cancelled) return res.json({ success: false, error: 'cancelled' });
-
     const [[inst]] = await dbPool.query(
       `SELECT id FROM instructors WHERE instructor_name = ? AND school_id = ? AND is_active = 1 LIMIT 1`,
-      [booking.instructor_name, req.schoolId]
+      [nearest.instructorName, req.schoolId]
     );
     if (!inst) return res.json({ success: false, error: 'instructorUnavailable' });
 
@@ -4597,11 +4652,22 @@ app.post('/api/student/notify-arrival', requireExamUser, async (req, res, next) 
 
     const h = Math.floor(nearest.slotMins / 60), m = nearest.slotMins % 60;
     const slotLabel = `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
-    await sendPushToPerson('instructor', inst.id, {
+    // If nothing reached the instructor's phone (no registered device, or
+    // Firebase rejected it), release the claim so the student can retry and
+    // tell them, instead of reporting success for a push nobody received.
+    const result = await sendPushToPerson('instructor', inst.id, {
       title: 'Student has arrived',
       body: `${booking.customer_name || 'Your student'} is waiting for the ${slotLabel} lesson.`,
       data: { screen: 'TripStart', bookingId: booking.id },
-    }).catch(err => console.error('[notify-arrival] push failed for instructor', inst.id, err.message));
+    }).catch(err => {
+      console.error('[notify-arrival] push failed for instructor', inst.id, err.message);
+      return { sent: 0 };
+    });
+    if (!result.sent) {
+      console.warn('[notify-arrival] no device reached for instructor', inst.id, 'booking', booking.id);
+      await dbPool.query(`DELETE FROM notification_log WHERE ref_key = ?`, [refKey]).catch(() => {});
+      return res.json({ success: false, error: 'instructorUnreachable' });
+    }
 
     res.json({ success: true });
   } catch (err) { next(err); }
