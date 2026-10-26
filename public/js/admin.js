@@ -1,5 +1,5 @@
 import { downloadCertificate, uploadCertificate } from "./globals/certificates.js";
-import { loadFilterBranches, filterData, attachFilterListeners } from "./globals/filters.js";
+import { loadFilterBranches, loadFilterCars, filterData, attachFilterListeners } from "./globals/filters.js";
 import { initExpiryReasonNag } from "./globals/expiryReasonNag.js";
 import { renderDashboardModule } from "./Dashboard/renderDashboardModule.js";
 import { renderExamsModule } from "./Exams/renderExamsModule.js";
@@ -8,6 +8,7 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
     await window.CommonReady;
 
     loadFilterBranches();
+    loadFilterCars();
 
     const tableWrap = document.getElementById('tableWrap');
     const searchInput = document.getElementById('searchInput');
@@ -186,11 +187,13 @@ import { renderExamsModule } from "./Exams/renderExamsModule.js";
                 const filterBranch = document.getElementById('filterBranch');
                 const filterStatus = document.getElementById('filterStatus');
                 const filterPending = document.getElementById('filterPending');
+                const filterCar = document.getElementById('filterCar');
                 const params = new URLSearchParams({ page, limit: 50 });
                 if (lastSearch) params.set('search', lastSearch);
                 if (filterBranch?.value) params.set('branch', filterBranch.value);
                 if (filterStatus?.value) params.set('status', filterStatus.value);
                 if (filterPending?.value) params.set('pending', filterPending.value);
+                if (filterCar?.value) params.set('car', filterCar.value);
 
                 const res = await window.api(`/api/bookings?${params}`);
                 if (!res.success) throw new Error(res.error || 'Failed to fetch bookings');

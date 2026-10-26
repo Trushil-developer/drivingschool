@@ -13,6 +13,25 @@ export function attachFilterListeners(tabRenderers, getCurrentTab) {
     filterBranch.addEventListener("change", rerender);
     filterStatus.addEventListener("change", rerender);
     if (filterPending) filterPending.addEventListener("change", rerender);
+    document.getElementById("filterCar")?.addEventListener("change", rerender);
+}
+
+// The same car name can exist at several branches, so the list is de-duplicated.
+export async function loadFilterCars() {
+    const filterCar = document.getElementById("filterCar");
+    if (!filterCar) return;
+
+    const res = await window.api("/api/cars");
+    const names = [...new Set((res.cars || []).map(c => (c.car_name || "").trim()).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b));
+
+    filterCar.innerHTML = `<option value="">All Cars</option>`;
+    names.forEach(name => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        filterCar.appendChild(opt);
+    });
 }
 
 export async function loadFilterBranches() {
@@ -99,6 +118,12 @@ export function filterData(tab, items, query) {
         filtered = filtered.filter(item =>
             (item.branch || "").toLowerCase() === branchSelected.toLowerCase()
         );
+    }
+
+    // ---- Car Filter ----
+    const carSelected = document.getElementById("filterCar")?.value || "";
+    if (carSelected && (tab === "bookings" || tab === "upcoming")) {
+        filtered = filtered.filter(item => (item.car_name || "").trim() === carSelected);
     }
 
     // ---- Status Filter ----

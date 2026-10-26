@@ -1267,6 +1267,7 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
     const status = (req.query.status || '').trim();
     const instructor = (req.query.instructor || '').trim();
     const pending = (req.query.pending || '').trim();
+    const car = (req.query.car || '').trim();
 
     const conditions = ['school_id = ?'];
     const params = [req.schoolId];
@@ -1279,6 +1280,7 @@ app.get('/api/bookings', requireAdmin, async (req, res, next) => {
     if (branch) { conditions.push('branch = ?'); params.push(branch); }
     if (status) { conditions.push('attendance_status = ?'); params.push(status); }
     if (instructor) { conditions.push('instructor_name = ?'); params.push(instructor); }
+    if (car) { conditions.push('TRIM(car_name) = ?'); params.push(car); }
     if (pending === 'pending') { conditions.push('(total_fees - COALESCE(advance, 0)) > 0'); }
     if (pending === 'paid') { conditions.push('(total_fees - COALESCE(advance, 0)) <= 0'); }
 
